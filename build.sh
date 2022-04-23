@@ -8,10 +8,11 @@ cp -R deb staging
 
 NODE_VERSION="$(curl -s https://nodejs.org/dist/index.json | jq -r 'map(select(.lts))[0].version')"
 
-case $(uname -m) in \
+BUILD_ARCH=${QEMU_ARCH:-x86_64}
+
+case "$BUILD_ARCH" in \
   x86_64) NODE_ARCH='x64';; \
-  armv6l) NODE_ARCH='armv6l';; \
-  armv7l) NODE_ARCH='armv6l';; \
+  arm) NODE_ARCH='armv6l';; \
   aarch64) NODE_ARCH='arm64';; \
   i386) NODE_ARCH='x86';; \
   *) echo "unsupported architecture"; exit 1 ;;

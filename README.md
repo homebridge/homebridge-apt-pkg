@@ -8,6 +8,6 @@ echo "deb https://oznu.github.io/ppa ./" | sudo tee /etc/apt/sources.list.d/home
 ```
 
 ```bash
-apt-get update
-apt-get install homebridge
+sudo apt-get update
+sudo apt-get install homebridge
 ```

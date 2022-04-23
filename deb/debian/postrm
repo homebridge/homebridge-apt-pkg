@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# stop service
+systemctl stop homebridge.service 2> /dev/null
+
+# disable systemctl service
+systemctl disable homebridge.service 2> /dev/null
+
+# remove symlink to hb-shell
+rm -rf /usr/bin/hb-shell
+
+# ensure package is completely gone
+rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package.json /var/lib/homebridge/pnpm-lock.yaml
+rm -rf /usr/lib/homebridge
+
+# if purging - delete the /var/lib/homebridge folder entirely
+if [ "$1" = "purge" ]; then
+  rm -rf /var/lib/homebridge
+  echo "Removed /var/lib/homebridge..."
+fi
+
+exit 0

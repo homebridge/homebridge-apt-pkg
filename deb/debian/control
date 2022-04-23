@@ -1,0 +1,11 @@
+Source: homebridge
+Section: test
+Priority: optional
+Maintainer: oznu
+Build-Depends: debhelper (>=9.0.0),
+               dh-systemd (>= 1.5)
+Standards-Version: 4.0.0
+
+Package: homebridge
+Architecture: any
+Description: HomeKit support for the impatient.

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# create user
+adduser --system homebridge
+
+# copy .bashrc to service user home
+cp /usr/lib/homebridge/bashrc /home/homebridge/.bashrc
+
+# fix permissions
+chown -R homebridge: /var/lib/homebridge /usr/lib/homebridge /home/homebridge/.bashrc
+
+# clear any masks on the homebridge service
+systemctl unmask homebridge.service 2> /dev/null
+
+# reload systemctl
+systemctl daemon-reload
+
+# enable systemctl service
+systemctl enable homebridge.service
+
+# start / restart homebridge
+systemctl restart homebridge.service
+
+# create symlink to hb-shell
+ln -fs /usr/lib/homebridge/hb-shell /usr/bin/hb-shell
+
+# add user to default groups if running on raspbian
+. /etc/os-release
+if [ "$ID" = "raspbian" ]; then
+  for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do
+    usermod -a -G $groupName homebridge 2> /dev/null
+  done
+fi
+
+exit 0

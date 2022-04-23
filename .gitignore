@@ -1,0 +1,10 @@
+*.tar.gz
+*.tar.xz
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+.pnpm-debug.log
+Packages
+Release
+staging/

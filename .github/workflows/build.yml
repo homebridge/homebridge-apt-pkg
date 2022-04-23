@@ -1,0 +1,66 @@
+name: "Build Packages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag'     
+        required: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        name: [
+          debian-x86_64,
+          debian-i386,
+          debian-arm32v6,
+          debian-arm64v8,
+        ]
+        include:
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:9.6-slim
+            QEMU_ARCH: x86_64
+
+          - name: debian-i386
+            os: ubuntu-latest
+            BASE_IMAGE: i386/debian:9.6-slim
+            QEMU_ARCH: i386
+
+          - name: debian-arm32v6
+            os: ubuntu-latest
+            BASE_IMAGE: balenalib/raspberry-pi-debian:stretch
+            QEMU_ARCH: arm
+
+          - name: debian-arm64v8
+            os: ubuntu-latest
+            BASE_IMAGE: arm64v8/debian:9.6-slim
+            QEMU_ARCH: aarch64
+
+    steps: 
+    - uses: actions/checkout@v1
+
+    - name: Linux - Setup Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+    - name: Linux - Build Docker Image
+      if: runner.os == 'Linux'
+      run: |
+        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
+
+    - name: Linux - Build Package
+      if: runner.os == 'Linux'
+      run: |
+        docker run --rm -v $(pwd):/repo package-build
+
+    - uses: AButler/upload-release-assets@v2.0
+      with:
+        files: '*.deb'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.event.inputs.tag }}

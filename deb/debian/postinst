@@ -1,35 +1,68 @@
 #!/bin/bash
 
-# create user
-adduser --system homebridge
+# post-upgrade only
+if [ "$1" = "configure" ] && [ $2 ]; then
+  echo "Running post-upgrade steps..."
 
-# copy .bashrc to service user home
-cp /usr/lib/homebridge/bashrc /home/homebridge/.bashrc
+  # merge old package.json with new one:
+  if [ -f /tmp/homebridge-tmp/package.json ] && [ -f /var/lib/homebridge/package.json ]; then
+    echo "Merging package.json file..."
 
-# fix permissions
-chown -R homebridge: /var/lib/homebridge /usr/lib/homebridge /home/homebridge/.bashrc
+    # enter homebridge env
+    . "/usr/lib/homebridge/source.sh"
 
-# clear any masks on the homebridge service
-systemctl unmask homebridge.service 2> /dev/null
+    # merge the new package.json into the old one, and save
+    PACKAGE_JSON=$(jq -M -s '.[0] * .[1]' /tmp/homebridge-tmp/package.json /var/lib/homebridge/package.json) > /var/lib/homebridge/package.json
+    if [ "$?" = "0" ]; then
+      echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
+    fi
 
-# reload systemctl
-systemctl daemon-reload
+    # generate a new pnpm-lock.yaml
+    cd /var/lib/homebridge
+    rm -rf /var/lib/homebridge/pnpm-lock.yaml
+    pnpm -C /var/lib/homebridge install
 
-# enable systemctl service
-systemctl enable homebridge.service
+    # remove tmp package.json
+    rm -rf /tmp/homebridge-tmp/package.json
+  fi
+fi
 
-# start / restart homebridge
-systemctl restart homebridge.service
+# post-install and post-upgrade
+if [ "$1" = "configure" ]; then
+  echo "Running post-install steps..."
 
-# create symlink to hb-shell
-ln -fs /usr/lib/homebridge/hb-shell /usr/bin/hb-shell
+  # create user
+  adduser --system homebridge 2> /dev/null
 
-# add user to default groups if running on raspbian
-. /etc/os-release
-if [ "$ID" = "raspbian" ]; then
-  for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do
-    usermod -a -G $groupName homebridge 2> /dev/null
-  done
+  # copy .bashrc to service user home
+  cp /usr/lib/homebridge/bashrc /home/homebridge/.bashrc
+
+  # fix permissions
+  chown -R homebridge: /var/lib/homebridge /usr/lib/homebridge /home/homebridge/.bashrc
+
+  # clear any masks on the homebridge service
+  systemctl unmask homebridge.service 2> /dev/null
+
+  # reload systemctl
+  systemctl daemon-reload
+
+  # enable systemctl service
+  systemctl enable homebridge.service
+
+  # start / restart homebridge
+  echo "Starting Homebridge service...."
+  systemctl restart homebridge.service
+
+  # create symlink to hb-shell
+  ln -fs /usr/lib/homebridge/hb-shell /usr/bin/hb-shell
+
+  # add user to default groups if running on raspbian
+  . /etc/os-release
+  if [ "$ID" = "raspbian" ]; then
+    for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do
+      usermod -a -G $groupName homebridge 2> /dev/null
+    done
+  fi
 fi
 
 exit 0

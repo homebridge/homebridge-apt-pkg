@@ -1,22 +1,27 @@
 #!/bin/bash
 
-# stop service
-systemctl stop homebridge.service 2> /dev/null
+# if removing - ensure app data is gone, but keep user data unless purgin
+if [ "$1" = "remove" ]; then
+  echo "Running post-remove steps..."
+  # stop service
+  systemctl stop homebridge.service 2> /dev/null
 
-# disable systemctl service
-systemctl disable homebridge.service 2> /dev/null
+  # disable systemctl service
+  systemctl disable homebridge.service 2> /dev/null
 
-# remove symlink to hb-shell
-rm -rf /usr/bin/hb-shell
+  # remove symlink to hb-shell
+  rm -rf /usr/bin/hb-shell
 
-# ensure package is completely gone
-rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package.json /var/lib/homebridge/pnpm-lock.yaml
-rm -rf /usr/lib/homebridge
+  # ensure package is completely gone
+  rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package.json /var/lib/homebridge/pnpm-lock.yaml
+  rm -rf /usr/lib/homebridge
+fi
 
 # if purging - delete the /var/lib/homebridge folder entirely
 if [ "$1" = "purge" ]; then
+  echo "Running post-purge steps..."
   rm -rf /var/lib/homebridge
-  echo "Removed /var/lib/homebridge..."
+  echo "Removed /var/lib/homebridge"
 fi
 
 exit 0

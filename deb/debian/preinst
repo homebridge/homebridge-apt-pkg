@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# before an upgrade, take a copy of the "package.json"
+if [ "$1" = "upgrade" ] && [ $2 ]; then
+  echo "Running pre-upgrade steps..."
+  mkdir -p /tmp/homebridge-tmp
+  [ -f /var/lib/homebridge/package.json ] && cp /var/lib/homebridge/package.json /tmp/homebridge-tmp/package.json
+fi
+
+exit 0

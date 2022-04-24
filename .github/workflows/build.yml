@@ -75,7 +75,7 @@ jobs:
       with:
         version: ${{ github.event.inputs.tag }}
         regex: true
-        file: "*"
+        file: "*.deb"
         target: "repo/"
         token: ${{ secrets.GITHUB_TOKEN }}
 

@@ -71,12 +71,20 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Get the release
+      id: get_release
+      uses: cardinalby/git-get-release-action@1.2.2
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        tag: 1.0.0
+
     - name: Download release assets
       uses: dsaltares/fetch-gh-release-asset@0.0.8
       with:
-        version: ${{ github.event.inputs.tag }}
+        version: ${{ steps.get_release.outputs.id }}
         regex: true
-        file: ".*\\.deb"
+        file: "homebridge.*\\.deb"
         target: "repo/"
         token: ${{ secrets.GITHUB_TOKEN }}
 

@@ -71,7 +71,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Download release assets
-      uses: dsaltares/fetch-gh-release-asse
+      uses: dsaltares/fetch-gh-release-asset@0.0.8
       with:
         version: ${{ github.event.inputs.tag }}
         regex: true

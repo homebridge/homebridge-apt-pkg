@@ -40,27 +40,45 @@ jobs:
             QEMU_ARCH: aarch64
 
     steps: 
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
 
-    - name: Linux - Setup Dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
-        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+    # - name: Linux - Setup Dependencies
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+    #     docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-    - name: Linux - Build Docker Image
-      if: runner.os == 'Linux'
-      run: |
-        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
+    # - name: Linux - Build Docker Image
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
 
-    - name: Linux - Build Package
-      if: runner.os == 'Linux'
-      run: |
-        docker run --rm -v $(pwd):/repo package-build
+    # - name: Linux - Build Package
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     docker run --rm -v $(pwd):/repo package-build
 
-    - uses: AButler/upload-release-assets@v2.0
+    # - uses: AButler/upload-release-assets@v2.0
+    #   with:
+    #     files: '*.deb'
+    #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+    #     release-tag: ${{ github.event.inputs.tag }}
+
+  update-release:
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download release assets
+      uses: dsaltares/fetch-gh-release-asse
       with:
-        files: '*.deb'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ github.event.inputs.tag }}
+        version: ${{ github.event.inputs.tag }}
+        regex: true
+        file: "*"
+        target: "repo/"
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Test
+      run: |
+        ls -la repo/

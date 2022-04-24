@@ -94,7 +94,20 @@ jobs:
       env:
         GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
 
+    - name: Build Repo
+      run: |
+        sudo chown $USER: repo/
+        cd repo
+        dpkg-scanpackages --multiversion . > Packages
+        gzip -k -f Packages
+        apt-ftparchive release . > Release
+        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
+        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
+
     - name: Test
       run: |
         pwd
         ls -la repo/
+
+    # - name: Upload files to a GitHub release
+    #   uses: svenstaro/upload-release-action@2.2.1

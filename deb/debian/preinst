@@ -1,10 +1,20 @@
 #!/bin/bash
 
-# before an upgrade, take a copy of the "package.json"
+# before an upgrade
 if [ "$1" = "upgrade" ] && [ $2 ]; then
   echo "Running pre-upgrade steps..."
   mkdir -p /tmp/homebridge-tmp
+
+  # take a copy of the existing "package.json"
+  mkdir -p /tmp/homebridge-tmp
   [ -f /var/lib/homebridge/package.json ] && cp /var/lib/homebridge/package.json /tmp/homebridge-tmp/package.json
+
+  # remove existing node_modules and lock files
+  # the postinst upgrade step will merge the new package.json with the existing one
+  # user plugins are re-installed during the postinst upgrade step
+  rm -rf /var/lib/homebridge/node_modules
+  rm -rf /var/lib/homebridge/pnpm-lock.yaml
+  rm -rf /var/lib/homebridge/package.json
 fi
 
 exit 0

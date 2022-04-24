@@ -4,6 +4,10 @@
 if [ "$1" = "configure" ] && [ $2 ]; then
   echo "Running post-upgrade steps..."
 
+  # stop homebridge
+  echo "Stopping Homebridge..."
+  systemctl stop homebridge.service 2> /dev/null
+
   # merge old package.json with new one:
   if [ -f /tmp/homebridge-tmp/package.json ] && [ -f /var/lib/homebridge/package.json ]; then
     echo "Merging package.json file..."
@@ -17,9 +21,8 @@ if [ "$1" = "configure" ] && [ $2 ]; then
       echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
     fi
 
-    # generate a new pnpm-lock.yaml
-    cd /var/lib/homebridge
-    rm -rf /var/lib/homebridge/pnpm-lock.yaml
+    # Re-install user plugins
+    echo "Re-installing user plugins, this may take a few minutes, please wait..."
     pnpm -C /var/lib/homebridge install
 
     # remove tmp package.json

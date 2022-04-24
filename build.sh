@@ -18,9 +18,11 @@ case "$BUILD_ARCH" in \
   *) echo "unsupported architecture"; exit 1 ;;
 esac
 
-[ "$NODE_ARCH" = "armv6l" -o "$NODE_ARCH" = "x86" ] && 
-  curl -SLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" || 
-  curl -SLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
+if [ ! -f  "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
+  [ "$NODE_ARCH" = "armv6l" -o "$NODE_ARCH" = "x86" ] && 
+    curl -SLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" || 
+    curl -SLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
+fi
 tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/usr/lib/homebridge/ --strip-components=1 --no-same-owner
 
 PATH="$(pwd)/staging/usr/lib/homebridge/bin:$PATH"

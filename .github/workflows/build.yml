@@ -96,4 +96,5 @@ jobs:
 
     - name: Test
       run: |
+        pwd
         ls -la repo/

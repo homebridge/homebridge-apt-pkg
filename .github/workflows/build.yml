@@ -102,15 +102,20 @@ jobs:
         dpkg-scanpackages --multiversion . > Packages
         gzip -k -f Packages
         apt-ftparchive release . > Release
-        ls -la
         gpg --list-secret-keys
-        gpg --default-key "ci@homebridge.io" -abs -o - Release > Release.gpg
-        gpg --default-key "ci@homebridge.io" --clearsign -o - Release > InRelease
+        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
+        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
 
     - name: Test
       run: |
         pwd
         ls -la repo/
 
-    # - name: Upload files to a GitHub release
-    #   uses: svenstaro/upload-release-action@2.2.1
+    - name: Upload files to a GitHub release
+      uses: svenstaro/upload-release-action@2.2.1
+        with:
+          tag: ${{ github.event.inputs.tag }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: repo/*
+          file_glob: true
+          overwrite: true

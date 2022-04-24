@@ -103,6 +103,7 @@ jobs:
         gzip -k -f Packages
         apt-ftparchive release . > Release
         ls -la
+        gpg --list-secret-keys
         gpg --default-key "ci@homebridge.io" -abs -o - Release > Release.gpg
         gpg --default-key "ci@homebridge.io" --clearsign -o - Release > InRelease
 

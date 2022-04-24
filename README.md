@@ -16,8 +16,8 @@ Supported architectures:
 Add package source:
 
 ```bash
-curl -s --compressed "https://oznu.github.io/ppa/KEY.gpg" | sudo apt-key add -
-echo "deb https://oznu.github.io/ppa ./" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+curl -sfL --compressed "https://homebridge-repo.oz.nu/KEY.gpg" | sudo apt-key add -
+echo "deb https://homebridge-repo.oz.nu ./" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
 ```
 
 Update and install:
@@ -112,4 +112,11 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- accessories
   |-- persist
   |-- config.json
+```
+
+## Deploying New Versions
+
+```
+cd deb
+dch -v 1.0.1 --controlmaint "Example Release Notes"
 ```

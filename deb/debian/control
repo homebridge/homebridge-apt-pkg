@@ -1,7 +1,7 @@
 Source: homebridge
 Section: test
 Priority: optional
-Maintainer: oznu
+Maintainer: oznu <dev@oz.nu>
 Build-Depends: debhelper (>=9.0.0),
                dh-systemd (>= 1.5)
 Standards-Version: 4.0.0
@@ -9,4 +9,4 @@ Standards-Version: 4.0.0
 Package: homebridge
 Pre-Depends: libc6 (>= 2.24)
 Architecture: any
-Description: HomeKit support for the impatien.
+Description: HomeKit support for the impatient.

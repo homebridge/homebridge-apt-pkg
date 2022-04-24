@@ -97,14 +97,14 @@ jobs:
     - name: Build Repo
       run: |
         export GPG_TTY=$(tty)
-        sudo chown $USER: repo/
+        sudo chown -R $USER: repo/
         cd repo
         dpkg-scanpackages --multiversion . > Packages
         gzip -k -f Packages
         apt-ftparchive release . > Release
         ls -la
-        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
-        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
+        gpg --default-key "ci@homebridge.io" -abs -o - Release > Release.gpg
+        gpg --default-key "ci@homebridge.io" --clearsign -o - Release > InRelease
 
     - name: Test
       run: |

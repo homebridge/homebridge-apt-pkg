@@ -113,9 +113,9 @@ jobs:
 
     - name: Upload files to a GitHub release
       uses: svenstaro/upload-release-action@2.2.1
-        with:
-          tag: ${{ github.event.inputs.tag }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: repo/*
-          file_glob: true
-          overwrite: true
+      with:
+        tag: ${{ github.event.inputs.tag }}
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: repo/*
+        file_glob: true
+        overwrite: true

@@ -96,7 +96,6 @@ jobs:
 
     - name: Build Repo
       run: |
-        export GPG_TTY=$(tty)
         sudo chown -R $USER: repo/
         cd repo
         dpkg-scanpackages --multiversion . > Packages

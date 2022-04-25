@@ -16,7 +16,6 @@ on:
 jobs:
   purge_old_releases:
     name: Purge Old Releases
-    needs: build
     runs-on: ubuntu-latest
     
     steps:

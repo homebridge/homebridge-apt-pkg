@@ -1,0 +1,55 @@
+name: "Purge Old Releases"
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_version:
+        description: 'Enter minimum version to keep (x.x.x):'     
+        required: true
+      release_type:
+        type: choice
+        description: Release Type
+        options: 
+        - stable
+        - test
+
+jobs:
+  purge_old_releases:
+    name: Purge Old Releases
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Import GPG key
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@v4
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+        passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      
+    - name: Install deb-s3
+      run: |
+        curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.3/deb-s3-0.11.3.gem
+        sudo gem install deb-s3-0.11.3.gem
+
+    - name: Purge from S3
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        MIN_VERSION: ${{ github.event.inputs.min_version }}
+        RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+        S3_BUCKET: homebridge-repo
+        S3_REGION: us-west-2
+      run: ./purge.sh
+
+    - name: Update Repo
+      run: |
+        deb-s3 verify \
+          --s3-region=us-west-2 \
+          --bucket homebridge-repo \
+          --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --sign=${{ secrets.GPG_KEY_ID }} \
+          --fix-manifests

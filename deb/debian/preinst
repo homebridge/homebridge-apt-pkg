@@ -1,5 +1,25 @@
 #!/bin/bash
 
+# before install
+if [ "$1" = "install" ]; then
+  echo "Running pre-install steps..."
+
+  # check for existing homebridge.service 
+  if [ -f /etc/systemd/system/homebridge.service ]; then
+    # stop homebridge.service if it is running
+    if systemctl is-active --quiet homebridge.service; then
+      echo "Stopping existing Homebridge service..."
+      systemctl stop homebridge
+    fi
+
+    # disable and remove the old homebridge.service
+    echo "Removing existing Homebridge service..."
+    systemctl disable homebridge.service
+    rm -rf /etc/systemd/system/homebridge.service
+    systemctl daemon-reload
+  fi
+fi
+
 # before an upgrade
 if [ "$1" = "upgrade" ] && [ $2 ]; then
   echo "Running pre-upgrade steps..."

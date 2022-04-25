@@ -1,5 +1,5 @@
-homebridge (1.0.2) UNRELEASED; urgency=medium
+homebridge (1.0.0) UNRELEASED; urgency=medium
 
-  * Initial implementation
+  * Automated Release
 
- -- oznu <dev@oz.nu>  Sun, 24 Apr 2022 06:55:47 +0000
+ -- oznu <dev@oz.nu>  Mon, 25 Apr 2022 05:56:38 +0000

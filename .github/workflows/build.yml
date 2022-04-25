@@ -82,7 +82,7 @@ jobs:
     - name: Linux - Build Package
       if: runner.os == 'Linux'
       run: |
-        docker run --rm -v $(pwd):/repo package-build
+        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ github.event.inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ github.event.inputs.version }}" package-build
 
     - uses: AButler/upload-release-assets@v2.0
       with:

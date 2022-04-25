@@ -3,6 +3,15 @@
 set -e
 set -x
 
+if [[ ! -z ${PKG_RELEASE_TYPE+z} ]] && [[ ! -z ${PKG_RELEASE_VERSION+z} ]]; then
+  if [ "$PKG_RELEASE_TYPE" != "stable" ]; then
+    PKG_RELEASE_TYPE="UNRELEASED"
+  fi
+  cd deb
+    dch -b -v $PKG_RELEASE_VERSION --controlmaint "Automated Release" --distribution "$PKG_RELEASE_TYPE"
+  cd ../
+fi
+
 rm -rf staging
 cp -R deb staging
 

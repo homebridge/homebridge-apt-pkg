@@ -46,6 +46,7 @@ jobs:
     - name: Update Repo
       run: |
         deb-s3 verify \
+          --codename=${{ github.event.inputs.release_type }} \
           --s3-region=us-west-2 \
           --bucket homebridge-repo \
           --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \

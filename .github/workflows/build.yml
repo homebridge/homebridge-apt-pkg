@@ -3,12 +3,37 @@ name: "Build Packages"
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag'     
+      version:
+        description: 'Version / Tag (x.x.x):'     
         required: true
+      release_type:
+        type: choice
+        description: Release Type
+        options: 
+        - stable
+        - test
 
 jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: ${{ github.event.inputs.version }}
+          prerelease: false
+
   build:
+    name: Build Packages
+    needs: release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -42,30 +67,31 @@ jobs:
     steps: 
     - uses: actions/checkout@v3
 
-    # - name: Linux - Setup Dependencies
-    #   if: runner.os == 'Linux'
-    #   run: |
-    #     sudo apt-get update
-    #     sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
-    #     docker run --rm --privileged multiarch/qemu-user-static:register --reset
+    - name: Linux - Setup Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-    # - name: Linux - Build Docker Image
-    #   if: runner.os == 'Linux'
-    #   run: |
-    #     docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
+    - name: Linux - Build Docker Image
+      if: runner.os == 'Linux'
+      run: |
+        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
 
-    # - name: Linux - Build Package
-    #   if: runner.os == 'Linux'
-    #   run: |
-    #     docker run --rm -v $(pwd):/repo package-build
+    - name: Linux - Build Package
+      if: runner.os == 'Linux'
+      run: |
+        docker run --rm -v $(pwd):/repo package-build
 
-    # - uses: AButler/upload-release-assets@v2.0
-    #   with:
-    #     files: '*.deb'
-    #     repo-token: ${{ secrets.GITHUB_TOKEN }}
-    #     release-tag: ${{ github.event.inputs.tag }}
+    - uses: AButler/upload-release-assets@v2.0
+      with:
+        files: '*.deb'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.event.inputs.version }}
 
-  update-release:
+  update-apt-repo:
+    name: Publish to Repo
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -77,7 +103,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        tag: ${{ github.event.inputs.tag }}
+        tag: ${{ github.event.inputs.version }}
 
     - name: Download release assets
       uses: dsaltares/fetch-gh-release-asset@0.0.8
@@ -104,7 +130,7 @@ jobs:
       run: |
         sudo chown -R $USER: repo/
         deb-s3 upload \
-          --codename=stable \
+          --codename=${{ github.event.inputs.release_type }} \
           --preserve-versions \
           --s3-region=us-west-2 \
           --bucket homebridge-repo \
@@ -112,28 +138,3 @@ jobs:
           --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           --sign=${{ secrets.GPG_KEY_ID }} \
           repo/*.deb
-
-    # - name: Build Repo
-    #   run: |
-    #     sudo chown -R $USER: repo/
-    #     cd repo
-    #     dpkg-scanpackages --multiversion . > Packages
-    #     gzip -k -f Packages
-    #     apt-ftparchive release . > Release
-    #     gpg --list-secret-keys
-    #     gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
-    #     gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
-
-    - name: Test
-      run: |
-        pwd
-        ls -la repo/
-
-    # - name: Upload files to a GitHub release
-    #   uses: svenstaro/upload-release-action@2.2.1
-    #   with:
-    #     tag: ${{ github.event.inputs.tag }}
-    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-    #     file: repo/*
-    #     file_glob: true
-    #     overwrite: true

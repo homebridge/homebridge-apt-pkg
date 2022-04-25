@@ -16,8 +16,15 @@ Supported architectures:
 Add package source:
 
 ```bash
-curl -sfL --compressed "https://homebridge-repo.oz.nu/KEY.gpg" | sudo apt-key add -
-echo "deb https://homebridge-repo.oz.nu ./" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+# make sure the tools needed to add the repo exist
+sudo apt-get update
+sudo apt-get install -y curl gpg
+
+# add they homebridge gpg key
+curl -sfL https://homebridge-repo.s3.us-west-2.amazonaws.com/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
+
+# all the homebridge repo
+echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://homebridge-repo.s3.us-west-2.amazonaws.com /" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
 ```
 
 Update and install:

@@ -42,28 +42,28 @@ jobs:
     steps: 
     - uses: actions/checkout@v3
 
-    - name: Linux - Setup Dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
-        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+    # - name: Linux - Setup Dependencies
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+    #     docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-    - name: Linux - Build Docker Image
-      if: runner.os == 'Linux'
-      run: |
-        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
+    # - name: Linux - Build Docker Image
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
 
-    - name: Linux - Build Package
-      if: runner.os == 'Linux'
-      run: |
-        docker run --rm -v $(pwd):/repo package-build
+    # - name: Linux - Build Package
+    #   if: runner.os == 'Linux'
+    #   run: |
+    #     docker run --rm -v $(pwd):/repo package-build
 
-    - uses: AButler/upload-release-assets@v2.0
-      with:
-        files: '*.deb'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ github.event.inputs.tag }}
+    # - uses: AButler/upload-release-assets@v2.0
+    #   with:
+    #     files: '*.deb'
+    #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+    #     release-tag: ${{ github.event.inputs.tag }}
 
   update-release:
     needs: build
@@ -95,27 +95,43 @@ jobs:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
         passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-    - name: Build Repo
+    - name: Install deb-s3
+      run: |
+        curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.3/deb-s3-0.11.3.gem
+        gem install deb-s3-0.11.3.gem
+
+    - name: Update Repo
       run: |
         sudo chown -R $USER: repo/
-        cd repo
-        dpkg-scanpackages --multiversion . > Packages
-        gzip -k -f Packages
-        apt-ftparchive release . > Release
-        gpg --list-secret-keys
-        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
-        gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
+        deb-s3 upload \
+          --s3-region=us-west-2 \
+          --bucket homebridge-repo \
+          --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --sign={{ secrets.GPG_KEY_ID }} \
+          repo/*.deb
+
+    # - name: Build Repo
+    #   run: |
+    #     sudo chown -R $USER: repo/
+    #     cd repo
+    #     dpkg-scanpackages --multiversion . > Packages
+    #     gzip -k -f Packages
+    #     apt-ftparchive release . > Release
+    #     gpg --list-secret-keys
+    #     gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" -abs -o - Release > Release.gpg
+    #     gpg --default-key "${{ secrets.GPG_SIGNING_EMAIL }}" --clearsign -o - Release > InRelease
 
     - name: Test
       run: |
         pwd
         ls -la repo/
 
-    - name: Upload files to a GitHub release
-      uses: svenstaro/upload-release-action@2.2.1
-      with:
-        tag: ${{ github.event.inputs.tag }}
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: repo/*
-        file_glob: true
-        overwrite: true
+    # - name: Upload files to a GitHub release
+    #   uses: svenstaro/upload-release-action@2.2.1
+    #   with:
+    #     tag: ${{ github.event.inputs.tag }}
+    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
+    #     file: repo/*
+    #     file_glob: true
+    #     overwrite: true

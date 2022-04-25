@@ -24,7 +24,7 @@ sudo apt-get install -y curl gpg
 curl -sfL https://homebridge-repo.s3.us-west-2.amazonaws.com/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
 
 # all the homebridge repo
-echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://homebridge-repo.s3.us-west-2.amazonaws.com /" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://homebridge-repo.s3.us-west-2.amazonaws.com stable main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
 ```
 
 Update and install:

@@ -104,6 +104,8 @@ jobs:
       run: |
         sudo chown -R $USER: repo/
         deb-s3 upload \
+          --codename=stable \
+          --preserve-versions \
           --s3-region=us-west-2 \
           --bucket homebridge-repo \
           --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \

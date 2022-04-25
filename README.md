@@ -106,7 +106,7 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- start.sh
 
 # "hb-shell" command to allow user access to the Homebridge env from the cli
-/usr/bin
+/usr/local/bin
   |-- hb-shell -> /opt/homebridge/hb-shell
 
 # homebridge storage directory, plugins are stored in node_modules

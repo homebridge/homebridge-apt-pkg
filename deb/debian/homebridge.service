@@ -6,7 +6,9 @@ After=syslog.target network-online.target
 [Service]
 Type=simple
 User=homebridge
+PermissionsStartOnly=true
 WorkingDirectory=/var/lib/homebridge
+ExecStartPre=-/bin/run-parts /etc/hb-service/homebridge/prestart.d
 ExecStart=/opt/homebridge/start.sh
 Restart=always
 RestartSec=3

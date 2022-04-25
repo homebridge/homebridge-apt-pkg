@@ -18,6 +18,11 @@ if [ "$1" = "install" ]; then
     rm -rf /etc/systemd/system/homebridge.service
     systemctl daemon-reload
   fi
+
+  # remove the hb-service generated fix-permission pre-start script
+  if [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
+    rm -rf /etc/hb-service/homebridge/prestart.d/10-fix-permissions
+  fi
 fi
 
 # before an upgrade

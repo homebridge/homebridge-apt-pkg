@@ -32,10 +32,10 @@ if [ ! -f  "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
     curl -SLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" || 
     curl -SLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
 fi
-tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/usr/lib/homebridge/ --strip-components=1 --no-same-owner
+tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ --strip-components=1 --no-same-owner
 
-PATH="$(pwd)/staging/usr/lib/homebridge/bin:$PATH"
-export npm_config_prefix=$(pwd)/staging/usr/lib/homebridge
+PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
+export npm_config_prefix=$(pwd)/staging/opt/homebridge
 export npm_config_store_dir=/var/lib/homebridge/node_modules/.pnpm-store
 
 npm install -g pnpm

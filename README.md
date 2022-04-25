@@ -81,9 +81,9 @@ The bundled Node.js runtime is isolated and not exposed on the default PATH.
 To assist in debugging, a shell command `hb-shell` is added to the default PATH to allow the user to enter the Homebridge Shell Environment. When in the Homebridge Shell, users will have access to `node` and `pnpm` as they would expect.
 
 ```shell
-# Node.js and package scripts are stored in /usr/lib/homebridge
+# Node.js and package scripts are stored in /opt/homebridge
 
-/usr/lib/homebridge
+/opt/homebridge
   |-- bin
   |   |-- corepack
   |   |-- node
@@ -107,7 +107,7 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
 
 # "hb-shell" command to allow user access to the Homebridge env from the cli
 /usr/bin
-  |-- hb-shell -> /usr/lib/homebridge/hb-shell
+  |-- hb-shell -> /opt/homebridge/hb-shell
 
 # homebridge storage directory, plugins are stored in node_modules
 /var/lib/homebridge

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# bashrc file for the hb-shell command
-
-source "/usr/lib/homebridge/source.sh"
-source "/usr/lib/homebridge/bashrc"

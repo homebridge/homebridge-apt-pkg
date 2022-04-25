@@ -1,10 +1,10 @@
 #!/bin/sh
 
 HB_SERVICE_STORAGE_PATH="/var/lib/homebridge"
-HB_SERVICE_NODE_EXEC_PATH="/usr/lib/homebridge/bin/node"
+HB_SERVICE_NODE_EXEC_PATH="/opt/homebridge/bin/node"
 HB_SERVICE_EXEC_PATH="$HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x/dist/bin/hb-service.js"
 
-. "/usr/lib/homebridge/source.sh"
+. "/opt/homebridge/source.sh"
 
 # check for missing homebridge-config-ui-x
 if [ ! -f "$HB_SERVICE_EXEC_PATH" ]; then

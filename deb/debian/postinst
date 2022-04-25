@@ -15,7 +15,7 @@ if [ "$1" = "configure" ] && [ $2 ]; then
     echo "Merging package.json file..."
 
     # enter homebridge env
-    . "/usr/lib/homebridge/source.sh"
+    . "/opt/homebridge/source.sh"
 
     # merge the new package.json into the old one, and save
     PACKAGE_JSON=$(jq -M -s '.[0] * .[1]' /tmp/homebridge-tmp/package.json /var/lib/homebridge/package.json) > /var/lib/homebridge/package.json
@@ -40,10 +40,10 @@ if [ "$1" = "configure" ]; then
   adduser --system homebridge 2> /dev/null
 
   # copy .bashrc to service user home
-  cp /usr/lib/homebridge/bashrc /home/homebridge/.bashrc
+  cp /opt/homebridge/bashrc /home/homebridge/.bashrc
 
   # fix permissions
-  chown -R homebridge: /var/lib/homebridge /usr/lib/homebridge /home/homebridge/.bashrc
+  chown -R homebridge: /var/lib/homebridge /opt/homebridge /home/homebridge/.bashrc
 
   # clear any masks on the homebridge service
   systemctl unmask homebridge.service 2> /dev/null
@@ -59,7 +59,7 @@ if [ "$1" = "configure" ]; then
   systemctl restart homebridge.service
 
   # create symlink to hb-shell
-  ln -fs /usr/lib/homebridge/hb-shell /usr/bin/hb-shell
+  ln -fs /opt/homebridge/hb-shell /usr/local/bin/hb-shell
 
   # add user to default groups if running on raspbian
   . /etc/os-release

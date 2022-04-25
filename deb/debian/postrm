@@ -10,11 +10,11 @@ if [ "$1" = "remove" ]; then
   systemctl disable homebridge.service 2> /dev/null
 
   # remove symlink to hb-shell
-  rm -rf /usr/bin/hb-shell
+  rm -rf /usr/local/bin/hb-shell
 
   # ensure package is completely gone
   rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package.json /var/lib/homebridge/pnpm-lock.yaml
-  rm -rf /usr/lib/homebridge
+  rm -rf /opt/homebridge
 fi
 
 # if purging - delete the /var/lib/homebridge folder entirely

@@ -4,10 +4,10 @@ Wants=network-online.target
 After=syslog.target network-online.target
 
 [Service]
-User=homebridge
 Type=simple
+User=homebridge
 WorkingDirectory=/var/lib/homebridge
-ExecStart=/usr/lib/homebridge/start.sh
+ExecStart=/opt/homebridge/start.sh
 Restart=always
 RestartSec=3
 KillMode=process

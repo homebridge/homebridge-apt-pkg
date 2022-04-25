@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# This script is to purge the s3 of older versions
+# This script is to purge s3 of older package versions
 #
 
 # minimum version to keep
@@ -58,6 +58,5 @@ for i in $(aws s3api list-objects --region $S3_REGION --bucket "$S3_BUCKET" --pr
     key=$(echo "$i" | tr -d '"')
     echo "Removing ($version) from s3 at $key"
     aws s3api delete-object --region $S3_REGION --bucket "$S3_BUCKET" --key="$key"  --output=json
-    echo $?
   fi
 done

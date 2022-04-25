@@ -9,4 +9,4 @@ printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
 
 cd "/var/lib/homebridge"
 
-exec sudo --user homebridge bash --rcfile /usr/lib/homebridge/bashrc-hb-shell
+exec sudo --user homebridge bash --rcfile /opt/homebridge/bashrc-hb-shell

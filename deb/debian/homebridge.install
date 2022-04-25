@@ -1,2 +1,2 @@
 var/lib/homebridge var/lib
-usr/lib/homebridge usr/lib
+opt/homebridge opt

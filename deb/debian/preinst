@@ -9,7 +9,7 @@ if [ "$1" = "install" ]; then
     # stop homebridge.service if it is running
     if systemctl is-active --quiet homebridge.service; then
       echo "Stopping existing Homebridge service..."
-      systemctl stop homebridge
+      systemctl stop homebridge.service
     fi
 
     # disable and remove the old homebridge.service
@@ -23,7 +23,12 @@ fi
 # before an upgrade
 if [ "$1" = "upgrade" ] && [ $2 ]; then
   echo "Running pre-upgrade steps..."
-  mkdir -p /tmp/homebridge-tmp
+
+  # stop homebridge.service if it is running
+  if systemctl is-active --quiet homebridge.service; then
+    echo "Stopping Homebridge service..."
+    systemctl stop homebridge.service 2> /dev/null
+  fi
 
   # take a copy of the existing "package.json"
   mkdir -p /tmp/homebridge-tmp

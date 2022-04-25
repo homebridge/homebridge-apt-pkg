@@ -4,9 +4,11 @@
 if [ "$1" = "configure" ] && [ $2 ]; then
   echo "Running post-upgrade steps..."
 
-  # stop homebridge
-  echo "Stopping Homebridge..."
-  systemctl stop homebridge.service 2> /dev/null
+  # stop homebridge.service if it is running
+  if systemctl is-active --quiet homebridge.service; then
+    echo "Stopping Homebridge service..."
+    systemctl stop homebridge.service 2> /dev/null
+  fi
 
   # merge old package.json with new one:
   if [ -f /tmp/homebridge-tmp/package.json ] && [ -f /var/lib/homebridge/package.json ]; then

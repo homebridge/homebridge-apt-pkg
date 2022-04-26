@@ -127,13 +127,6 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
 
 ## Packaging Notes
 
-Command to create a new changelog entry:
-
-```
-cd deb
-dch -v 1.0.1 --controlmaint "Example Release Notes"
-```
-
 Package scripts workflow (preinst, postinst, postrm etc.):
 
 https://wiki.debian.org/MaintainerScripts

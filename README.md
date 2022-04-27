@@ -149,6 +149,12 @@ sudo systemctl restart homebridge
 
 You can use this method to override any of the homebridge.service settings.
 
+To revert any changes run:
+
+```
+systemctl revert homebridge
+```
+
 ## Packaging Notes
 
 Package scripts workflow (preinst, postinst, postrm etc.):

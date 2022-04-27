@@ -5,8 +5,27 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
-
+# change to working directory
 cd "/var/lib/homebridge"
 
-exec sudo --user homebridge bash --rcfile /opt/homebridge/bashrc-hb-shell
+# default shell user
+SHELL_USER=homebridge
+
+# if a systemd override is in place, check which user the shell should run as
+if [ -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
+  OVERRIDE_USER=$(cat /etc/systemd/system/homebridge.service.d/override.conf | grep '^[[:blank:]]*[^[:blank:]#;]' | awk /User=/ | awk -F "=" '{print $2}' | xargs)
+  if [ ${#OVERRIDE_USER} -gt 0 ]; then
+    # check if user exists
+    getent passwd $OVERRIDE_USER > /dev/null
+    if [ "$?" -eq 0 ]; then
+      SHELL_USER=$OVERRIDE_USER
+      echo "User: $OVERRIDE_USER (/etc/systemd/system/homebridge.service.d/override.conf)"
+    else
+      echo "ERROR: User '$OVERRIDE_USER' as defined in /etc/systemd/system/homebridge.service.d/override.conf does not exist on the system!"
+    fi
+  fi
+fi
+
+printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
+
+exec sudo --user "$SHELL_USER" bash --rcfile /opt/homebridge/bashrc-hb-shell

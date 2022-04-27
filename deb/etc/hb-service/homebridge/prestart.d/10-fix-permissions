@@ -2,7 +2,7 @@
 
 # Ensure the storage path permissions are correct
 if [ -n "$USER" ] && [ "$USER" != "root" ]; then
-  echo "Ensuring /var/lib/homebridge is owned by $USER"
+  echo "Ensuring /var/lib/homebridge and /opt/homebridge are owned by $USER"
   [ -d /var/lib/homebridge ] || mkdir -p /var/lib/homebridge
-  chown -R $USER: /var/lib/homebridge
+  chown -R $USER: /var/lib/homebridge /opt/homebridge
 fi

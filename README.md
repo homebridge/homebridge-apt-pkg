@@ -122,6 +122,32 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- persist
   |-- config.json
 ```
+## Changing Service User
+
+This package will create a service user called `homebridge`.
+
+If you want to run the service as another user, you can create a systemd override for the Homebridge service. Users should not edit the service file included with the package as any changes made here will be overwritten during updates.
+
+Use systemctl to create and override file at `/etc/systemd/system/homebridge.service.d/override.conf`:
+
+```
+sudo systemctl edit homebridge
+```
+
+Add the contents:
+
+```
+[Service]
+User=pi # replace with the user you want to run the service as
+```
+
+Save the file and restart Homebridge:
+
+```
+sudo systemctl restart homebridge
+```
+
+You can use this method to override any of the homebridge.service settings.
 
 ## Packaging Notes
 

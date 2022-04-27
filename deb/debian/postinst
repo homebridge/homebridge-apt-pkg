@@ -42,8 +42,8 @@ if [ "$1" = "configure" ]; then
   # copy .bashrc to service user home
   cp /opt/homebridge/bashrc /home/homebridge/.bashrc
 
-  # fix permissions
-  chown -R homebridge: /var/lib/homebridge /opt/homebridge /home/homebridge/.bashrc
+  # fix permissions on homebridge user home
+  chown -R homebridge: /home/homebridge/.bashrc
 
   # clear any masks on the homebridge service
   systemctl unmask homebridge.service 2> /dev/null
@@ -68,6 +68,28 @@ if [ "$1" = "configure" ]; then
       usermod -a -G $groupName homebridge 2> /dev/null
     done
   fi
+fi
+
+# post-install only
+if [ "$1" = "configure" ] && [ -z $2 ]; then
+  IP=$(hostname -I)
+
+  echo ""
+  echo "Homebridge Installation Complete!"
+  echo "You can access the Homebridge UI via:"
+  echo ""
+
+  for ip in $IP; do
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "* http://$ip:8581"
+    else
+      echo "* http://[$ip]:8581"
+    fi
+  done
+
+  echo ""
+  echo "Thanks for installing Homebridge!"
+  echo ""
 fi
 
 exit 0

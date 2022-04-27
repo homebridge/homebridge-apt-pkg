@@ -133,7 +133,7 @@ jobs:
           --codename=${{ github.event.inputs.release_type }} \
           --preserve-versions \
           --s3-region=us-west-2 \
-          --bucket homebridge-repo \
+          --bucket repo.homebridge.io \
           --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           --sign=${{ secrets.GPG_KEY_ID }} \

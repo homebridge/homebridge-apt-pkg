@@ -11,7 +11,7 @@
 # RELEASE_TYPE=stable
 
 # bucket name
-# S3_BUCKET=homebridge-repo
+# S3_BUCKET=repo.homebridge.io
 
 # region
 # S3_REGION=us-west-2

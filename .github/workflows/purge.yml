@@ -39,7 +39,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         MIN_VERSION: ${{ github.event.inputs.min_version }}
         RELEASE_TYPE: ${{ github.event.inputs.release_type }}
-        S3_BUCKET: homebridge-repo
+        S3_BUCKET: repo.homebridge.io
         S3_REGION: us-west-2
       run: ./purge.sh
 
@@ -48,7 +48,7 @@ jobs:
         deb-s3 verify \
           --codename=${{ github.event.inputs.release_type }} \
           --s3-region=us-west-2 \
-          --bucket homebridge-repo \
+          --bucket repo.homebridge.io \
           --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           --sign=${{ secrets.GPG_KEY_ID }} \

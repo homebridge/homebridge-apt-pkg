@@ -15,8 +15,6 @@ Supported architectures:
 
 ## Using APT
 
-> The apt source in the instructions below is temporary and will change to "repo.homebridge.io" before this project leaves the testing phase.
-
 Add package source:
 
 ```bash
@@ -25,10 +23,10 @@ sudo apt-get update
 sudo apt-get install -y curl gpg
 
 # add they homebridge gpg key
-curl -sfL https://homebridge-repo.s3.us-west-2.amazonaws.com/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
+curl -sfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
 
-# all the homebridge repo
-echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://homebridge-repo.s3.us-west-2.amazonaws.com stable main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+# add the homebridge repo
+echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io stable main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
 ```
 
 Update and install:

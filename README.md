@@ -152,7 +152,7 @@ You can use this method to override any of the homebridge.service settings.
 To revert any changes run:
 
 ```
-systemctl revert homebridge
+sudo systemctl revert homebridge
 ```
 
 ## Packaging Notes

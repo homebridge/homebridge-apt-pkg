@@ -13,8 +13,44 @@ if [ "$1" = "install" ]; then
     exit 1
   fi
 
+  # remove the hb-service generated fix-permission pre-start script
+  if [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
+    rm -rf /etc/hb-service/homebridge/prestart.d/10-fix-permissions
+  fi
+
   # check for existing homebridge.service 
   if [ -f /etc/systemd/system/homebridge.service ]; then
+
+    # try and get a list of the installed plugins and create a temporary package.json that will be used to install them again in the new location
+    if [ ! -f /var/lib/homebridge/package.json ] && [ -f /var/lib/homebridge/config.json ] && [ -f /var/lib/homebridge/.uix-secrets ]; then
+      if systemctl is-active --quiet homebridge.service; then
+        # get the ui port
+        ui_port=$(cat /var/lib/homebridge/config.json | jq -rM '.platforms[] | select(.platform == "config") | .port' 2> /dev/null)
+        # generate a jwt for the http request
+        secret=$(cat /var/lib/homebridge/.uix-secrets | jq '.secretKey' | tr -d '"')
+        header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
+        payload=$(echo -n '{"username":"homebridge-apt-pkg","name":"homebridge-apt-pkg","admin":true,"instanceId":"xxxxxxxx"}' | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
+        signature=$(echo -n "${header}.${payload}"| openssl dgst -sha256 -hmac $secret -binary | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
+        token="${header}.${payload}.${signature}"
+        # get the list of installed plugins from the running instance of the Homebridge UI
+        output=$(curl -sfk -H "Authorization: bearer ${token}" http://localhost:${ui_port}/api/plugins 2> /dev/null)
+        if [ "$?" = "0" ]; then
+          # build a package.json like format containing the list of plugins the user has installed
+          dependencies=$(echo $output | jq -rM '. | map({(.name) : .installedVersion }) | add | del(."homebridge-config-ui-x") | del(."homebridge")')
+          packageJson=$(jq ".dependencies += $dependencies" <<< '{ "dependencies": {} }')
+          if [ "$?" = "0" ]; then
+            pluginCount=$(echo $dependencies | jq length)
+            if [ $pluginCount -gt 0 ]; then
+              # save the package.json file to a temp file which will be picked up in the postinst script
+              mkdir -p /tmp/homebridge-tmp
+              echo $packageJson > /tmp/homebridge-tmp/package.json
+              echo "${pluginCount} plugin(s) will be re-installed after installation is complete."
+            fi
+          fi
+        fi
+      fi
+    fi
+
     # stop homebridge.service if it is running
     if systemctl is-active --quiet homebridge.service; then
       echo "Stopping existing Homebridge service..."
@@ -28,10 +64,6 @@ if [ "$1" = "install" ]; then
     systemctl daemon-reload
   fi
 
-  # remove the hb-service generated fix-permission pre-start script
-  if [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
-    rm -rf /etc/hb-service/homebridge/prestart.d/10-fix-permissions
-  fi
 fi
 
 # before an upgrade

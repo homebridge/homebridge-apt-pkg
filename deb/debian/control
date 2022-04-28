@@ -7,6 +7,6 @@ Build-Depends: debhelper (>=9.0.0),
 Standards-Version: 4.0.0
 
 Package: homebridge
-Pre-Depends: libc6 (>= 2.24), jq (>= 1.4)
+Pre-Depends: libc6 (>= 2.24), jq (>= 1.4), openssl
 Architecture: any
 Description: HomeKit support for the impatient.

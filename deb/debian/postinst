@@ -73,6 +73,15 @@ fi
 # post-install only
 if [ "$1" = "configure" ] && [ -z $2 ]; then
   IP=$(hostname -I)
+  PORT=8581
+
+  # check to see if an alternate port is defined in the config
+  if [ -f /var/lib/homebridge/config.json ]; then
+    PORT_FROM_CONFIG=$(cat /var/lib/homebridge/config.json | jq '.platforms[] | select(.platform | contains("config")) | .port' 2> /dev/null)
+    if [ ${#PORT_FROM_CONFIG} -gt 0 ]; then
+      PORT=$PORT_FROM_CONFIG
+    fi
+  fi
 
   echo ""
   echo "Homebridge Installation Complete!"
@@ -81,9 +90,9 @@ if [ "$1" = "configure" ] && [ -z $2 ]; then
 
   for ip in $IP; do
     if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      echo "* http://$ip:8581"
+      echo "* http://$ip:$PORT"
     else
-      echo "* http://[$ip]:8581"
+      echo "* http://[$ip]:$PORT"
     fi
   done
 

@@ -4,7 +4,6 @@ nodeBin="/opt/homebridge/bin"
 HB_SERVICE_STORAGE_PATH="/var/lib/homebridge"
 
 export PATH="$nodeBin:$HB_SERVICE_STORAGE_PATH/node_modules/.bin:$PATH"
-export PYTHON=/usr/bin/python3.8
 
 export npm_config_global_style=true
 export npm_config_audit=false

@@ -149,7 +149,7 @@ For example, to change the user the service runs as:
 User=pi    # replace with the user you want to run the service as
 ```
 
-Add additional startup flags to Homebridge:
+Or to add additional startup flags to Homebridge:
 
 ```bash
 [Service]

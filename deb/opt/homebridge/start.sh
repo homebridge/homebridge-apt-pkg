@@ -6,16 +6,30 @@ HB_SERVICE_EXEC_PATH="$HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui
 
 . "/opt/homebridge/source.sh"
 
+cd $HB_SERVICE_STORAGE_PATH
+
+# check for invalid package.json file
+if [ -e $HB_SERVICE_STORAGE_PATH/package.json ]; then
+  jq empty $HB_SERVICE_STORAGE_PATH/package.json 2>/dev/null
+  if [ "$?" != 0 ]; then
+    echo "ERROR: $HB_SERVICE_STORAGE_PATH/package.json is not a valid JSON file; deleting..."
+    rm -rf $HB_SERVICE_STORAGE_PATH/package.json
+    rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge
+    rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x
+  fi
+fi
+
 # check for missing homebridge-config-ui-x
 if [ ! -f "$HB_SERVICE_EXEC_PATH" ]; then
-  cd $HB_SERVICE_STORAGE_PATH
-  pnpm install homebridge-config-ui-x@latest
+  echo "Re-installing homebridge-config-ui-x..."
+  pnpm -C $HB_SERVICE_STORAGE_PATH install --save homebridge-config-ui-x@latest
 fi
 
 # check for missing homebridge
 if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; then
   cd $HB_SERVICE_STORAGE_PATH
-  pnpm install homebridge@latest
+  echo "Re-installing homebridge..."
+  pnpm -C $HB_SERVICE_STORAGE_PATH install --save homebridge@latest
 fi
 
 exec $HB_SERVICE_NODE_EXEC_PATH $HB_SERVICE_EXEC_PATH run -I -U $HB_SERVICE_STORAGE_PATH -P $HB_SERVICE_STORAGE_PATH/node_modules --strict-plugin-resolution "$@"

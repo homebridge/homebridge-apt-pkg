@@ -46,7 +46,7 @@ rm -rf /var/lib/homebridge/pnpm-lock.yaml
 
 mkdir -p /var/lib/homebridge
 
-pnpm install -C /var/lib/homebridge homebridge@1.4.1-beta.4 homebridge-config-ui-x@4.43.2-test.10
+pnpm install -C /var/lib/homebridge homebridge@latest homebridge-config-ui-x@latest
 
 mkdir -p $(pwd)/staging/var/lib/homebridge
 cp -R /var/lib/homebridge/node_modules $(pwd)/staging/var/lib/homebridge/node_modules

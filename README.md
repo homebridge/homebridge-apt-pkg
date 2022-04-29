@@ -140,7 +140,7 @@ Use systemctl to create and override file at `/etc/systemd/system/homebridge.ser
 sudo systemctl edit homebridge
 ```
 
-Add the contents, you should only add the settings you want to change.
+Add the config items you want to override. **You should only add the settings you want to change.**
 
 For example, to change the user the service runs as:
 

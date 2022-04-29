@@ -59,6 +59,7 @@ if [ "$1" = "configure" ]; then
     done
   fi
 
+  # on install only
   # if running on Offical Homebridge Raspberry Pi, run as the "pi" user instead
   if [ -z $2 ] && [ "$ID" = "raspbian" ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
     getent passwd pi > /dev/null
@@ -85,6 +86,12 @@ if [ "$1" = "configure" ]; then
 
   # create symlink to hb-shell
   ln -fs /opt/homebridge/hb-shell /usr/local/bin/hb-shell
+
+  # create symlink to hb-service-shim
+  ln -fs /opt/homebridge/hb-service-shim /usr/local/bin/hb-service
+
+  # remove symlinks create by npm for global hb-service installs
+  rm -rf /usr/bin/hb-service
 fi
 
 # post-install only

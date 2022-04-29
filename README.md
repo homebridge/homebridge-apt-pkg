@@ -122,28 +122,44 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- persist
   |-- config.json
 ```
-## Changing Service User
+## Customising the Systemd Service File
 
-This package will create a service user called `homebridge`.
+You should not edit the service file included with the package as any changes made here will be overwritten during updates.
 
-If you want to run the service as another user, you can create a systemd override for the Homebridge service. Users should not edit the service file included with the package as any changes made here will be overwritten during updates.
+You should use a systemd override file to make any changes.
+
+To preview the current unit file run:
+
+```s
+cat /lib/systemd/system/homebridge.service
+```
 
 Use systemctl to create and override file at `/etc/systemd/system/homebridge.service.d/override.conf`:
 
-```
+```s
 sudo systemctl edit homebridge
 ```
 
-Add the contents:
+Add the contents, you should only add the settings you want to change.
 
-```
+For example, to change the user the service runs as:
+
+```s
 [Service]
-User=pi # replace with the user you want to run the service as
+User=pi    # replace with the user you want to run the service as
+```
+
+Add additional startup flags to Homebridge:
+
+```s
+[Service]
+ExecStart=                               # a blank ExecStart is required to override
+ExecStart=/opt/homebridge/start.sh -T    # disable timestamps
 ```
 
 Save the file and restart Homebridge:
 
-```
+```s
 sudo systemctl restart homebridge
 ```
 
@@ -151,7 +167,7 @@ You can use this method to override any of the homebridge.service settings.
 
 To revert any changes run:
 
-```
+```s
 sudo systemctl revert homebridge
 ```
 

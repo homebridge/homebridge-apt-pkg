@@ -12,8 +12,11 @@ if [ "$1" = "remove" ]; then
   # remove symlink to hb-shell
   rm -rf /usr/local/bin/hb-shell
 
+  # remove symlink to hb-service-shim
+  rm -rf /usr/local/bin/hb-service
+
   # ensure package is completely gone
-  rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package.json /var/lib/homebridge/pnpm-lock.yaml
+  rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /opt/homebridge
 fi
 

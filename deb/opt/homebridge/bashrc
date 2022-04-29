@@ -10,4 +10,4 @@ printf "${GREEN}Homebridge Terminal${NC}\n"
 printf "${CYAN}Note: This is a restricted shell, sudo and npm cannot be used here.${NC}\n\n"
 
 alias sudo='echo "ERROR: sudo / root access is not allowed by the homebridge service account. You can use \"su <username>\" to swap to your local user account. " # '
-alias npm='echo "ERROR: npm not available here. Use pnpm instead, eg: pnpm" '
+alias npm='echo "ERROR: npm not available here. Use hb-service add|remove instead, eg: hb-service add homebridge-dummy" # '

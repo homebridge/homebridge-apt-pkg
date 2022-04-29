@@ -1,0 +1,130 @@
+#!/bin/bash
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "This command must be executed as root or with sudo."
+  exit 1
+fi
+
+# default shell user
+SHELL_USER=homebridge
+SHELL_USER_HOME=/home/homebridge
+
+function check_shell_user_override {
+  # if a systemd override is in place, check which user the shell should run as
+  if [ -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
+    OVERRIDE_USER=$(cat /etc/systemd/system/homebridge.service.d/override.conf | grep '^[[:blank:]]*[^[:blank:]#;]' | awk /User=/ | awk -F "=" '{print $2}' | xargs)
+    if [ ${#OVERRIDE_USER} -gt 0 ]; then
+      # check if user exists
+      getent passwd $OVERRIDE_USER > /dev/null
+      if [ "$?" -eq 0 ]; then
+        SHELL_USER=$OVERRIDE_USER
+      else
+        echo "ERROR: User '$OVERRIDE_USER' as defined in /etc/systemd/system/homebridge.service.d/override.conf does not exist on the system!"
+      fi
+    fi
+  fi
+
+  # set the shell user's home directory
+  SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
+}
+
+# default port
+PORT=8581
+
+function check_port_override {
+  if [ -f /var/lib/homebridge/config.json ]; then
+    PORT_FROM_CONFIG=$(cat /var/lib/homebridge/config.json | jq '.platforms[] | select(.platform == "config") | .port' 2> /dev/null)
+    if [ ${#PORT_FROM_CONFIG} -gt 0 ]; then
+      PORT=$PORT_FROM_CONFIG
+    fi
+  fi
+}
+
+case "$1" in
+  "start")
+    echo "Starting Homebridge..."
+    systemctl start homebridge.service
+    ;;
+
+  "stop")
+    echo "Stopping Homebridge..."
+    systemctl stop homebridge.service
+    ;;
+
+  "restart")
+    echo "Restarting Homebridge..."
+    systemctl restart homebridge.service
+    ;;
+
+  "update-node")
+    check_shell_user_override
+    hb_cmd="hb-service $@"
+    cd /var/lib/homebridge
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    ;;
+
+  "rebuild")
+    check_shell_user_override
+    hb_cmd="hb-service $@"
+    cd /var/lib/homebridge
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    ;;
+
+  "status")
+    check_shell_user_override
+    check_port_override
+    hb_cmd="hb-service status --port $PORT"
+    cd /var/lib/homebridge
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    ;;
+
+  "add")
+    check_shell_user_override
+    pnpm_cmd="pnpm -C /var/lib/homebridge $@"
+    cd /var/lib/homebridge
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$pnpm_cmd"
+    ;;
+
+  "remove")
+    check_shell_user_override
+    pnpm_cmd="pnpm -C /var/lib/homebridge $@"
+    cd /var/lib/homebridge
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$pnpm_cmd"
+    ;;
+
+  "logs")
+    exec tail -n 100 -f /var/lib/homebridge/homebridge.log
+    ;;
+
+  "shell")
+    exec /opt/homebridge/hb-shell
+    ;;
+
+  "install")
+    echo "The 'hb-service install' command is not available when Homebridge is running as a system package."
+    ;;
+
+  "uninstall")
+    echo "The 'hb-service uninstall' command is not available when Homebridge is running as a system package."
+    ;;
+
+  *)
+    printf '%s\n' \
+      "Usage: hb-service [start|stop|restart|logs|status|update-node]"   \
+      ""   \
+      "This hb-service command is provided by Homebridge APT Package" \
+      "" \
+      "Please provide a command:" \
+      "    start                            start the homebridge service" \
+      "    stop                             stop the homebridge service" \
+      "    restart                          restart the homebridge service" \
+      "    add <plugin>@<version>           install a plugin" \
+      "    remove <plugin>@<version>        remove a plugin" \
+      "    update-node [version]            update Node.js" \
+      "    logs                             tails the homebridge service logs" \
+      "    status                           check if the Homebridge UI web server is running" \
+      "    shell                            open the Homebridge Terminal" \
+      "" \
+      "See the wiki for help with hb-service: https://homebridge.io/w/JTtHK"
+    ;;
+esac

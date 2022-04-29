@@ -26,6 +26,9 @@ if [ -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
   fi
 fi
 
+# get the shell user's home directory
+SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
+
 printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
 
-exec sudo --user "$SHELL_USER" bash --rcfile /opt/homebridge/bashrc-hb-shell
+exec sudo --user "$SHELL_USER" env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/bashrc-hb-shell

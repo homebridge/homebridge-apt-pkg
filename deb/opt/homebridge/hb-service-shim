@@ -102,10 +102,12 @@ case "$1" in
 
   "install")
     echo "The 'hb-service install' command is not available when Homebridge is running as a system package."
+    exit 1
     ;;
 
   "uninstall")
     echo "The 'hb-service uninstall' command is not available when Homebridge is running as a system package."
+    exit 1
     ;;
 
   *)

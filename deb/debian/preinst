@@ -13,14 +13,13 @@ if [ "$1" = "install" ]; then
     exit 1
   fi
 
-  # remove the hb-service generated fix-permission pre-start script
-  if [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
+  # remove the hb-service generated fix-permission pre-start script (fresh install only!)
+  if [ -z $2 ] && [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
     rm -rf /etc/hb-service/homebridge/prestart.d/10-fix-permissions
   fi
 
   # check for existing homebridge.service 
   if [ -f /etc/systemd/system/homebridge.service ]; then
-
     # try and get a list of the installed plugins and create a temporary package.json that will be used to install them again in the new location
     if [ ! -f /var/lib/homebridge/package.json ] && [ -f /var/lib/homebridge/config.json ] && [ -f /var/lib/homebridge/.uix-secrets ]; then
       if systemctl is-active --quiet homebridge.service; then

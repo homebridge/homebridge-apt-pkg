@@ -163,8 +163,6 @@ Save the file and restart Homebridge:
 sudo systemctl restart homebridge
 ```
 
-You can use this method to override any of the homebridge.service settings.
-
 To revert any changes run:
 
 ```bash

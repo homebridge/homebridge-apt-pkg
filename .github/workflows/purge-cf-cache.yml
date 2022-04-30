@@ -1,3 +1,5 @@
+name: "Purge Cloudflare Cache"
+
 on:
   workflow_dispatch:
   workflow_call:

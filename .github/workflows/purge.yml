@@ -55,6 +55,7 @@ jobs:
           --fix-manifests
 
   purge_cloudflare_cache:
+    name: Clear Cache
     uses: ./.github/workflows/purge-cf-cache.yml
     needs: purge_old_releases
     secrets:

@@ -1,7 +1,5 @@
 # Debian Package For Homebridge
 
-**This project is currently a work in progress. Use at your own risk.**
-
 This project builds and publishes a debian-based package that can be installed using `apt` on Ubuntu / Debian / Raspberry Pi OS based Linux systems.
 
 The project aims to deploy Homebridge and the Homebridge UI in a secure and stable way, with no dependencies outside those available in the standard distribution repos. It comes bundled with it's own Node.js runtime and runs Homebridge in an isolated environment as a service user with no sudo / admin priviledges.
@@ -46,12 +44,6 @@ Purge (this will delete `/var/lib/homebridge`):
 
 ```
 sudo apt-get purge homebridge
-```
-
-You might want to remove the ppa after testing as this is only temporary:
-
-```
-rm -rf /etc/apt/sources.list.d/homebridge.list
 ```
 
 ## Manual Install

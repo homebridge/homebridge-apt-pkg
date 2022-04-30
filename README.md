@@ -126,7 +126,7 @@ To preview the current unit file run:
 cat /lib/systemd/system/homebridge.service
 ```
 
-Use systemctl to create and override file at `/etc/systemd/system/homebridge.service.d/override.conf`:
+Use systemctl to create an override file at `/etc/systemd/system/homebridge.service.d/override.conf`:
 
 ```bash
 sudo systemctl edit homebridge

@@ -54,4 +54,4 @@ jobs:
           --sign=${{ secrets.GPG_KEY_ID }} \
           --fix-manifests
 
-    - uses: ./.github/workflows/purge-cf-cache.yml
+    - uses: ./.github/workflows/purge-cf-cache

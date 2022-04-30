@@ -3,6 +3,11 @@ name: "Purge Cloudflare Cache"
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ZONE_ID:
+        required: true
 
 jobs:
   purge_cloudflare_cache:

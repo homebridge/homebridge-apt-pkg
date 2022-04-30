@@ -1,0 +1,17 @@
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  purge_cloudflare_cache:
+    name: Purge Cloudflare Cache
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Purge Cloudflare Cache
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      run: ./purge-cf-cache.sh

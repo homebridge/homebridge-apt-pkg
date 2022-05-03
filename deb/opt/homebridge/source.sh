@@ -1,9 +1,9 @@
 #!/bin/sh
 
-nodeBin="/opt/homebridge/bin"
+NODE_BIN_PATH="/opt/homebridge/bin"
 HB_SERVICE_STORAGE_PATH="/var/lib/homebridge"
 
-export PATH="$nodeBin:$HB_SERVICE_STORAGE_PATH/node_modules/.bin:$PATH"
+export PATH="$NODE_BIN_PATH:$HB_SERVICE_STORAGE_PATH/node_modules/.bin:$PATH"
 
 export npm_config_global_style=true
 export npm_config_audit=false

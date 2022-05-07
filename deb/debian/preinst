@@ -31,9 +31,19 @@ if [ "$1" = "install" ]; then
         payload=$(echo -n '{"username":"homebridge-apt-pkg","name":"homebridge-apt-pkg","admin":true,"instanceId":"xxxxxxxx"}' | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
         signature=$(echo -n "${header}.${payload}"| openssl dgst -sha256 -hmac $secret -binary | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
         token="${header}.${payload}.${signature}"
+        
         # get the list of installed plugins from the running instance of the Homebridge UI
-        output=$(curl -sfk -H "Authorization: bearer ${token}" http://localhost:${ui_port}/api/plugins 2> /dev/null)
-        if [ "$?" = "0" ]; then
+        output=""
+        getPluginStatus="fail"
+        for protocol in "http" "https"; do
+          output=$(curl -sfk -H "Authorization: bearer ${token}" $protocol://localhost:${ui_port}/api/plugins 2> /dev/null)
+          if [ "$?" = "0" ]; then
+            getPluginStatus="success"
+            break
+          fi
+        done
+
+        if [ "$getPluginStatus" = "success" ]; then
           # build a package.json like format containing the list of plugins the user has installed
           dependencies=$(echo $output | jq -rM '. | map({(.name) : .installedVersion }) | add | del(."homebridge-config-ui-x") | del(."homebridge")')
           packageJson=$(jq ".dependencies += $dependencies" <<< '{ "dependencies": {} }')

@@ -20,7 +20,7 @@ Add package source:
 sudo apt-get update
 sudo apt-get install -y curl gpg
 
-# add they homebridge gpg key
+# add the homebridge gpg key
 curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
 
 # add the homebridge repo

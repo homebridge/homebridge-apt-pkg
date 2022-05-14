@@ -53,7 +53,7 @@ if [ "$1" = "configure" ]; then
   . /etc/os-release
 
   # add user to default groups if running on raspbian
-  if [ "$ID" = "raspbian" ]; then
+  if [ -f /usr/bin/raspi-config ]; then
     for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do
       usermod -a -G $groupName homebridge 2> /dev/null
     done
@@ -61,7 +61,7 @@ if [ "$1" = "configure" ]; then
 
   # on install only
   # if running on Offical Homebridge Raspberry Pi, run as the "pi" user instead
-  if [ -z $2 ] && [ "$ID" = "raspbian" ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
+  if [ -z $2 ] && [ -f /usr/bin/raspi-config ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
     getent passwd pi > /dev/null
     if [ "$?" -eq 0 ]; then
       mkdir -p /etc/systemd/system/homebridge.service.d

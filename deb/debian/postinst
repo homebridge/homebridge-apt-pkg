@@ -49,9 +49,6 @@ if [ "$1" = "configure" ]; then
   # fix permissions on homebridge user home
   chown -R homebridge: /home/homebridge/.bashrc
 
-  # source /etc/os-release to get OS ID
-  . /etc/os-release
-
   # add user to default groups if running on raspbian
   if [ -f /usr/bin/raspi-config ]; then
     for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do

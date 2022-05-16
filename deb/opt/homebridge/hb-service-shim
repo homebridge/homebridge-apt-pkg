@@ -17,7 +17,7 @@ function check_shell_user_override {
       # check if user exists
       getent passwd $OVERRIDE_USER > /dev/null
       if [ "$?" -eq 0 ]; then
-        SHELL_USER=$OVERRIDE_USER
+        SHELL_USER=$(id -nu $OVERRIDE_USER)
       else
         echo "ERROR: User '$OVERRIDE_USER' as defined in /etc/systemd/system/homebridge.service.d/override.conf does not exist on the system!"
       fi

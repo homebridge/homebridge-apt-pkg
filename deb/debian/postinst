@@ -108,10 +108,14 @@ if [ "$1" = "configure" ] && [ -z $2 ]; then
   # create ufw firewall rules
   if [ -e "/usr/sbin/ufw" ]; then
     if ufw status 2> /dev/null | head -n 1 | grep -qw "active"; then
-      ufw allow $PORT/tcp > /dev/null
       echo ""
-      echo "Added local firewall rule to allow inbound traffic on port $PORT/tcp."
-      echo "Run \"ufw status\" to view all active firewall rules."
+      ufw allow $PORT/tcp > /dev/null
+      if [ "$?" = "0" ]; then
+        echo "Added local firewall rule to allow inbound traffic on port $PORT/tcp."
+        echo "Run \"ufw status\" to view all active firewall rules."
+      else
+        echo "You may need to create a firewall rule to allow access to port $PORT/tcp before you can access the Homebridge UI."
+      fi
       echo "You may need to create additional firewall rules to allow HomeKit access to the main Homebridge port and any Child Bridge ports."
     fi
   fi

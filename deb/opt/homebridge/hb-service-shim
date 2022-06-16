@@ -121,7 +121,7 @@ case "$1" in
 
     if [ -e "$target_link" ]; then
       if [ "$(realpath $target_link)" = "$target_dir" ]; then
-         echo "Error: $package_name is already linked. Run 'hb-service unlink'"
+         echo "Error: $package_name is already linked."
          exit 1
       fi
     fi
@@ -192,7 +192,6 @@ case "$1" in
       "    remove <plugin>@<version>        remove a plugin" \
       "    link                             adds the current directory to Homebridge for plugin development" \
       "    unlink                           reverses the link operation for the current directory" \
-      "    remove <plugin>@<version>        remove a plugin" \
       "    update-node [version]            update Node.js" \
       "    logs                             tails the homebridge service logs" \
       "    status                           check if the Homebridge UI web server is running" \

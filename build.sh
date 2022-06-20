@@ -39,9 +39,18 @@ export npm_config_prefix=$(pwd)/staging/opt/homebridge
 
 npm install --location=global pnpm homebridge-config-ui-x@4.48.0-test.3
 
+rm -rf /var/lib/homebridge/node_modules
+rm -rf /var/lib/homebridge/package.json
+rm -rf /var/lib/homebridge/pnpm-lock.yaml
+
+mkdir -p /var/lib/homebridge
+
+pnpm install -C /var/lib/homebridge homebridge@latest
+
 mkdir -p $(pwd)/staging/var/lib/homebridge
-HOMEBRIDGE_VERSION="$(curl -sf https://registry.npmjs.org/homebridge/latest | jq -r '.version')"
-echo "{ \"dependencies\": { \"homebridge\": \"$HOMEBRIDGE_VERSION\" }}" | jq . > $(pwd)/staging/var/lib/homebridge/package.json
+cp -R /var/lib/homebridge/node_modules $(pwd)/staging/var/lib/homebridge/node_modules
+cp /var/lib/homebridge/package.json $(pwd)/staging/var/lib/homebridge/package.json
+cp /var/lib/homebridge/pnpm-lock.yaml $(pwd)/staging/var/lib/homebridge/pnpm-lock.yaml
 
 cd staging
 dpkg-buildpackage -us -uc

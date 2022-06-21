@@ -37,7 +37,7 @@ tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ 
 PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
 export npm_config_prefix=$(pwd)/staging/opt/homebridge
 
-npm install --location=global pnpm homebridge-config-ui-x@4.48.0-test.3
+npm install --location=global pnpm homebridge-config-ui-x@4.48.0-test.9
 
 rm -rf /var/lib/homebridge/node_modules
 rm -rf /var/lib/homebridge/package.json

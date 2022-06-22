@@ -8,9 +8,9 @@ NC='\033[0m'
 PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w \$\[\033[00m\] "
 
 if id -nG "$USER" | grep -qw "sudo"; then
-  printf "${CYAN}Note: This is a restricted shell, npm cannot be used here.${NC}\n\n"
+  printf "${CYAN}Note: This is a restricted shell.${NC}\n\n"
 else
-  printf "${CYAN}Note: This is a restricted shell, sudo and npm cannot be used here.${NC}\n\n"
+  printf "${CYAN}Note: This is a restricted shell, sudo cannot be used here.${NC}\n\n"
   alias sudo='echo "ERROR: sudo / root access is not allowed by the homebridge service account. You can use \"su <username>\" to swap to your local user account. " # '
 fi
 
@@ -24,5 +24,3 @@ printf "${BOLD}Update Node.js:${NC} ${GREEN}hb-service update-node${NC}\n\n"
 
 printf "${BOLD}Install Plugin:${NC} ${GREEN}hb-service add homebridge-plugin-name${NC}\n"
 printf "${BOLD}Remove Plugin:${NC} ${GREEN}hb-service remove homebridge-plugin-name${NC}\n\n"
-
-alias npm='echo "ERROR: npm not available here. Use hb-service add|remove instead, eg: hb-service add homebridge-dummy" # '

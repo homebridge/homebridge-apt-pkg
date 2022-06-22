@@ -29,7 +29,7 @@ if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /va
   # Re-install user plugins
   echo "Re-installing user plugins, this may take a few minutes, please wait..."
   echo ""
-  pnpm -C /var/lib/homebridge install
+  npm --prefix /var/lib/homebridge install
   echo ""
 
   # remove tmp package.json
@@ -41,7 +41,7 @@ if [ "$1" = "configure" ]; then
   echo "Running post-install steps..."
 
   # create user
-  adduser --system homebridge 2> /dev/null
+  adduser --system --group homebridge 2> /dev/null
 
   # copy .bashrc to service user home
   cp /opt/homebridge/bashrc /home/homebridge/.bashrc

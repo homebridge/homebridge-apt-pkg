@@ -72,24 +72,20 @@ This package contains a self-contained Node.js installation and environment for 
 
 The bundled Node.js runtime is isolated and not exposed on the default PATH.
 
-To assist in debugging, a shell command `hb-shell` is added to the default PATH to allow the user to enter the Homebridge Shell Environment. When in the Homebridge Shell, users will have access to `node` and `pnpm` as they would expect.
+To assist in debugging, a shell command `hb-shell` is added to the default PATH to allow the user to enter the Homebridge Shell Environment. When in the Homebridge Shell, users will have access to `node` and `npm` as they would expect.
 
 ```shell
 # Node.js and package scripts are stored in /opt/homebridge
 
 /opt/homebridge
   |-- bin
-  |   |-- corepack
   |   |-- node
   |   |-- npm 
   |   |-- npx
-  |   |-- pnpm
-  |   |-- pnpx
   |-- lib
   |   |-- node_modules
   |       |-- npm
-  |       |-- pnpm
-  |       |-- corepack
+  |       |-- homebridge-config-ui-x
   |-- bashrc
   |-- bashrc-hb-shell
   |-- CHANGELOG.md
@@ -107,7 +103,6 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
 /var/lib/homebridge
   |-- node_modules
   |   |-- homebridge
-  |   |-- homebridge-config-ui-x
   |   |-- homebridge-dummy
   |   |-- homebridge-hue
   |-- accessories

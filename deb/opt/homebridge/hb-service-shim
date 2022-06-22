@@ -80,16 +80,16 @@ case "$1" in
 
   "add")
     check_shell_user_override
-    pnpm_cmd="pnpm -C /var/lib/homebridge $@"
+    npm_cmd="npm --prefix /var/lib/homebridge $@"
     cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$pnpm_cmd"
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
     ;;
 
   "remove")
     check_shell_user_override
-    pnpm_cmd="pnpm -C /var/lib/homebridge $@"
+    npm_cmd="npm --prefix /var/lib/homebridge $@"
     cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$pnpm_cmd"
+    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
     ;;
 
   "link")

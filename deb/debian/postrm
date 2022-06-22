@@ -16,7 +16,7 @@ if [ "$1" = "remove" ]; then
   rm -rf /usr/local/bin/hb-service
 
   # ensure package is completely gone
-  rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/pnpm-lock.yaml
+  rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package-lock.json /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /opt/homebridge
 fi
 

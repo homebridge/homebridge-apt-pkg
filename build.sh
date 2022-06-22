@@ -35,22 +35,19 @@ fi
 tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ --strip-components=1 --no-same-owner
 
 PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
+
 export npm_config_prefix=$(pwd)/staging/opt/homebridge
+export npm_config_global_style=true
+export npm_config_audit=false
+export npm_config_fund=false
+export npm_config_update_notifier=false
+export npm_config_auto_install_peers=true
+export npm_config_loglevel=error
 
-npm install --location=global pnpm homebridge-config-ui-x@4.48.0-test.9
-
-rm -rf /var/lib/homebridge/node_modules
-rm -rf /var/lib/homebridge/package.json
-rm -rf /var/lib/homebridge/pnpm-lock.yaml
-
-mkdir -p /var/lib/homebridge
-
-pnpm install -C /var/lib/homebridge homebridge@latest
+npm install --location=global homebridge-config-ui-x@4.48.0-test.14
 
 mkdir -p $(pwd)/staging/var/lib/homebridge
-cp -R /var/lib/homebridge/node_modules $(pwd)/staging/var/lib/homebridge/node_modules
-cp /var/lib/homebridge/package.json $(pwd)/staging/var/lib/homebridge/package.json
-cp /var/lib/homebridge/pnpm-lock.yaml $(pwd)/staging/var/lib/homebridge/pnpm-lock.yaml
+npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge@beta
 
 cd staging
 dpkg-buildpackage -us -uc

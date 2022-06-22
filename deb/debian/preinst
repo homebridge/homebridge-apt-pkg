@@ -102,6 +102,7 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
   # the postinst upgrade step will merge the new package.json with the existing one
   # user plugins are re-installed during the postinst upgrade step
   rm -rf /var/lib/homebridge/node_modules
+  rm -rf /var/lib/homebridge/package-lock.json
   rm -rf /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /var/lib/homebridge/package.json
 fi

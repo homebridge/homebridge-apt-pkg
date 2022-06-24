@@ -44,10 +44,10 @@ export npm_config_update_notifier=false
 export npm_config_auto_install_peers=true
 export npm_config_loglevel=error
 
-npm install --location=global homebridge-config-ui-x@4.48.0-test.14
+npm install --location=global homebridge-config-ui-x@latest
 
 mkdir -p $(pwd)/staging/var/lib/homebridge
-npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge@beta
+npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge@latest
 
 cd staging
 dpkg-buildpackage -us -uc

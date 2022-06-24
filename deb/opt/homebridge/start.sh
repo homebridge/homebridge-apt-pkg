@@ -29,7 +29,6 @@ fi
 
 # remove homebridge-config-ui-x package from the plugins store
 if [ -e "/var/lib/homebridge/node_modules/homebridge-config-ui-x" ]; then
-  npm --prefix $HB_SERVICE_STORAGE_PATH uninstall homebridge-config-ui-x
   rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x
 fi
 

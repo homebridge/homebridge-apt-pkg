@@ -26,6 +26,17 @@ if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /va
     echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
   fi
 
+  # remove homebridge-config-ui-x from the package.json
+  if [ -e /var/lib/homebridge/package.json ]; then
+    if [ "$(cat /var/lib/homebridge/package.json | jq -r '.dependencies."homebridge-config-ui-x"')" != "null" ]; then
+      packageJson="$(cat /var/lib/homebridge/package.json | jq -rM 'del(."dependencies"."homebridge-config-ui-x")')"
+      if [ "$?" = "0" ]; then
+        printf "$packageJson" > /var/lib/homebridge/package.json
+        echo "Removed homebridge-config-ui-x from package.json"
+      fi
+    fi
+  fi
+
   # Re-install user plugins
   echo "Re-installing user plugins, this may take a few minutes, please wait..."
   echo ""

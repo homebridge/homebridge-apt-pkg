@@ -105,6 +105,7 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
   rm -rf /var/lib/homebridge/package-lock.json
   rm -rf /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /var/lib/homebridge/package.json
+  rm -rf /var/lib/homebridge/.npmrc
 fi
 
 echo "Unpacking may take several minutes on low powered devices."

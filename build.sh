@@ -46,7 +46,6 @@ export npm_config_loglevel=error
 
 npm install --location=global homebridge-config-ui-x@latest
 
-mkdir -p $(pwd)/staging/var/lib/homebridge
 npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge@latest
 
 cd staging

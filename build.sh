@@ -38,6 +38,7 @@ PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
 
 export npm_config_prefix=$(pwd)/staging/opt/homebridge
 export npm_config_global_style=true
+export npm_config_package_lock=false
 export npm_config_audit=false
 export npm_config_fund=false
 export npm_config_update_notifier=false

@@ -140,8 +140,18 @@ Or to add additional startup flags to Homebridge:
 
 ```bash
 [Service]
-ExecStart=                               # a blank ExecStart is required to override
-ExecStart=/opt/homebridge/start.sh -T    # disable timestamps
+ExecStart=
+ExecStart=/opt/homebridge/start.sh -T
+```
+
+Or to run as root, and allow the UI to shutdown/restart the host:
+
+```
+[Service]
+User=root
+ExecStart=
+ExecStart=/opt/homebridge/start.sh --allow-root
+Environment="UIX_CAN_SHUTDOWN_RESTART_HOST=1"
 ```
 
 Save the file and restart Homebridge:

@@ -20,6 +20,11 @@ if [ -e $HB_SERVICE_STORAGE_PATH/package.json ]; then
   fi
 fi
 
+# remove the package-lock.json
+if [ -e /var/lib/homebridge/package-lock.json ]; then
+  rm -rf /var/lib/homebridge/package-lock.json
+fi
+
 # check for missing homebridge
 if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; then
   cd $HB_SERVICE_STORAGE_PATH

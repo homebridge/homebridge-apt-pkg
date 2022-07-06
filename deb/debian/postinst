@@ -26,6 +26,11 @@ if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /va
     echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
   fi
 
+  # remove the package-lock.json
+  if [ -e /var/lib/homebridge/package-lock.json ]; then
+    rm -rf /var/lib/homebridge/package-lock.json
+  fi
+
   # remove homebridge-config-ui-x from the package.json
   if [ -e /var/lib/homebridge/package.json ]; then
     if [ "$(cat /var/lib/homebridge/package.json | jq -r '.dependencies."homebridge-config-ui-x"')" != "null" ]; then

@@ -43,9 +43,10 @@ if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /va
   fi
 
   # Re-install user plugins
-  echo "Re-installing user plugins, this may take a few minutes, please wait..."
+  echo "Refreshing user plugins, this may take a few minutes, please wait..."
   echo ""
   npm --prefix /var/lib/homebridge install
+  npm --prefix /var/lib/homebridge rebuild
   echo ""
 
   # remove tmp package.json

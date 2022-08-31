@@ -16,5 +16,4 @@ KillMode=process
 AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
-Alias=homebridge
 WantedBy=multi-user.target

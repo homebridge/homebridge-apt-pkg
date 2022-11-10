@@ -49,10 +49,10 @@ jobs:
             BASE_IMAGE: library/debian:bullseye
             QEMU_ARCH: x86_64
 
-          - name: debian-i386
-            os: ubuntu-latest
-            BASE_IMAGE: i386/debian:bullseye
-            QEMU_ARCH: i386
+          # - name: debian-i386
+          #   os: ubuntu-latest
+          #   BASE_IMAGE: i386/debian:bullseye
+          #   QEMU_ARCH: i386
 
           - name: debian-arm32v6
             os: ubuntu-latest

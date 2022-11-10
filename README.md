@@ -7,7 +7,6 @@ The project aims to deploy Homebridge and the Homebridge UI in a secure and stab
 Supported architectures:
 
 * x86_64
-* i386
 * armhf (armv6 / armv7)
 * aarch64 (arm64)
 

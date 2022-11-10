@@ -1,0 +1,4 @@
+[Homebridge ManageService]
+Identity=unix-group:homebridge
+Action=org.freedesktop.resolve1.register-service;org.freedesktop.resolve1.unregister-service
+ResultAny=yes

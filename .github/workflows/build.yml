@@ -39,7 +39,6 @@ jobs:
       matrix:
         name: [
           debian-x86_64,
-          debian-i386,
           debian-arm32v6,
           debian-arm64v8,
         ]
@@ -48,11 +47,6 @@ jobs:
             os: ubuntu-latest
             BASE_IMAGE: library/debian:bullseye
             QEMU_ARCH: x86_64
-
-          # - name: debian-i386
-          #   os: ubuntu-latest
-          #   BASE_IMAGE: i386/debian:bullseye
-          #   QEMU_ARCH: i386
 
           - name: debian-arm32v6
             os: ubuntu-latest

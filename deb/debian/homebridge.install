@@ -1,4 +1,5 @@
 var/lib/homebridge var/lib
 var/lib/polkit-1/localauthority/10-vendor.d/homebridge.pkla var/lib/polkit-1/localauthority/10-vendor.d
+usr/share/polkit-1/rules.d/homebridge.rules usr/share/polkit-1/rules.d
 opt/homebridge opt
 etc/hb-service etc

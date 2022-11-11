@@ -60,6 +60,12 @@ if [ "$1" = "configure" ]; then
   # create user
   adduser --system --group homebridge 2> /dev/null
 
+  # some old versions didn't create the homebridge group
+  if ! getent group homebridge > /dev/null; then
+    addgroup --system homebridge 2> /dev/null
+    usermod -g homebridge homebridge 2> /dev/null
+  fi
+
   # copy .bashrc to service user home
   cp /opt/homebridge/bashrc /home/homebridge/.bashrc
 

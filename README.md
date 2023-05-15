@@ -47,7 +47,7 @@ sudo apt-get purge homebridge
 
 ## Manual Install
 
-Download the correct file for your system from https://github.com/oznu/deb-pkg-homebridge/releases/latest
+Download the correct file for your system from https://github.com/homebridge/homebridge-apt-pkg/releases/latest
 
 ```
 dpkg -i homebridge_x.x.x_xxxx.deb
@@ -173,7 +173,7 @@ https://wiki.debian.org/MaintainerScripts
 
 ## License
 
-Copyright (C) 2022 oznu
+Copyright (C) 2023 oznu
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

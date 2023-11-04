@@ -58,7 +58,7 @@ if [ "$1" = "configure" ]; then
   echo "Running post-install steps..."
 
   # create user
-  adduser --system --group homebridge 2> /dev/null
+  adduser --system --group homebridge --home /home/homebridge 2> /dev/null
 
   # some old versions didn't create the homebridge group
   if ! getent group homebridge > /dev/null; then

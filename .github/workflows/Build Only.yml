@@ -1,0 +1,85 @@
+name: "Build Only, and update release assests"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version / Tag (x.x.x):'     
+        required: true
+      release_type:
+        type: choice
+        description: Release Type
+        options: 
+        - stable
+        - test
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: ${{ github.event.inputs.version }}
+          prerelease: false
+
+  build:
+    name: Build Packages
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        name: [
+          debian-x86_64,
+          debian-arm32v6,
+          debian-arm64v8,
+        ]
+        include:
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:bullseye
+            QEMU_ARCH: x86_64
+
+          - name: debian-arm32v6
+            os: ubuntu-latest
+            BASE_IMAGE: balenalib/raspberry-pi-debian:bullseye
+            QEMU_ARCH: arm
+
+          - name: debian-arm64v8
+            os: ubuntu-latest
+            BASE_IMAGE: arm64v8/debian:bullseye
+            QEMU_ARCH: aarch64
+
+    steps: 
+    - uses: actions/checkout@v3
+
+    - name: Linux - Setup Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+    - name: Linux - Build Docker Image
+      if: runner.os == 'Linux'
+      run: |
+        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t package-build .
+
+    - name: Linux - Build Package
+      if: runner.os == 'Linux'
+      run: |
+        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ github.event.inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ github.event.inputs.version }}" package-build
+
+    - uses: AButler/upload-release-assets@v2.0
+      with:
+        files: '*.deb'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.event.inputs.version }}

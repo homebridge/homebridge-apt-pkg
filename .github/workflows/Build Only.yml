@@ -1,4 +1,4 @@
-name: "Build Only, and update release assests"
+name: "Build Only"
 
 on:
   workflow_dispatch:

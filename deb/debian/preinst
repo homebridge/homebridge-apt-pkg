@@ -104,6 +104,9 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
   rm -rf /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /var/lib/homebridge/package.json
   rm -rf /var/lib/homebridge/.npmrc
+  # cleanup node-pty-prebuilt-multiarch
+  rm -rf /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/node-pty-prebuilt-multiarch/build
+  rm -rf /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
 fi
 
 echo "Unpacking may take several minutes on low powered devices."

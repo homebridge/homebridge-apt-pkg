@@ -182,6 +182,16 @@ case "$1" in
     exit 1
     ;;
 
+  "-V")
+    echo "Print Version Homebridge."
+    exec /var/lib/homebridge/node_modules/homebridge/bin/homebridge -V
+    ;;
+
+  "-D")
+    # Debug
+    exec /var/lib/homebridge/node_modules/homebridge/bin/homebridge -D
+    ;;
+
   *)
     printf '%s\n' \
       "Usage: hb-service [start|stop|restart|logs|status|update-node]"   \
@@ -201,6 +211,8 @@ case "$1" in
       "    view                             view the homebridge service logs" \
       "    status                           check if the Homebridge UI web server is running" \
       "    shell                            open the Homebridge Terminal" \
+      "    -V                               Print Homebridge Version" \
+      "    -D                               Debug Homebridge " \
       "" \
       "See the wiki for help with hb-service: https://homebridge.io/w/JTtHK"
     ;;

@@ -164,6 +164,10 @@ case "$1" in
     exec tail -n 100 -f /var/lib/homebridge/homebridge.log
     ;;
 
+  "view")
+    exec tail -n 100 /var/lib/homebridge/homebridge.log
+    ;;
+
   "shell")
     exec /opt/homebridge/hb-shell
     ;;
@@ -194,6 +198,7 @@ case "$1" in
       "    unlink                           reverses the link operation for the current directory" \
       "    update-node [version]            update Node.js" \
       "    logs                             tails the homebridge service logs" \
+      "    view                             view the homebridge service logs" \
       "    status                           check if the Homebridge UI web server is running" \
       "    shell                            open the Homebridge Terminal" \
       "" \

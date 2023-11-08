@@ -15,7 +15,12 @@ fi
 rm -rf staging
 cp -R deb staging
 
-NODE_VERSION="$(curl -s https://nodejs.org/dist/index.json | jq -r 'map(select(.lts))[0].version')"
+# Hold the NodeJS version to the 18.x LTS stream until spring of 2024, then switch to `Iron` aka 20.0 LTS
+
+NODE_LTS_TAG="Hydrogen"
+NODE_VERSION="$(curl -s https://nodejs.org/dist/index.json | jq -r --arg NODE_LTS_TAG "${NODE_LTS_TAG}" 'map(select(.lts==$NODE_LTS_TAG))[0].version')"
+
+
 
 BUILD_ARCH=${QEMU_ARCH:-x86_64}
 
@@ -26,6 +31,12 @@ case "$BUILD_ARCH" in \
   i386) NODE_ARCH='x86';; \
   *) echo "unsupported architecture"; exit 1 ;;
 esac
+
+echo "Homebridge Apt Package Manifest" > homebridge_apt_pkg_$NODE_ARCH.manifest
+echo >> homebridge_apt_pkg_$NODE_ARCH.manifest
+echo "| Package | Version |" >> homebridge_apt_pkg_$NODE_ARCH.manifest
+echo "|:-------:|:-------:|" >> homebridge_apt_pkg_$NODE_ARCH.manifest
+echo "|NodeJS| "$NODE_VERSION "|" >> homebridge_apt_pkg_$NODE_ARCH.manifest
 
 if [ ! -f  "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
   [ "$NODE_ARCH" = "armv6l" -o "$NODE_ARCH" = "x86" ] && 
@@ -47,7 +58,19 @@ export npm_config_loglevel=error
 
 npm install --location=global homebridge-config-ui-x@latest
 
+HOMBRIDGE_CONFIG_VERSION="$(npm list -g --json=true | jq --raw-output '{version: .dependencies."homebridge-config-ui-x".version}.version')"
+echo "|Homebridge-Config-UI-X|" $HOMBRIDGE_CONFIG_VERSION "|" >> homebridge_apt_pkg_$NODE_ARCH.manifest
+
 npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge@latest
 
-cd staging
+CWD=`pwd`
+cd staging/var/lib/homebridge
+HOMBRIDGE_VERSION="$(npm list --json=true | jq --raw-output '{version: .dependencies."homebridge".version}.version')"
+echo "|Homebridge|" $HOMBRIDGE_VERSION "|" >> ${CWD}/homebridge_apt_pkg_$NODE_ARCH.manifest
+
+cd ${CWD}/staging
 dpkg-buildpackage -us -uc
+
+cd ${CWD}
+MANIFEST=$(ls homebridge*.deb | sed -e 's/.deb/.manifest/g')
+mv ${CWD}/homebridge_apt_pkg_$NODE_ARCH.manifest ${CWD}/$MANIFEST

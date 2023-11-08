@@ -1,5 +1,5 @@
 name: "Build Only"
-run-name: Build against ${{ github.event.inputs.version }}
+run-name: Build Release ${{ github.event.inputs.version }} from ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -80,8 +80,33 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ github.event.inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ github.event.inputs.version }}" package-build
 
-    - uses: AButler/upload-release-assets@v2.0
+    - name: List files
+      run: |
+        find . -print
+
+    - name: Set variables
+      run: |
+        echo BODY_FILE="$(ls *.manifest)" >> $GITHUB_ENV
+
+    - name: update release
+      uses: tubone24/update_release@v1.3.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG_NAME: ${{ github.event.inputs.version }}
       with:
-        files: '*.deb'
+        is_append_body: "Contents of ${{ matrix.QEMU_ARCH }} Package." 
+
+    - name: update release
+      uses: tubone24/update_release@v1.3.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG_NAME: ${{ github.event.inputs.version }}
+      with:
+        body_path: ${{ env.BODY_FILE }}
+
+    - uses: AButler/upload-release-assets@v2.0.2
+      with:
+        files: '*.deb;*.manifest'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         release-tag: ${{ github.event.inputs.version }}
+

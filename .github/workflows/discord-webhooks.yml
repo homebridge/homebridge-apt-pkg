@@ -20,8 +20,8 @@ jobs:
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL_LATEST }}
           color: "4726621"
-          username: "Homebridge APT Package"
+          username: "Homebridge"
           avatar_url: "https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round-stylized.png"
-          footer_title: "Homebridge UI"
+          footer_title: "Homebridge APT Package"
           footer_icon_url: "https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-color-round-stylized.png"
           footer_timestamp: true

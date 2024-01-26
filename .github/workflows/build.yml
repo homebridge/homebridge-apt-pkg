@@ -1,40 +1,55 @@
 name: "Build Release and Publish to DEB Repo"
-run-name: Build Release ${{ github.event.inputs.version }} from ${{ github.ref_name }}
+run-name: Build Release ${{ github.ref }} from ${{ github.ref_name }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version / Tag (x.x.x):'     
-        required: true
-      release_type:
-        type: choice
-        description: Release Type
-        options: 
-        - stable
-        - test
+  release:
+     types: [released, prereleased]
 
 jobs:
-  release:
-    name: Create Release
+  tag:
+    name: Verify Release Tag
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Get Release Tag
+        id: get_version
+        uses: jannemattila/get-version-from-tag@v3
+      - name: Tag Info
+        run: |
+          echo "Release Tag: ${{github.ref}}"
+          echo "Latest Tag: ${{ steps.get_version.outputs.version }}"
+      - name: Tag Info Matches
+        if: endsWith(github.ref, steps.get_version.outputs.version )
+        run: |
+          echo Latest Tag matches Release tag
+      - name: Tag Info Doesn't Match
+        if: ${{ !endsWith(github.ref, steps.get_version.outputs.version ) }}
+        run: |
+          echo Latest Tag does not matches Release tag
+          exit 1
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.version }}
-          release_name: ${{ github.event.inputs.version }}
-          prerelease: false
+  release_type:
+    name: Release Type
+    needs: tag
+    runs-on: ubuntu-latest
+    outputs:
+      release_type: ${{ steps.stable_release.outputs.release_type || steps.test_release.outputs.release_type }}
+    steps:
+      - name: Release Type - stable
+        id: stable_release
+        if: ${{ github.event.release.prerelease == false }}
+        run: |
+          echo "release_type=stable" >> "$GITHUB_OUTPUT"
+      - name: Release Type - test
+        id: test_release
+        if: ${{ github.event.release.prerelease == true }}
+        run: |
+          echo "release_type=test" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build Packages
-    needs: release
+    needs: [tag, release_type]
+    name: Build Packages for (${{ matrix.name }}) v${{ needs.tag.outputs.version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -78,7 +93,7 @@ jobs:
     - name: Linux - Build Package
       if: runner.os == 'Linux'
       run: |
-        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ github.event.inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ github.event.inputs.version }}" package-build
+        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ needs.release_type.outputs.release_type }}" -e PKG_RELEASE_VERSION="${{ needs.tag.outputs.version }}" package-build
 
     - name: Set variables
       run: |
@@ -88,7 +103,7 @@ jobs:
       uses: tubone24/update_release@v1.3.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAG_NAME: ${{ github.event.inputs.version }}
+        TAG_NAME: ${{ needs.tag.outputs.version }}
       with:
         is_append_body: "Contents of ${{ matrix.QEMU_ARCH }} Package." 
 
@@ -96,7 +111,7 @@ jobs:
       uses: tubone24/update_release@v1.3.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAG_NAME: ${{ github.event.inputs.version }}
+        TAG_NAME: ${{ needs.tag.outputs.version }}
       with:
         body_path: ${{ env.BODY_FILE }}
 
@@ -104,11 +119,11 @@ jobs:
       with:
         files: '*.deb;*.manifest'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ github.event.inputs.version }}
+        release-tag: ${{ needs.tag.outputs.version }}
 
   update-apt-repo:
     name: Publish to Repo
-    needs: build
+    needs: [tag, release_type, build]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -119,7 +134,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        tag: ${{ github.event.inputs.version }}
+        tag: ${{ needs.tag.outputs.version }}
 
     - name: Download release assets
       uses: dsaltares/fetch-gh-release-asset@0.0.8
@@ -146,7 +161,7 @@ jobs:
       run: |
         sudo chown -R $USER: repo/
         deb-s3 upload \
-          --codename=${{ github.event.inputs.release_type }} \
+          --codename=${{ needs.release_type.outputs.release_type }} \
           --preserve-versions \
           --s3-region=us-west-2 \
           --bucket repo.homebridge.io \

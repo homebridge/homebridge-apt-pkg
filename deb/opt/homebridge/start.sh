@@ -35,4 +35,18 @@ if [ -e "/var/lib/homebridge/node_modules/homebridge" ]; then
   rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge
 fi
 
+# homebridge is removed from the package.json only in postinst
+# so this needs to be here on the first run to ensure the exidsting version is not reinstalled
+
+# remove homebridge from the package.json
+if [ -e /var/lib/homebridge/package.json ]; then
+  if [ "$(cat /var/lib/homebridge/package.json | jq -r '.dependencies."homebridge"')" != "null" ]; then
+    packageJson="$(cat /var/lib/homebridge/package.json | jq -rM 'del(."dependencies"."homebridge")')"
+    if [ "$?" = "0" ]; then
+      printf "$packageJson" > /var/lib/homebridge/package.json
+      echo "Removed homebridge from package.json"
+    fi
+  fi
+fi
+
 exec $HB_SERVICE_NODE_EXEC_PATH $HB_SERVICE_EXEC_PATH run -I -U $HB_SERVICE_STORAGE_PATH -P $HB_SERVICE_STORAGE_PATH/node_modules --strict-plugin-resolution "$@"

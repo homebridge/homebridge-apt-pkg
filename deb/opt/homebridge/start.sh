@@ -25,16 +25,14 @@ if [ -e /var/lib/homebridge/package-lock.json ]; then
   rm -rf /var/lib/homebridge/package-lock.json
 fi
 
-# check for missing homebridge
-if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; then
-  cd $HB_SERVICE_STORAGE_PATH
-  echo "Re-installing homebridge..."
-  npm --prefix $HB_SERVICE_STORAGE_PATH install --save homebridge@latest
-fi
-
 # remove homebridge-config-ui-x package from the plugins store
 if [ -e "/var/lib/homebridge/node_modules/homebridge-config-ui-x" ]; then
   rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x
+fi
+
+# remove homebridge package from the plugins store
+if [ -e "/var/lib/homebridge/node_modules/homebridge" ]; then
+  rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge
 fi
 
 exec $HB_SERVICE_NODE_EXEC_PATH $HB_SERVICE_EXEC_PATH run -I -U $HB_SERVICE_STORAGE_PATH -P $HB_SERVICE_STORAGE_PATH/node_modules --strict-plugin-resolution "$@"

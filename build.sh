@@ -64,12 +64,12 @@ npm install --location=global homebridge-config-ui-x
 HOMBRIDGE_CONFIG_VERSION="$(npm list -g --json=true | jq --raw-output '{version: .dependencies."homebridge-config-ui-x".version}.version')"
 echo "|Homebridge-Config-UI-X|" $HOMBRIDGE_CONFIG_VERSION "|" >> homebridge_apt_pkg_$NODE_ARCH.manifest
 
-npm install --location=global homebridge
-
-HOMBRIDGE_VERSION="$(npm list --json=true | jq --raw-output '{version: .dependencies."homebridge".version}.version')"
-echo "|Homebridge|" $HOMBRIDGE_VERSION "|" >> ${CWD}/homebridge_apt_pkg_$NODE_ARCH.manifest
+npm install --prefix $(pwd)/staging/var/lib/homebridge homebridge
 
 CWD=`pwd`
+cd staging/var/lib/homebridge
+HOMBRIDGE_VERSION="$(npm list --json=true | jq --raw-output '{version: .dependencies."homebridge".version}.version')"
+echo "|Homebridge|" $HOMBRIDGE_VERSION "|" >> ${CWD}/homebridge_apt_pkg_$NODE_ARCH.manifest
 
 cd ${CWD}/staging
 dpkg-buildpackage -us -uc

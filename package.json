@@ -18,7 +18,7 @@
   "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
   "dependencies": {
     "homebridge": "^1.9.0",
-    "homebridge-config-ui-x": "^4.71.2",
+    "homebridge-config-ui-x": "^4.72.0",
     "node": "^22.14.0"
   }
 }

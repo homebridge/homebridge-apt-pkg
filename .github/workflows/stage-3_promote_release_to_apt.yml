@@ -91,7 +91,7 @@ jobs:
 
   notify_discord:
     name: Notify Discord
-    needs: [update_apt_repo, purge_cloudflare_cache]
+    needs: [update_apt_repo, purge_cloudflare_cache, determine_release_tag]
     uses: homebridge/.github/.github/workflows/discord-webhooks.yml@latest
     with:
       title: "Homebridge APT Package Released"

@@ -14,8 +14,4 @@ updates:
   ignore:
   - dependency-name: "*"
     update-types: ["version-update:semver-major"]
-  reviewers:
-  - NorthernMan54
-  - bwp91
-  - donavanbecker
  

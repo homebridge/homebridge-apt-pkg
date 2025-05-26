@@ -146,7 +146,7 @@ The Homebridge systemd service will automatically load any environment variables
 
 This file can be used to customize the behavior of Homebridge or its plugins at runtime.
 
-After making changes to the file, please use `Restart HB Service & UI` to your changes picked up.
+After making changes to the file, please use `Restart HB Service & UI` for your changes to be picked up.
 
 #### Example
 

@@ -65,6 +65,19 @@ Purge (this will delete `/var/lib/homebridge`):
 dpkg --purge homebridge
 ```
 
+## Updating
+
+To update Homebridge, Homebridge UI and NodeJS when installed via this APT package, run:
+
+```bash
+sudo apt update
+sudo apt install homebridge
+```
+
+This will upgrade all related components managed by this package.
+
+⚠️ Your configuration files and plugins are stored in /var/lib/homebridge and will not be affected by updates.
+
 ## About
 
 This package contains a self-contained Node.js installation and environment for Homebridge to run in.
@@ -76,7 +89,7 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
 ```shell
 # Node.js and package scripts are stored in /opt/homebridge
 
-/opt/homebridge
+/opt/homebridge # This directory is managed by the homebridge apt package and the contents are overwritten during updates
   |-- bin
   |   |-- node
   |   |-- npm 
@@ -95,7 +108,8 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- start.sh
 
 # "hb-shell" command to allow user access to the Homebridge env from the cli
-/usr/local/bin
+/usr/local/bin # These links are managed by the homebridge apt package and the contents are overwritten during updates
+  |-- hb-service -> /opt/homebridge/hb-service-shim
   |-- hb-shell -> /opt/homebridge/hb-shell
 
 # homebridge storage directory, plugins are stored in node_modules
@@ -108,7 +122,24 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- persist
   |-- config.json
 ```
-## Customising the Systemd Service File
+
+## Customising Homebridge
+
+### Environment Variables
+
+The Homebridge systemd service will automatically load any environment variables defined in `/etc/default/homebridge`.
+
+This file can be used to customize the behavior of Homebridge or its plugins at runtime.
+
+#### Example
+
+To disable the terminal feature in the Homebridge UI, add the following:
+
+```bash
+# /etc/default/homebridge
+HOMEBRIDGE_CONFIG_UI_TERMINAL=0
+```
+### Customising the Systemd Service File
 
 You should not edit the service file included with the package as any changes made here will be overwritten during updates.
 

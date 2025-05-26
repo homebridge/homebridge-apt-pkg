@@ -65,7 +65,9 @@ Purge (this will delete `/var/lib/homebridge`):
 dpkg --purge homebridge
 ```
 
-## Updating
+## Updating / Downgrading
+
+### To install the latest version
 
 To update Homebridge, Homebridge UI and NodeJS when installed via this APT package, run:
 
@@ -78,6 +80,19 @@ This will upgrade all related components managed by this package.
 
 ⚠️ Your configuration files and plugins are stored in /var/lib/homebridge and will not be affected by updates.
 
+### Downgrading to a previous release
+
+Downgrading will return NodeJS, Homebridge and the Homebridge UI to the version bundled within the apt package. You can view the release manifest of older versions from this page on GitHub - https://github.com/homebridge/homebridge-apt-pkg/releases
+
+If you need to install an older version or previous release of Homebridge:
+
+```bash
+sudo apt update
+apt list -a homebridge  # Shows available versions
+sudo apt install homebridge=<version>
+```
+
+NOTE: apt versions do not start with a v, while the verion on GitHub starts with v
 ## About
 
 This package contains a self-contained Node.js installation and environment for Homebridge to run in.

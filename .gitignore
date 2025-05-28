@@ -12,3 +12,4 @@ staging/
 /node_modules
 *.manifest
 *.tgz
+/beta/node_modules

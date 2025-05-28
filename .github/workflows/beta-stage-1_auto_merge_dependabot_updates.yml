@@ -1,0 +1,48 @@
+name: Beta Stage 1 - Auto Merge Beta Dependabot Updates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Check changed files ${{ github.event.pull_request.number }}
+        id: filecheck
+        run: |
+          echo "Fetching changed files..."
+          files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "$files"
+
+          if echo "$files" | grep -qv '^beta/'; then
+            echo "non_beta_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "non_beta_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log file change results ${{ github.event.pull_request.number }}
+        run: |
+          if [[ "${{ steps.filecheck.outputs.non_beta_changes }}" == "true" ]]; then
+            echo "::notice::🚫 Auto-merge skipped: PR includes files outside of beta/ directory."
+          fi
+
+      - name: Enable auto-merge for Dependabot PR${{ github.event.pull_request.number }}
+        if: steps.filecheck.outputs.non_beta_changes == 'false'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
+
+      - name: Log auto-merge notice
+        if: steps.filecheck.outputs.non_beta_changes == 'false'
+        run: |
+          echo "::notice::✅ Auto-merge enabled for Dependabot PR #${{ github.event.pull_request.number }}"

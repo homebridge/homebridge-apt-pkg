@@ -1,0 +1,84 @@
+name: Beta Stage 2 - Build and Store Beta Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - beta
+
+jobs:
+  build_beta_and_store:
+    name: Build Beta Packages for (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [debian-x86_64, debian-arm32v6, debian-arm64v8]
+        include: 
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:bullseye
+            QEMU_ARCH: x86_64
+
+          - name: debian-arm32v6
+            os: ubuntu-latest
+            BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
+            QEMU_ARCH: arm
+
+          - name: debian-arm64v8
+            os: ubuntu-latest
+            BASE_IMAGE: arm64v8/debian:bullseye
+            QEMU_ARCH: aarch64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get beta version from package.json
+        id: get_version
+        run: |
+          VERSION=$(jq -r .version beta/package.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected beta version: $VERSION"
+
+      - name: Linux - Setup Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+          docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+      - name: Linux - Build Docker Image
+        run: |
+          docker build -f build/Dockerfile \
+            --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
+            --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
+            -t beta-package-build \
+            --platform=linux/${{ matrix.QEMU_ARCH }} .
+
+      - name: Linux - Build Package
+        run: |
+          docker run --rm -v $(pwd):/repo \
+            -e PKG_RELEASE_TYPE="beta" \
+            -e PKG_RELEASE_VERSION="${{ steps.get_version.outputs.version }}" \
+            beta-package-build
+
+      - name: Rename beta package to include v
+        run: |
+          for file in homebridge*.deb; do
+            UPDATED=$(echo "$file" | sed -e 's/homebridge_/homebridge_v/g')
+            mv "$file" "$UPDATED"
+          done
+
+      - name: Rename beta manifest to include v
+        run: |
+          for file in homebridge*.manifest; do
+            UPDATED=$(echo "$file" | sed -e 's/homebridge_/homebridge_v/g')
+            mv "$file" "$UPDATED"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beta-artifacts-${{ matrix.name }}
+          retention-days: 7
+          path: |
+            *.deb
+            *.manifest

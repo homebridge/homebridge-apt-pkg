@@ -11,3 +11,4 @@ staging/
 .DS_Store
 /node_modules
 *.manifest
+*.tgz

@@ -83,21 +83,20 @@ jobs:
             -e PKG_RELEASE_VERSION="${{ needs.generate_beta_version.outputs.version }}" \
             beta-package-build
 
-      - name: Rename artifacts
+      - name: Rename package to include v
         run: |
-          mv homebridge_*.deb homebridge_v*.deb
-          mv homebridge_*.manifest homebridge_v*.manifest
+          UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
+          mv homebridge_*.deb ${UPDATED}
 
-      - name: Expand artifact files
-        id: artifact_files
+      - name: Rename manifest to include v
         run: |
-          echo "Listing matching files:"
-          ls -1 homebridge_v*.deb homebridge_v*.manifest > files.txt
-          cat files.txt
+          UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
+          mv homebridge_*.manifest ${UPDATED}
 
-      - name: Upload beta artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: beta-artifacts-${{ matrix.name }}
-          path: files.txt
+          name: artifacts-${{ matrix.name }}
           retention-days: 7
+          path: |
+            *.deb
+            *.manifest

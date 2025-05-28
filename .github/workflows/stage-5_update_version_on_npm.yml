@@ -1,0 +1,44 @@
+name: Stage 5 - Update Version on npm
+# This workflow updates the version of the stub package on npm when a new tag is pushed.
+# It extracts the version from the tag and updates the package.json file accordingly
+
+on:
+  workflow_run:
+    workflows: [Stage 3 - Promote Release Package to APT Stores]
+    types:
+      - completed
+
+jobs:
+  publish:
+    name: Publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract Full Tag
+        id: get_tag
+        run: echo "VERSION_TAG=${GITHUB_REF##refs/tags/}" >> "$GITHUB_ENV"
+
+      - name: Set package.json version to tag
+        run: |
+          echo "Using version: $VERSION_TAG"
+          jq ".version = \"$VERSION_TAG\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          cat package.json
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Output Success Message
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version $VERSION_TAG"
+
+

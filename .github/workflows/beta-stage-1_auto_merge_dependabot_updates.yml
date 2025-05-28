@@ -19,7 +19,9 @@ jobs:
         id: filecheck
         run: |
           echo "Fetching changed files..."
-          files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
+
+          files=$(git diff --name-only FETCH_HEAD...HEAD)
           echo "$files"
 
           if echo "$files" | grep -qv '^beta/'; then

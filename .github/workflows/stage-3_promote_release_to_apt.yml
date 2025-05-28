@@ -91,11 +91,11 @@ jobs:
 
   notify_discord:
     name: Notify Discord
-    needs: [update_apt_repo, purge_cloudflare_cache]
+    needs: [update_apt_repo, purge_cloudflare_cache, determine_release_tag]
     uses: homebridge/.github/.github/workflows/discord-webhooks.yml@latest
     with:
       title: "Homebridge APT Package Released"
-      description: "Version `v${{ needs.determine_release_tag.outputs.release_tag }}` has been released."
+      description: "Version `${{ needs.determine_release_tag.outputs.release_tag }}` has been released."
       url: "https://github.com/homebridge/homebridge-apt-pkg/releases/tag/${{ needs.determine_release_tag.outputs.release_tag }}"
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_LATEST }}

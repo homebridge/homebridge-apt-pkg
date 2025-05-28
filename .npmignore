@@ -1,0 +1,5 @@
+# Just a stub package.json to prevent npm from publishing this directory
+*
+!package.json
+!.npmignore
+!README.md

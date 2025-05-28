@@ -5,6 +5,7 @@
 
 version: 2
 updates:
+  # Root package.json updates
   - package-ecosystem: npm
     directory: "/"
     schedule:
@@ -12,6 +13,16 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 10
     ignore:
-    - dependency-name: "*"
-      update-types: ["version-update:semver-major"]
-  
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Beta package.json updates
+  - package-ecosystem: npm
+    directory: "/beta"
+    schedule:
+      interval: daily
+      time: "10:00"
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

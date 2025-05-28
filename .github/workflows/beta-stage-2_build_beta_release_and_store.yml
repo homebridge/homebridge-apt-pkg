@@ -1,4 +1,4 @@
-name: Beta Stage 2 - Build and Store Beta Package
+name: Beta Stage 2 - Build and Release Beta Package
 
 on:
   workflow_dispatch:
@@ -100,3 +100,45 @@ jobs:
           path: |
             *.deb
             *.manifest
+
+  publish_beta:
+    name: Publish to APT Beta Repo
+    runs-on: ubuntu-latest
+    needs: [build_beta_and_store]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: beta-artifacts-*
+          merge-multiple: true
+          path: repo/
+
+      - name: Display structure of downloaded files
+        run: ls -R
+        
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Upload to Beta APT Repo
+        run: |
+          sudo chown -R $USER: repo/
+          deb-s3 upload \
+            --codename=beta \
+            --preserve-versions \
+            --s3-region=us-west-2 \
+            --bucket repo.homebridge.io \
+            --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --sign=${{ secrets.GPG_KEY_ID }} \
+            repo/*.deb

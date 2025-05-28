@@ -1,6 +1,8 @@
 name: Stage 5 - Update Version on npm
 # This workflow updates the version of the stub package on npm when a new tag is pushed.
 # It extracts the version from the tag and updates the package.json file accordingly
+# before publishing the package to npm.
+# It is triggered by the completion of the "Stage 3 - Promote Release Package to APT Stores" workflow.
 
 on:
   workflow_run:
@@ -23,14 +25,19 @@ jobs:
           node-version: latest
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Extract Clean Version from Tag
+      - name: Extract and validate version from tag
         id: version
         run: |
           RAW_TAG="${{ github.event.workflow_run.head_branch }}"
-          CLEAN_VERSION="${RAW_TAG#v}"
-          echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+          if [[ "$RAW_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            CLEAN_VERSION="${BASH_REMATCH[1]}"
+            echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+          else
+            echo "::error::Invalid tag format: '$RAW_TAG'. Expected format 'v1.2.3'"
+            exit 1
+          fi
 
-      - name: Set package.json version to tag
+      - name: Set package.json version
         run: |
           echo "Setting version to $CLEAN_VERSION"
           jq ".version = \"$CLEAN_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
@@ -41,5 +48,5 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Output Success Message
+      - name: Output Success Notice
         run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version $CLEAN_VERSION"

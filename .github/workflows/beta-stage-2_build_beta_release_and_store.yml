@@ -1,6 +1,7 @@
 name: Beta Stage 2 - Build and Store Beta Package
 
 on:
+  workflow_dispatch:
   push:
     branches: [latest]
     paths: ['beta/**']

@@ -20,6 +20,7 @@ jobs:
         id: release_version
         with:
           scheme: semver
+          increment: patch
 
       - name: Generate beta package version
         id: beta_version
@@ -87,10 +88,16 @@ jobs:
           mv homebridge_*.deb homebridge_v*.deb
           mv homebridge_*.manifest homebridge_v*.manifest
 
-      - uses: actions/upload-artifact@v4
+      - name: Expand artifact files
+        id: artifact_files
+        run: |
+          echo "Listing matching files:"
+          ls -1 homebridge_v*.deb homebridge_v*.manifest > files.txt
+          cat files.txt
+
+      - name: Upload beta artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: beta-artifacts-${{ matrix.name }}
+          path: files.txt
           retention-days: 7
-          path: |
-            *.deb
-            *.manifest

@@ -24,5 +24,3 @@ updates:
     versioning-strategy: increase
     commit-message:
       prefix: "BETA"
-
-       

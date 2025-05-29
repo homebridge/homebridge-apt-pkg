@@ -14,7 +14,7 @@ updates:
     open-pull-requests-limit: 10
     versioning-strategy: increase
 
-  # Beta package.json updates
+  # Beta /beta/package.json updates
   - package-ecosystem: npm
     directory: "/beta"
     schedule:

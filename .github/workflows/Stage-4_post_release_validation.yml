@@ -1,4 +1,4 @@
-name: "Stage 4 - Post Release Validation"
+name: "Stage 4 - Validate APT Package"
 
 run-name: >
   ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel == 'beta' || 
@@ -20,7 +20,7 @@ on:
   workflow_run:
     workflows: 
       - "Stage 3 - Promote Release Package to APT Stores"
-      - "Beta Stage 2 - Build and Store Beta Package"
+      - "Beta Stage 2 - Build and Release Beta Package"
     types:
       - completed
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "release_channel=${{ github.event.inputs.release_channel }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.workflow_run.name }}" == "Beta Stage 2 - Build and Store Beta Package" ]]; then
+          elif [[ "${{ github.event.workflow_run.name }}" == "Beta Stage 2 - Build and Release Beta Package" ]]; then
             echo "release_channel=beta" >> $GITHUB_OUTPUT
           else
             echo "release_channel=stable" >> $GITHUB_OUTPUT

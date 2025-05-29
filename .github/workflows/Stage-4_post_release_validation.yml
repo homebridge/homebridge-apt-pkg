@@ -1,8 +1,8 @@
-name: "Stage 4 - Validate APT Package"
+name: "Stage 4 - Post Release Validation"
 
 run-name: >
-  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel == 'beta' || 
-      github.event.workflow_run.name == 'Beta Stage 2 - Build and Store Beta Package' 
+  ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel == 'beta') || 
+      startsWith(github.event.workflow_run.name || '', 'Beta Stage 2') 
       && 'BETA: ' || '' }}APT Package Validation
 
 on:

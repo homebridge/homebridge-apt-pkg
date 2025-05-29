@@ -1,10 +1,5 @@
 name: Stage 4 - Post Release Validation
 
-run-name: >
-  ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel == 'beta') || 
-      (github.event.workflow_run.name == 'Beta Stage 2 - Build and Store Beta Package') 
-      && '' }}BETA: APT Package Validation
-
 on:
   workflow_dispatch:
     inputs:

@@ -1,47 +1,75 @@
 name: "Stage 4 - Post Release Validation"
 
+run-name: >
+  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel == 'beta' || 
+      github.event.workflow_run.name == 'Beta Stage 2 - Build and Store Beta Package' 
+      && 'BETA: ' || '' }}APT Package Validation
+
 on:
   workflow_dispatch:
+    inputs:
+      release_channel:
+        description: "APT release channel to validate"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - beta
+
   workflow_run:
-    workflows: [Stage 3 - Promote Release Package to APT Stores]
+    workflows: 
+      - "Stage 3 - Promote Release Package to APT Stores"
+      - "Beta Stage 2 - Build and Store Beta Package"
     types:
       - completed
 
 jobs:
 
-  on-success:
-    name: On Success or Manual Dispatch
+  determine-channel:
+    name: Determine Release Channel
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      channel: ${{ steps.set.outputs.release_channel }}
     steps:
-      - run: echo '::info::The triggering workflow passed or manual dispatch was used.'
+      - id: set
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "release_channel=${{ github.event.inputs.release_channel }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.workflow_run.name }}" == "Beta Stage 2 - Build and Store Beta Package" ]]; then
+            echo "release_channel=beta" >> $GITHUB_OUTPUT
+          else
+            echo "release_channel=stable" >> $GITHUB_OUTPUT
+          fi
 
   validate:
-    name: Validate Release
+    name: Validate APT Install
     runs-on: ubuntu-latest
-    needs: on-success
+    needs: determine-channel
     steps:
-      - name: Install Homebridge
+      - name: Install Homebridge from APT
         run: |
           curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
-          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io stable main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ needs.determine-channel.outputs.channel }} main" | \
+            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y homebridge
 
-      - name: Display APT Pkg Version
+      - name: Display Installed Version
         id: installed-version
         run: |
           dpkg -l homebridge
-          echo "homebridge-version=\"`dpkg -l homebridge | tail -1 | awk '{ print $3 }'`\"" >> "$GITHUB_OUTPUT"
+          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
 
       - name: Validate Homebridge
         run: |
           sudo hb-service status
           sudo hb-service view
 
-      - name: List available homebridge-apt-pkg versions
+      - name: List Available Versions
         run: |
-          sudo apt-cache madison homebridge
+          apt-cache madison homebridge
 
-      - name: Published
-        run: echo "::notice::Published on APT - ${{ steps.installed-version.outputs.homebridge-version }}"
+      - name: Publish Notice
+        run: echo "::notice::APT Package Installed from ${{ needs.determine-channel.outputs.channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }}"

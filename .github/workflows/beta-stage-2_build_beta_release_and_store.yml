@@ -1,30 +1,59 @@
-name: Beta Stage 2 - Build and Store Beta Package
+name: Beta Stage 2 - Build and Release Beta Package
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - beta
+    branches: [latest]
+    paths: ['beta/**']
 
 jobs:
+  generate_beta_version:
+    name: Generate Beta Package Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.beta_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get base version
+        uses: reecetech/version-increment@2023.10.1
+        id: release_version
+        with:
+          scheme: semver
+          increment: patch
+
+      - name: Generate beta package version
+        id: beta_version
+        run: |
+          BASE_VERSION=${{ steps.release_version.outputs.version }}
+
+          # Strip pre-release suffix if any (e.g., 1.5.1-pre.abc123 → 1.5.1)
+          BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
+
+          DATE=$(date +%Y%m%d)
+          VERSION="${BASE_VERSION_CLEAN}~beta.${DATE}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "::notice::📦 Beta version: $VERSION"
+
+
   build_beta_and_store:
     name: Build Beta Packages for (${{ matrix.name }})
+    needs: [generate_beta_version]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         name: [debian-x86_64, debian-arm32v6, debian-arm64v8]
-        include: 
+        include:
           - name: debian-x86_64
             os: ubuntu-latest
             BASE_IMAGE: library/debian:bullseye
             QEMU_ARCH: x86_64
-
           - name: debian-arm32v6
             os: ubuntu-latest
             BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
             QEMU_ARCH: arm
-
           - name: debian-arm64v8
             os: ubuntu-latest
             BASE_IMAGE: arm64v8/debian:bullseye
@@ -33,20 +62,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get beta version from package.json
-        id: get_version
-        run: |
-          VERSION=$(jq -r .version beta/package.json)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Detected beta version: $VERSION"
-
-      - name: Linux - Setup Dependencies
+      - name: Setup build environment
         run: |
           sudo apt-get update
           sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-      - name: Linux - Build Docker Image
+      - name: Build Docker image
         run: |
           docker build -f build/Dockerfile \
             --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
@@ -54,31 +76,69 @@ jobs:
             -t beta-package-build \
             --platform=linux/${{ matrix.QEMU_ARCH }} .
 
-      - name: Linux - Build Package
+      - name: Build package
         run: |
           docker run --rm -v $(pwd):/repo \
             -e PKG_RELEASE_TYPE="beta" \
-            -e PKG_RELEASE_VERSION="${{ steps.get_version.outputs.version }}" \
+            -e PKG_RELEASE_VERSION="${{ needs.generate_beta_version.outputs.version }}" \
             beta-package-build
 
-      - name: Rename beta package to include v
+      - name: Rename package to include v
         run: |
-          for file in homebridge*.deb; do
-            UPDATED=$(echo "$file" | sed -e 's/homebridge_/homebridge_v/g')
-            mv "$file" "$UPDATED"
-          done
+          UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
+          mv homebridge_*.deb ${UPDATED}
 
-      - name: Rename beta manifest to include v
+      - name: Rename manifest to include v
         run: |
-          for file in homebridge*.manifest; do
-            UPDATED=$(echo "$file" | sed -e 's/homebridge_/homebridge_v/g')
-            mv "$file" "$UPDATED"
-          done
+          UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
+          mv homebridge_*.manifest ${UPDATED}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: beta-artifacts-${{ matrix.name }}
+          name: artifacts-${{ matrix.name }}
           retention-days: 7
           path: |
             *.deb
             *.manifest
+
+  publish_beta:
+    name: Publish to APT Beta Repo
+    runs-on: ubuntu-latest
+    needs: [build_beta_and_store]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          path: repo/
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Upload to Beta APT Repo
+        run: |
+          sudo chown -R $USER: repo/
+          deb-s3 upload \
+            --codename=beta \
+            --preserve-versions \
+            --s3-region=us-west-2 \
+            --bucket repo.homebridge.io \
+            --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --sign=${{ secrets.GPG_KEY_ID }} \
+            repo/*.deb

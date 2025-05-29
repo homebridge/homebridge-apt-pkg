@@ -12,9 +12,7 @@ updates:
       interval: daily
       time: "10:00"
     open-pull-requests-limit: 10
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    versioning-strategy: increase
 
   # Beta package.json updates
   - package-ecosystem: npm
@@ -23,6 +21,8 @@ updates:
       interval: daily
       time: "10:00"
     open-pull-requests-limit: 5
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    versioning-strategy: increase
+    commit-message:
+      prefix: "BETA"
+
+       

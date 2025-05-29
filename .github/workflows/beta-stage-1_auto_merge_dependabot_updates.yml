@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   auto-merge:
     if: github.actor == 'dependabot[bot]'
@@ -15,7 +19,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check changed files ${{ github.event.pull_request.number }}
+      - name: Check and log changed files PR#${{ github.event.pull_request.number }}
         id: filecheck
         run: |
           echo "Fetching changed files..."
@@ -26,18 +30,25 @@ jobs:
 
           if echo "$files" | grep -qv '^beta/'; then
             echo "non_beta_changes=true" >> $GITHUB_OUTPUT
+            echo "::notice::🚫 Auto-merge skipped: PR includes files outside of beta directory."
           else
             echo "non_beta_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Log file change results ${{ github.event.pull_request.number }}
+      - name: Check and log PR title PR#${{ github.event.pull_request.number }}
+        id: titlecheck
         run: |
-          if [[ "${{ steps.filecheck.outputs.non_beta_changes }}" == "true" ]]; then
-            echo "::notice::🚫 Auto-merge skipped: PR includes files outside of beta/ directory."
+          title="${{ github.event.pull_request.title }}"
+          echo "PR Title: $title"
+          if [[ "$title" == BETA* ]]; then
+            echo "beta_title=true" >> $GITHUB_OUTPUT
+          else
+            echo "beta_title=false" >> $GITHUB_OUTPUT
+            echo "::notice::🚫 Auto-merge skipped: PR title does not start with BETA."
           fi
 
-      - name: Enable auto-merge for Dependabot PR${{ github.event.pull_request.number }}
-        if: steps.filecheck.outputs.non_beta_changes == 'false'
+      - name: Enable auto-merge for Dependabot PR#${{ github.event.pull_request.number }}
+        if: steps.filecheck.outputs.non_beta_changes == 'false' && steps.titlecheck.outputs.beta_title == 'true'
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -45,6 +56,6 @@ jobs:
           merge-method: squash
 
       - name: Log auto-merge notice
-        if: steps.filecheck.outputs.non_beta_changes == 'false'
+        if: steps.filecheck.outputs.non_beta_changes == 'false' && steps.titlecheck.outputs.beta_title == 'true'
         run: |
           echo "::notice::✅ Auto-merge enabled for Dependabot PR #${{ github.event.pull_request.number }}"

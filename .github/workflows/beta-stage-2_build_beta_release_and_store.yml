@@ -1,13 +1,38 @@
 name: Beta Stage 2 - Build and Release Beta Package
 
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+
 on:
+  pull_request:
+    types: [closed]
+    paths:
+      - 'beta/**'
   workflow_dispatch:
-  push:
-    branches: [latest]
-    paths: ['beta/**']
 
 jobs:
+  check-changes:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify beta-only changes
+        if: github.event_name == 'pull_request'
+        run: |
+          changed_files=$(git diff --name-only HEAD^ HEAD)
+          for file in $changed_files; do
+            if [[ ! $file == beta/* ]]; then
+              echo "Non-beta changes detected in $file. Exiting."
+              exit 1
+            fi
+          done
+
   generate_beta_version:
+    needs: check-changes
     name: Generate Beta Package Version
     runs-on: ubuntu-latest
     outputs:
@@ -26,16 +51,11 @@ jobs:
         id: beta_version
         run: |
           BASE_VERSION=${{ steps.release_version.outputs.version }}
-
-          # Strip pre-release suffix if any (e.g., 1.5.1-pre.abc123 → 1.5.1)
           BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
-
           DATE=$(date +%Y%m%d)
           VERSION="${BASE_VERSION_CLEAN}~beta.${DATE}"
-
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "::notice::📦 Beta version: $VERSION"
-
 
   build_beta_and_store:
     name: Build Beta Packages for (${{ matrix.name }})
@@ -67,6 +87,7 @@ jobs:
           sudo apt-get update
           sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        continue-on-error: false
 
       - name: Build Docker image
         run: |
@@ -74,7 +95,10 @@ jobs:
             --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
             --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
             -t beta-package-build \
-            --platform=linux/${{ matrix.QEMU_ARCH }} .
+            --platform=linux/${{ matrix.QEMU_ARCH }} \
+            --cache-from=beta-package-build:latest \
+            --build-arg BUILDKIT_INLINE_CACHE=1 .
+        continue-on-error: false
 
       - name: Build package
         run: |
@@ -82,30 +106,30 @@ jobs:
             -e PKG_RELEASE_TYPE="beta" \
             -e PKG_RELEASE_VERSION="${{ needs.generate_beta_version.outputs.version }}" \
             beta-package-build
+        continue-on-error: false
 
       - name: Rename package to include v
         run: |
           UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
-          mv homebridge_*.deb ${UPDATED}
+          mv homebridge_*.deb "${UPDATED}"
 
       - name: Rename manifest to include v
         run: |
           UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
-          mv homebridge_*.manifest ${UPDATED}
+          mv homebridge_*.manifest "${UPDATED}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.name }}
           retention-days: 7
           path: |
-            *.deb
-            *.manifest
+            homebridge_v*.deb
+            homebridge_v*.manifest
 
   publish_beta:
     name: Publish to APT Beta Repo
     runs-on: ubuntu-latest
-    needs: [build_beta_and_store]
-
+    needs: [generate_beta_version, build_beta_and_store]
     steps:
       - uses: actions/checkout@v4
 
@@ -120,7 +144,7 @@ jobs:
         run: ls -R
 
       - name: Import GPG Key
-        uses: crazy-max/ghaction-import-gpg@v4
+        uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -141,4 +165,4 @@ jobs:
             --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
             --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             --sign=${{ secrets.GPG_KEY_ID }} \
-            repo/*.deb
+            repo/homebridge_v*.deb

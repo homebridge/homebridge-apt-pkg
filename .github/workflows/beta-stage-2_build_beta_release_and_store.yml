@@ -7,18 +7,23 @@ permissions:
 
 on:
   pull_request:
-    types: [closed]
-    paths:
-      - 'beta/**'
+    types: [closed] # Add 'merged' for auto-merge compatibility
   workflow_dispatch:
 
 jobs:
   check-changes:
+    # Only run for merged PRs or manual dispatch
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Log event context for debugging
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Merged: ${{ github.event.pull_request.merged }}"
 
       - name: Verify beta-only changes
         if: github.event_name == 'pull_request'
@@ -110,13 +115,23 @@ jobs:
 
       - name: Rename package to include v
         run: |
-          UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
-          mv homebridge_*.deb "${UPDATED}"
+          DEB_FILE=$(ls homebridge*.deb 2>/dev/null || echo "")
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found. Exiting."
+            exit 1
+          fi
+          UPDATED=$(echo "$DEB_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+          mv "$DEB_FILE" "$UPDATED"
 
       - name: Rename manifest to include v
         run: |
-          UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
-          mv homebridge_*.manifest "${UPDATED}"
+          MANIFEST_FILE=$(ls homebridge*.manifest 2>/dev/null || echo "")
+          if [ -z "$MANIFEST_FILE" ]; then
+            echo "No .manifest file found. Exiting."
+            exit 1
+          fi
+          UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+          mv "$MANIFEST_FILE" "$UPDATED"
 
       - uses: actions/upload-artifact@v4
         with:

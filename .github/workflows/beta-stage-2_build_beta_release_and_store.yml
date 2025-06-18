@@ -7,12 +7,11 @@ permissions:
 
 on:
   pull_request:
-    types: [closed] # Add 'merged' for auto-merge compatibility
+    types: [closed]
   workflow_dispatch:
 
 jobs:
   check-changes:
-    # Only run for merged PRs or manual dispatch
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +57,7 @@ jobs:
           BASE_VERSION=${{ steps.release_version.outputs.version }}
           BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
           DATE=$(date +%Y%m%d)
-          VERSION="${BASE_VERSION_CLEAN}~beta.${DATE}"
+          VERSION="${BASE_VERSION_CLEAN}-beta.${DATE}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "::notice::📦 Beta version: $VERSION"
 
@@ -181,3 +180,33 @@ jobs:
             --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             --sign=${{ secrets.GPG_KEY_ID }} \
             repo/homebridge_v*.deb
+
+  publish_to_npm:
+    needs: [generate_beta_version, build_beta_and_store]
+    name: Publish ${{ needs.generate_beta_version.outputs.version }} to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set package.json version
+        run: |
+          BETA_VERSION="${{ needs.generate_beta_version.outputs.version }}"
+          echo "Setting version to $BETA_VERSION"
+          jq ".version = \"$BETA_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          cat package.json
+
+      - name: Publish to npm with beta tag
+        run: npm publish --access public --tag beta
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Output Success Notice
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_beta_version.outputs.version }} with beta tag"

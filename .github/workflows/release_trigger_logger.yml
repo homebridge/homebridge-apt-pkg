@@ -2,6 +2,7 @@ name: "Release Trigger Logger"
 
 on:
   release:
+  pull_request:
 
 jobs:
   release_logger:

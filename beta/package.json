@@ -4,8 +4,7 @@
   "description": "Stub package for tracking BETA Homebridge APT release versions via npm",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepublishOnly": "cp README.npm.md README.md",
-    "postpublish": "git restore README.md || true"
+    "prepublishOnly": "cp ../README.npm.md README.md"
   },
   "files": [
     "README.md"

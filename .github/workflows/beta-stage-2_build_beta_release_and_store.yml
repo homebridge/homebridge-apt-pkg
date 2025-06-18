@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.beta_version.outputs.version }}
+      npm_version: ${{ steps.beta_version.outputs.npm_version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -185,7 +186,7 @@ jobs:
 
   publish_to_npm:
     needs: [generate_beta_version, build_beta_and_store]
-    name: Publish ${{ needs.generate_beta_version.outputs.version }} to npm
+    name: Publish ${{ needs.generate_beta_version.outputs.npm_version }} to npm
     runs-on: ubuntu-latest
 
     steps:
@@ -211,4 +212,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Output Success Notice
-        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_beta_version.outputs.version }} with beta tag"
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_beta_version.outputs.npm_version }} with beta tag"

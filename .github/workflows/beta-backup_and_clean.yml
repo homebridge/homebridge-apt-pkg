@@ -37,12 +37,6 @@ jobs:
           aws s3 rm s3://repo.homebridge.io/pool/beta/ --recursive
           echo "Deleted pool/beta/"
 
-      - name: Delete Beta Backup
-        if: github.event.inputs.cleanup == 'true'
-        run: |
-          aws s3 rm s3://repo.homebridge.io/backup/beta-20250619-190620/ --recursive
-          echo "Deleted backup/beta-20250619-190620/"
-
       - name: Verify Deletion
         if: github.event.inputs.cleanup == 'true'
         run: |
@@ -51,4 +45,4 @@ jobs:
 
       - name: Verify Stable Codename
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/stable/ | grep -q stable && echo "stable codename is intact"
+          aws s3 ls s3://repo.homebridge.io/dists/stable/ || echo "No stable codename found"

@@ -1,7 +1,7 @@
 name: Beta Stage 2 - Build and Release Beta Package
 
 permissions:
-  contents: read
+  contents: write
   actions: write
   id-token: write
 
@@ -185,6 +185,52 @@ jobs:
             --sign=${{ secrets.GPG_KEY_ID }} \
             repo/homebridge_v*.deb
 
+  create_beta_release:
+    name: Create GitHub Beta Release
+    needs: [publish_apt_beta]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          path: artifacts/
+
+      - name: Read x86_64 manifest content
+        id: read_manifest
+        run: |
+          MANIFEST_FILE=$(ls artifacts/homebridge_v*debian-x86_64.manifest 2>/dev/null || echo "")
+          if [ -z "$MANIFEST_FILE" ]; then
+            echo "No x86_64 manifest file found. Exiting."
+            exit 1
+          fi
+          MANIFEST_CONTENT=$(cat "$MANIFEST_FILE" | sed 's/`/\\`/g; s/$/\\n/' | tr -d '\n')
+          echo "manifest_content=$MANIFEST_CONTENT" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.generate_beta_version.outputs.version }}
+          name: Beta Release ${{ needs.generate_beta_version.outputs.version }}
+          prerelease: true
+          files: |
+            artifacts/homebridge_v*.deb
+            artifacts/homebridge_v*.manifest
+          body: |
+            Beta release for Homebridge APT Package version ${{ needs.generate_beta_version.outputs.version }}.
+            Includes packages for:
+            - Debian x86_64
+            - Debian ARM32v6
+            - Debian ARM64v8
+
+            ### x86_64 Manifest Content
+            ```
+            ${{ steps.read_manifest.outputs.manifest_content }}
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     needs: publish_apt_beta
@@ -197,7 +243,6 @@ jobs:
     needs: [generate_beta_version, build_beta_and_store]
     name: Publish ${{ needs.generate_beta_version.outputs.npm_version }} to npm
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4

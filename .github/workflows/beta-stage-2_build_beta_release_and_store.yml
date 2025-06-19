@@ -176,6 +176,7 @@ jobs:
           sudo chown -R $USER: repo/
           deb-s3 upload \
             --codename=beta \
+            --suite=beta \
             --preserve-versions \
             --s3-region=us-west-2 \
             --bucket repo.homebridge.io \

@@ -73,6 +73,7 @@ jobs:
           sudo chown -R $USER: repo/
           deb-s3 upload \
             --codename=${{ needs.release_type.outputs.release_type }} \
+            --suite=stable \
             --preserve-versions \
             --s3-region=us-west-2 \
             --bucket repo.homebridge.io \

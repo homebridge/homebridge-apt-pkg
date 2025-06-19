@@ -14,7 +14,6 @@ updates:
     open-pull-requests-limit: 10
     versioning-strategy: increase
     labels:
-      - "dependencies"
       - "Production"
 
   # Beta /beta/package.json updates
@@ -28,5 +27,4 @@ updates:
     commit-message:
       prefix: "BETA"
     labels:
-      - "dependencies"
       - "BETA"

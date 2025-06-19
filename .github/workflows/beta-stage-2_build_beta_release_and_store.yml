@@ -144,7 +144,7 @@ jobs:
             homebridge_v*.manifest
 
   publish_apt_beta:
-    name: Publish to APT Beta Repo
+    name: Publish ${{ needs.generate_beta_version.outputs.version }} to APT Beta Repo
     runs-on: ubuntu-latest
     needs: [generate_beta_version, build_beta_and_store]
     steps:
@@ -185,9 +185,9 @@ jobs:
             --sign=${{ secrets.GPG_KEY_ID }} \
             repo/homebridge_v*.deb
 
-  create_beta_release:
-    name: Create GitHub Beta Release
-    needs: [publish_apt_beta]
+  publish_github_beta_release:
+    name: Publish GitHub Beta Release v${{ needs.generate_beta_version.outputs.version }}
+    needs: [publish_apt_beta, generate_beta_version]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -212,7 +212,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.generate_beta_version.outputs.version }}
-          name: Beta Release ${{ needs.generate_beta_version.outputs.version }}
+          name: Beta Release v${{ needs.generate_beta_version.outputs.version }}
           prerelease: true
           files: |
             artifacts/homebridge_v*.deb

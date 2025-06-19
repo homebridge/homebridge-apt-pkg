@@ -197,12 +197,12 @@ jobs:
           merge-multiple: true
           path: artifacts/
 
-      - name: Read x86_64 manifest content
+      - name: Read amd64 manifest content
         id: read_manifest
         run: |
-          MANIFEST_FILE=$(ls artifacts/homebridge_v*debian-x86_64.manifest 2>/dev/null || echo "")
+          MANIFEST_FILE=$(ls artifacts/homebridge_v*_amd64.manifest 2>/dev/null || echo "")
           if [ -z "$MANIFEST_FILE" ]; then
-            echo "No x86_64 manifest file found. Exiting."
+            echo "No amd64 manifest file found. Exiting."
             exit 1
           fi
           MANIFEST_CONTENT=$(cat "$MANIFEST_FILE" | sed 's/`/\\`/g; s/$/\\n/' | tr -d '\n')
@@ -218,13 +218,11 @@ jobs:
             artifacts/homebridge_v*.deb
             artifacts/homebridge_v*.manifest
           body: |
-            Beta release for Homebridge APT Package version ${{ needs.generate_beta_version.outputs.version }}.
-            Includes packages for:
-            - Debian x86_64
-            - Debian ARM32v6
-            - Debian ARM64v8
+            Homebridge Apt Package Manifest
 
-            ### x86_64 Manifest Content
+            Release Version: ${{ needs.generate_beta_version.outputs.version }}
+            Release Type: beta
+
             ```
             ${{ steps.read_manifest.outputs.manifest_content }}
             ```

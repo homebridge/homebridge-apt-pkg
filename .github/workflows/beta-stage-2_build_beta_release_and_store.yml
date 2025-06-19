@@ -205,9 +205,7 @@ jobs:
             echo "Error: Manifest file '$MANIFEST_FILE' does not exist or is not readable." >&2
             exit 1
           fi
-          # Read content, escape backticks only
-          MANIFEST_CONTENT=$(cat "$MANIFEST_FILE" | sed 's/`/\\`/g')
-          echo "manifest_content=$MANIFEST_CONTENT" >> $GITHUB_OUTPUT
+          echo "MANIFEST_FILE=$MANIFEST_FILE" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -218,8 +216,8 @@ jobs:
           files: |
             artifacts/homebridge_v*.deb
             artifacts/homebridge_v*.manifest
-          body: |
-            ${{ steps.read_manifest.outputs.manifest_content }}
+          body_path: |
+            ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

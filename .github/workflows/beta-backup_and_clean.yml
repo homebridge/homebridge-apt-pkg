@@ -1,4 +1,4 @@
-name: Backup and Reset Beta APT Repository
+name: Beta - Backup and Reset Beta APT Repository
 
 on:
   workflow_dispatch:
@@ -20,19 +20,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Backup Beta Codename
+      - name: Display Current Beta Codename
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          BACKUP_PATH="s3://repo.homebridge.io/backup/beta-$TIMESTAMP/"
-          aws s3 sync s3://repo.homebridge.io/dists/beta/ beta_backup/dists/
-          aws s3 sync s3://repo.homebridge.io/pool/beta/ beta_backup/pool/
-          aws s3 cp beta_backup/ "$BACKUP_PATH" --recursive
-          echo "Backup URL: https://repo.homebridge.io/backup/beta-$TIMESTAMP/"
-          echo "BACKUP_URL=https://repo.homebridge.io/backup/beta-$TIMESTAMP/" >> $GITHUB_ENV
-
-      - name: Output Backup URL
-        run: |
-          echo "Backup available at: ${{ env.BACKUP_URL }}"
+          aws s3 ls s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"
+          aws s3 ls s3://repo.homebridge.io/pool/beta/ || echo "No beta codename found"
 
       - name: Delete Beta Metadata
         if: github.event.inputs.cleanup == 'true'
@@ -45,6 +36,12 @@ jobs:
         run: |
           aws s3 rm s3://repo.homebridge.io/pool/beta/ --recursive
           echo "Deleted pool/beta/"
+
+      - name: Delete Beta Backup
+        if: github.event.inputs.cleanup == 'true'
+        run: |
+          aws s3 rm s3://repo.homebridge.io/backup/beta-20250619-190620/ --recursive
+          echo "Deleted backup/beta-20250619-190620/"
 
       - name: Verify Deletion
         if: github.event.inputs.cleanup == 'true'

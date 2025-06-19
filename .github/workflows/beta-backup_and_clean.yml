@@ -1,4 +1,4 @@
-name: Beta - Backup and Reset Beta APT Repository
+name: Beta - Erase Beta APT Repository
 
 on:
   workflow_dispatch:

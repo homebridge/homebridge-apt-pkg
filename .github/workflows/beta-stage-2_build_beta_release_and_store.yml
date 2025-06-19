@@ -200,12 +200,13 @@ jobs:
       - name: Read amd64 manifest content
         id: read_manifest
         run: |
-          MANIFEST_FILE=$(ls artifacts/homebridge_v*_amd64.manifest 2>/dev/null || echo "")
-          if [ -z "$MANIFEST_FILE" ]; then
-            echo "No amd64 manifest file found. Exiting."
+          MANIFEST_FILE="artifacts/homebridge_v${{ needs.generate_beta_version.outputs.version }}_amd64.manifest"
+          if [ ! -f "$MANIFEST_FILE" ] || [ ! -r "$MANIFEST_FILE" ]; then
+            echo "Error: Manifest file '$MANIFEST_FILE' does not exist or is not readable." >&2
             exit 1
           fi
-          MANIFEST_CONTENT=$(cat "$MANIFEST_FILE" | sed 's/`/\\`/g; s/$/\\n/' | tr -d '\n')
+          # Read content, escape backticks only
+          MANIFEST_CONTENT=$(cat "$MANIFEST_FILE" | sed 's/`/\\`/g')
           echo "manifest_content=$MANIFEST_CONTENT" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
@@ -218,14 +219,7 @@ jobs:
             artifacts/homebridge_v*.deb
             artifacts/homebridge_v*.manifest
           body: |
-            Homebridge Apt Package Manifest
-
-            Release Version: ${{ needs.generate_beta_version.outputs.version }}
-            Release Type: beta
-
-            ```
             ${{ steps.read_manifest.outputs.manifest_content }}
-            ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -58,7 +58,7 @@ jobs:
           BASE_VERSION=${{ steps.release_version.outputs.version }}
           BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
           DATE=$(date +%Y%m%d)
-          VERSION="${BASE_VERSION_CLEAN}-beta.${DATE}"
+          VERSION="${BASE_VERSION_CLEAN}~beta.${DATE}"
           NPM_VERSION="${BASE_VERSION_CLEAN}-beta.${DATE}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT

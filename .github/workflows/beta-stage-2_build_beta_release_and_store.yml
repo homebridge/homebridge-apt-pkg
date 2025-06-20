@@ -216,8 +216,12 @@ jobs:
           files: |
             artifacts/homebridge_v*.deb
             artifacts/homebridge_v*.manifest
-          body_path: |
-            ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
+          body_path: ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
+          body: |
+            Homebridge Apt Package Manifest
+
+            Release Version: v${{ needs.generate_beta_version.outputs.version }}
+            Release Type: beta
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

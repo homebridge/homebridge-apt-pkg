@@ -186,7 +186,7 @@ jobs:
             repo/homebridge_v*.deb
 
   publish_github_beta_release:
-    name: Publish GitHub Beta Release v${{ needs.generate_beta_version.outputs.version }}
+    name: Publish GitHub Beta Release v${{ needs.generate_beta_version.outputs.npm_version }}
     needs: [publish_apt_beta, generate_beta_version]
     runs-on: ubuntu-latest
     steps:
@@ -200,18 +200,13 @@ jobs:
       - name: Read amd64 manifest content
         id: read_manifest
         run: |
-          MANIFEST_FILE="artifacts/homebridge_v${{ needs.generate_beta_version.outputs.version }}_amd64.manifest"
-          if [ ! -f "$MANIFEST_FILE" ] || [ ! -r "$MANIFEST_FILE" ]; then
-            echo "Error: Manifest file '$MANIFEST_FILE' does not exist or is not readable." >&2
-            exit 1
-          fi
-          echo "MANIFEST_FILE=$MANIFEST_FILE" >> $GITHUB_OUTPUT
+          echo "MANIFEST_FILE=$(ls artifacts/*.manifest | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.generate_beta_version.outputs.version }}
-          name: Beta Release v${{ needs.generate_beta_version.outputs.version }}
+          tag_name: v${{ needs.generate_beta_version.outputs.npm_version }}
+          name: Beta Release v${{ needs.generate_beta_version.outputs.npm_version }}
           prerelease: true
           files: |
             artifacts/homebridge_v*.deb
@@ -220,7 +215,7 @@ jobs:
           body: |
             Homebridge Apt Package Manifest
 
-            Release Version: v${{ needs.generate_beta_version.outputs.version }}
+            Release Version: v${{ needs.generate_beta_version.outputs.npm_version }}
             Release Type: beta
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -79,6 +79,7 @@ echo "|Homebridge-Config-UI-X| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
 echo "|Homebridge| $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
 
+cp "$MANIFEST" staging/opt/homebridge
 # Build .deb
 cd staging
 dpkg-buildpackage -us -uc
@@ -87,4 +88,3 @@ cd ..
 # Finalize manifest name
 FINAL_MANIFEST=$(ls homebridge*.deb | sed -e 's/.deb/.manifest/')
 mv "$MANIFEST" "$FINAL_MANIFEST"
-cp "$FINAL_MANIFEST" staging/opt/homebridge

@@ -144,7 +144,7 @@ jobs:
             homebridge_v*.manifest
 
   publish_apt_beta:
-    name: Publish ${{ needs.generate_beta_version.outputs.version }} to APT Beta Repo
+    name: APT Beta Repo Publish ${{ needs.generate_beta_version.outputs.version }}
     runs-on: ubuntu-latest
     needs: [generate_beta_version, build_beta_and_store]
     steps:
@@ -230,7 +230,7 @@ jobs:
 
   publish_to_npm:
     needs: [generate_beta_version, build_beta_and_store]
-    name: Publish ${{ needs.generate_beta_version.outputs.npm_version }} to npm
+    name: NPM Publish ${{ needs.generate_beta_version.outputs.npm_version }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo

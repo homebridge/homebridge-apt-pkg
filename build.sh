@@ -26,6 +26,8 @@ fi
 rm -rf staging
 cp -R deb staging
 
+cp "$PACKAGE_JSON_PATH" staging/opt/homebridge/package.json
+
 NODE_VERSION=$(jq -r '.dependencies.node | gsub("^\\^"; "v")' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_VERSION=$(jq -r '.dependencies["homebridge"]' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_UIX_VERSION=$(jq -r '.dependencies["homebridge-config-ui-x"]' "$PACKAGE_JSON_PATH")
@@ -85,3 +87,4 @@ cd ..
 # Finalize manifest name
 FINAL_MANIFEST=$(ls homebridge*.deb | sed -e 's/.deb/.manifest/')
 mv "$MANIFEST" "$FINAL_MANIFEST"
+cp "$FINAL_MANIFEST" staging/opt/homebridge

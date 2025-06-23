@@ -13,6 +13,9 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 10
     versioning-strategy: increase
+    ignore:
+      - dependency-name: "node"
+        versions: [">22.x"]
     labels:
       - "Production"
 
@@ -24,6 +27,9 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 5
     versioning-strategy: increase
+    ignore:
+      - dependency-name: "node"
+        versions: [">22.x"]
     commit-message:
       prefix: "BETA"
     labels:

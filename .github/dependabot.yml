@@ -15,7 +15,7 @@ updates:
     versioning-strategy: increase
     ignore:
       - dependency-name: "node"
-        versions: [">22.x"]
+        versions: [">23.x"]
     labels:
       - "Production"
 
@@ -29,7 +29,7 @@ updates:
     versioning-strategy: increase
     ignore:
       - dependency-name: "node"
-        versions: [">22.x"]
+        versions: [">23.x"]
     commit-message:
       prefix: "BETA"
     labels:

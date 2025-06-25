@@ -1,8 +1,31 @@
-name: "Release Trigger Logger"
+name: Release Trigger Logger
 
 on:
-  release:
   pull_request:
+    types:
+      - assigned
+      - unassigned
+      - labeled
+      - unlabeled
+      - opened
+      - edited
+      - closed
+      - reopened
+      - synchronize
+      - ready_for_review
+      - locked
+      - unlocked
+      - review_requested
+      - review_request_removed
+      - converted_to_draft
+  release:
+    types:
+      - created
+      - edited
+      - deleted
+      - published
+      - unpublished
+      - prereleased
 
 jobs:
   release_logger:

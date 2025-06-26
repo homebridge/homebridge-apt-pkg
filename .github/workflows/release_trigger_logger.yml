@@ -1,6 +1,9 @@
 name: Release Trigger Logger
 
 on:
+  pull_request_target:
+    types:
+      - closed
   pull_request:
     types:
       - assigned

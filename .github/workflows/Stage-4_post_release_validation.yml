@@ -38,9 +38,13 @@ jobs:
           fi
 
   validate:
-    name: Validate APT Install
-    runs-on: ubuntu-latest
+    name: Validate APT Install ${{ matrix.github-action-runner }}
     needs: determine-channel
+    runs-on: ${{ matrix.github-action-runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        github-action-runner: [ubuntu-latest, ubuntu-24.04-arm]
     steps:
       - name: Install Homebridge from APT
         run: |
@@ -66,4 +70,4 @@ jobs:
           apt-cache madison homebridge
 
       - name: Publish Notice
-        run: echo "::notice::APT Package Installed from ${{ needs.determine-channel.outputs.channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }}"
+        run: echo "::notice::APT Package Installed from ${{ needs.determine-channel.outputs.channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.github-action-runner }}"

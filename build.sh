@@ -74,7 +74,7 @@ export npm_config_loglevel=error
 
 # Install packages
 npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION
-echo "|Homebridge-Config-UI-X| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
+echo "|Homebridge UI| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
 
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
 echo "|Homebridge| $HOMEBRIDGE_VERSION |" >> "$MANIFEST"

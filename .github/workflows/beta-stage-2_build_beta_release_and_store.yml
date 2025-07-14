@@ -78,11 +78,11 @@ jobs:
             BASE_IMAGE: library/debian:bullseye
             QEMU_ARCH: x86_64
           - name: debian-arm32v6
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
             QEMU_ARCH: arm
           - name: debian-arm64v8
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             BASE_IMAGE: arm64v8/debian:bullseye
             QEMU_ARCH: aarch64
 

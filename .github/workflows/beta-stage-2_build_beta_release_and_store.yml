@@ -89,11 +89,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup build environment
+      - name: Setup build environment X64
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           sudo apt-get update
           sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
           docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        continue-on-error: false
+
+      - name: Setup build environment ARM64
+        if: runner.os == 'Linux' && runner.arch == 'ARM64'
+        run: |
+          sudo apt-get update
+          sudo apt-get --yes --no-install-recommends install binfmt-support
         continue-on-error: false
 
       - name: Build Docker image

@@ -71,23 +71,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [debian-x86_64, debian-arm32v6, debian-arm64v8]
+        name: [debian-x86_64, debian-arm64v8]
         include:
           - name: debian-x86_64
             os: ubuntu-latest
             BASE_IMAGE: library/debian:bullseye
             QEMU_ARCH: x86_64
-          - name: debian-arm32v6
-            os: ubuntu-24.04-arm
-            BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
-            QEMU_ARCH: arm
+
           - name: debian-arm64v8
             os: ubuntu-24.04-arm
             BASE_IMAGE: arm64v8/debian:bullseye
             QEMU_ARCH: aarch64
+            
         # Exclude arm32v6 as it is not supported by Node.js 24.  Left code in place for future reference.
-        exclude:
-          - name: debian-arm32v6
+          #- name: debian-arm32v6
+          #  os: ubuntu-24.04-arm
+          #  BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
+          #  QEMU_ARCH: arm
 
     steps:
       - uses: actions/checkout@v4

@@ -1,5 +1,8 @@
 # Debian Package For Homebridge
 
+[![GitHub release (latest by date)](https://badgen.net/github/release/homebridge/homebridge-apt-pkg?label=Version)](https://github.com/homebridge/homebridge-apt-pkg/releases/latest)
+[![GitHub All Releases](https://img.shields.io/github/downloads/homebridge/homebridge-apt-pkg/total)](https://somsubhra.github.io/github-release-stats/?username=homebridge&repository=homebridge-apt-pkg&page=1&per_page=30)
+
 This project builds and publishes a debian-based package that can be installed using `apt` on Ubuntu / Debian / Raspberry Pi OS based Linux systems.
 
 The project aims to deploy Homebridge and the Homebridge UI in a secure and stable way, with no dependencies outside those available in the standard distribution repos. It comes bundled with it's own Node.js runtime and runs Homebridge in an isolated environment as a service user with no sudo / admin priviledges.
@@ -7,7 +10,7 @@ The project aims to deploy Homebridge and the Homebridge UI in a secure and stab
 Supported architectures:
 
 * x86_64
-* armhf ( armv7)
+* armhf ( armv7) (Pls note that support for 32 Bit OS's will end in Spring of 2027)
 * aarch64 (arm64)
 
 ## Using APT
@@ -117,6 +120,7 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
   |-- bashrc-hb-shell
   |-- CHANGELOG.md
   |-- hb-shell
+  |-- homebridge_apt_pkg_....manifest
   |-- LICENSE
   |-- README.md
   |-- source.sh
@@ -221,7 +225,7 @@ https://wiki.debian.org/MaintainerScripts
 
 ## License
 
-Copyright (C) 2024 homebridge
+Copyright (C) 2025 homebridge
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

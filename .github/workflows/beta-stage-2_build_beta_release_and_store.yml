@@ -85,6 +85,9 @@ jobs:
             os: ubuntu-24.04-arm
             BASE_IMAGE: arm64v8/debian:bullseye
             QEMU_ARCH: aarch64
+        # Exclude arm32v6 as it is not supported by Node.js 24.  Left code in place for future reference.
+        exclude:
+          - name: debian-arm32v6
 
     steps:
       - uses: actions/checkout@v4

@@ -3,6 +3,8 @@
 set -e
 set -x
 
+#trap 'rm -rf staging *.tar.gz *.manifest /tmp/*' EXIT
+
 # Determine if beta or stable config should be used
 if [[ "$PKG_RELEASE_TYPE" == "beta" ]]; then
   PACKAGE_JSON_PATH="beta/package.json"
@@ -32,12 +34,24 @@ NODE_VERSION=$(jq -r '.dependencies.node | gsub("^\\^"; "v")' "$PACKAGE_JSON_PAT
 HOMEBRIDGE_VERSION=$(jq -r '.dependencies["homebridge"]' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_UIX_VERSION=$(jq -r '.dependencies["homebridge-config-ui-x"]' "$PACKAGE_JSON_PATH")
 
-BUILD_ARCH=${QEMU_ARCH:-x86_64}
+MAJOR_NODE=$(jq -r '.dependencies.node | gsub("^\\^"; "")' "$PACKAGE_JSON_PATH" | cut -d. -f1)
+
+BUILD_ARCH=${QEMU_ARCH:-aarch64}
 case "$BUILD_ARCH" in
   x86_64) NODE_ARCH='x64' ;;
-  arm) NODE_ARCH='armv7l' ;;
+  arm)
+    if [ "$MAJOR_NODE" -gt 22 ]; then
+      echo "Skipping arm build as NodeJS > 22 on 32 Bit OS's is no longer supported"
+      exit 1
+    fi
+    NODE_ARCH='armv7l' ;;
   aarch64) NODE_ARCH='arm64' ;;
-  i386) NODE_ARCH='x86' ;;
+  i386)
+    if [ "$MAJOR_NODE" -gt 22 ]; then
+      echo "Skipping i386 build as NodeJS > 22 on 32 Bit OS's is no longer supported"
+      exit 1
+    fi
+    NODE_ARCH='x86' ;;
   *) echo "unsupported architecture"; exit 1 ;;
 esac
 
@@ -54,9 +68,9 @@ echo "|NodeJS| $NODE_VERSION |" >> "$MANIFEST"
 # Download and unpack NodeJS binary
 if [ ! -f "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
   if [[ "$NODE_ARCH" == "armv6l" || "$NODE_ARCH" == "x86" ]]; then
-    curl -SLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
+    curl -fSLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
   else
-    curl -SLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
+    curl -fSLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
   fi
 fi
 tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ --strip-components=1 --no-same-owner

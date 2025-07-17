@@ -45,7 +45,7 @@ updates:
     versioning-strategy: increase
     ignore:
       - dependency-name: "node"
-        versions: [">24.x"]
+        versions: [">=25.x"]
     labels:
       - "BETA"
       - "64bit"

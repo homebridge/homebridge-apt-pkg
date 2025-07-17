@@ -47,7 +47,7 @@ updates:
       - dependency-name: "node"
         versions: [">=25.x"]
       - dependency-name: "homebridge-config-ui-x"
-        versions: ["!beta"]
+        versions: ["!x.x.x-beta*"]
     labels:
       - "BETA"
       - "64bit"

@@ -1,11 +1,6 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  # Root package.json updates
+  # Stable 32-bit package.json
   - package-ecosystem: npm
     directory: "/"
     schedule:
@@ -18,8 +13,11 @@ updates:
         versions: [">23.x"]
     labels:
       - "Production"
+    commit-message:
+      prefix: "deps-32bit"
+      include: "scope"
 
-  # Beta /beta/package.json updates
+  # Beta 32-bit package.json
   - package-ecosystem: npm
     directory: "/beta"
     schedule:
@@ -29,8 +27,28 @@ updates:
     versioning-strategy: increase
     ignore:
       - dependency-name: "node"
-        versions: [">23.x"]
-    commit-message:
-      prefix: "BETA"
+        versions: [">22.x"]
     labels:
       - "BETA"
+      - "32bit"
+    commit-message:
+      prefix: "BETA-32bit"
+      include: "scope"
+
+  # Beta 64-bit package.json
+  - package-ecosystem: npm
+    directory: "/beta"
+    schedule:
+      interval: daily
+      time: "10:00"
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    ignore:
+      - dependency-name: "node"
+        versions: [">24.x"]
+    labels:
+      - "BETA"
+      - "64bit"
+    commit-message:
+      prefix: "BETA-64bit"
+      include: "scope"

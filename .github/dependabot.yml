@@ -19,7 +19,7 @@ updates:
 
   # Beta 32-bit package.json
   - package-ecosystem: npm
-    directory: "/beta"
+    directory: "/beta/32bit"
     schedule:
       interval: daily
       time: "10:00"
@@ -27,7 +27,7 @@ updates:
     versioning-strategy: increase
     ignore:
       - dependency-name: "node"
-        versions: [">22.x"]
+        versions: [">23.x"]
     labels:
       - "BETA"
       - "32bit"
@@ -37,7 +37,7 @@ updates:
 
   # Beta 64-bit package.json
   - package-ecosystem: npm
-    directory: "/beta"
+    directory: "/beta/64bit"
     schedule:
       interval: daily
       time: "10:00"

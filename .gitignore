@@ -14,3 +14,5 @@ staging/
 *.tgz
 /beta/node_modules
 beta/README.md
+/beta/32bit/node_modules
+/beta/64bit/node_modules

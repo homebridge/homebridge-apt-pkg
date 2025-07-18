@@ -14,7 +14,7 @@ updates:
     labels:
       - "Production"
     commit-message:
-      prefix: "deps-32bit"
+      prefix: "Production"
       include: "scope"
 
   # Beta 32-bit package.json

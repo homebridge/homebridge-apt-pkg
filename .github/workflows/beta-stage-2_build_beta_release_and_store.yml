@@ -14,6 +14,8 @@ jobs:
   check-changes:
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    outputs:
+      beta_only: ${{ steps.verify_changes.outputs.beta_only }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,18 +27,22 @@ jobs:
           echo "Merged: ${{ github.event.pull_request.merged }}"
 
       - name: Verify beta-only changes
+        id: verify_changes
         if: github.event_name == 'pull_request'
         run: |
+          beta_only=true
           changed_files=$(git diff --name-only HEAD^ HEAD)
           for file in $changed_files; do
             if [[ ! $file == beta/* ]]; then
-              echo "Non-beta changes detected in $file. Exiting."
-              exit 1
+              echo "Non-beta changes detected in $file. Skipping subsequent jobs."
+              beta_only=false
             fi
           done
+          echo "beta_only=$beta_only" >> $GITHUB_OUTPUT
 
   generate_beta_version:
     needs: check-changes
+    if: ${{ needs.check-changes.outputs.beta_only == 'true' }}
     name: Generate Beta Package Version
     runs-on: ubuntu-latest
     outputs:
@@ -83,7 +89,6 @@ jobs:
             BASE_IMAGE: arm64v8/debian:bullseye
             QEMU_ARCH: aarch64
             
-        # Exclude arm32v6 as it is not supported by Node.js 24.  Left code in place for future reference.
           - name: debian-arm32v6
             os: ubuntu-24.04-arm
             BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
@@ -198,7 +203,7 @@ jobs:
 
   publish_github_beta_release:
     name: Publish GitHub Beta Release v${{ needs.generate_beta_version.outputs.npm_version }}
-    needs: [publish_apt_beta, generate_beta_version]
+    needs: [check-changes, publish_apt_beta, generate_beta_version]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -233,7 +238,7 @@ jobs:
 
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
-    needs: publish_apt_beta
+    needs: [publish_apt_beta]
     uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

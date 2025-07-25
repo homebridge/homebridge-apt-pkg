@@ -28,17 +28,21 @@ jobs:
 
       - name: Verify beta-only changes
         id: verify_changes
-        if: github.event_name == 'pull_request'
         run: |
-          beta_only=true
-          changed_files=$(git diff --name-only HEAD^ HEAD)
-          for file in $changed_files; do
-            if [[ ! $file == beta/* ]]; then
-              echo "Non-beta changes detected in $file. Skipping subsequent jobs."
-              beta_only=false
-            fi
-          done
-          echo "beta_only=$beta_only" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Workflow dispatch detected, setting beta_only=true"
+            echo "beta_only=true" >> $GITHUB_OUTPUT
+          else
+            beta_only=true
+            changed_files=$(git diff --name-only HEAD^ HEAD)
+            for file in $changed_files; do
+              if [[ ! $file == beta/* ]]; then
+                echo "Non-beta changes detected in $file. Setting beta_only=false"
+                beta_only=false
+              fi
+            done
+            echo "beta_only=$beta_only" >> $GITHUB_OUTPUT
+          fi
 
   generate_beta_version:
     needs: check-changes

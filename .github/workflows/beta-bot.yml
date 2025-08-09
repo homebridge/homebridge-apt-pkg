@@ -1,0 +1,133 @@
+name: Beta Bot - Update Beta Dependencies
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # 6 AM Eastern (10 AM UTC)
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      CONFIG_FILE: ".github/beta-bot.json"
+    outputs:
+      changes_detected: ${{ steps.check-changes.outputs.changes_detected }}
+      changed_dir: ${{ steps.check-changes.outputs.changed_dir }}
+      branch_name: ${{ steps.create-branch.outputs.branch_name }}
+      pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      auto_merge: ${{ steps.check-changes.outputs.auto_merge }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # For git diff
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Load config file
+        id: load-config
+        run: |
+          config="${{ env.CONFIG_FILE }}"
+          if [ ! -f "$config" ]; then
+            echo "Config file not found: $config"
+            exit 0
+          fi
+          echo "Config file loaded: $config"
+
+      - name: Process directories and packages
+        id: process-dirs
+        run: |
+          config="${{ env.CONFIG_FILE }}"
+          dirs_length=$(jq '.directories | length' "$config")
+          echo "Found $dirs_length directories in config"
+          for i in $(seq 0 $(($dirs_length - 1))); do
+            dir=$(jq -r ".directories[$i].directory" "$config")
+            if [ ! -d "$dir" ]; then
+              echo "Directory not found: $dir"
+              continue
+            fi
+            echo "Processing directory: $dir"
+            cd "$dir"
+            pkgs_length=$(jq ".directories[$i].packages | length" "$config")
+            echo "Found $pkgs_length packages in $dir"
+            for j in $(seq 0 $(($pkgs_length - 1))); do
+              pkg=$(jq -r ".directories[$i].packages[$j].name" "$config")
+              tag=$(jq -r ".directories[$i].packages[$j].tag" "$config")
+              echo "Installing $pkg@$tag in $dir"
+              npm install "$pkg@$tag" || { echo "Failed to install $pkg@$tag"; exit 1; }
+            done
+            cd - > /dev/null
+            echo "Completed processing $dir"
+          done
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          config="${{ env.CONFIG_FILE }}"
+          auto_merge=$(jq -r ".auto_merge // false" "$config")
+          dirs_length=$(jq '.directories | length' "$config")
+          changes_detected=false
+          changed_dir=""
+          for i in $(seq 0 $(($dirs_length - 1))); do
+            dir=$(jq -r ".directories[$i].directory" "$config")
+            if [ ! -d "$dir" ]; then
+              continue
+            fi
+            cd "$dir"
+            if git diff --quiet -- package.json package-lock.json; then
+              echo "No changes in $dir"
+            else
+              echo "Changes detected in $dir"
+              changes_detected=true
+              changed_dir="$dir"
+              break  # Stop at first change to handle one directory per run
+            fi
+            cd - > /dev/null
+          done
+          echo "changes_detected=$changes_detected" >> $GITHUB_OUTPUT
+          echo "changed_dir=$changed_dir" >> $GITHUB_OUTPUT
+          echo "auto_merge=$auto_merge" >> $GITHUB_OUTPUT
+
+      - name: Create and push branch
+        id: create-branch
+        if: steps.check-changes.outputs.changes_detected == 'true'
+        run: |
+          dir="${{ steps.check-changes.outputs.changed_dir }}"
+          branch="update/beta-$(date +%s)"
+          cd "$dir"
+          git checkout -b "$branch"
+          git add package.json package-lock.json
+          git commit -m "Update beta dependencies in $dir"
+          git push origin "$branch"
+          echo "Branch pushed: $branch"
+          echo "branch_name=$branch" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create pull request
+        id: create-pr
+        if: steps.check-changes.outputs.changes_detected == 'true'
+        run: |
+          branch="${{ steps.create-branch.outputs.branch_name }}"
+          dir="${{ steps.check-changes.outputs.changed_dir }}"
+          pr_url=$(gh pr create --title "Update beta dependencies in $dir" --body "Automated dependency update")
+          pr_number="${pr_url##*/}"
+          echo "PR created: $pr_url"
+          echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge PR
+        id: auto-merge
+        if: steps.check-changes.outputs.changes_detected == 'true' && steps.check-changes.outputs.auto_merge == 'true'
+        run: |
+          pr_number="${{ steps.create-pr.outputs.pr_number }}"
+          echo "Auto-merging PR #$pr_number"
+          gh pr merge "$pr_number" --merge --delete-branch || { echo "Failed to merge PR #$pr_number"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

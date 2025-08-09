@@ -1,0 +1,39 @@
+{
+  "auto_merge": true,
+  "directories": [
+    {
+      "directory": "beta/32bit",
+      "packages": [
+        {
+          "name": "homebridge-config-ui-x",
+          "tag": "beta"
+        },
+        {
+          "name": "homebridge",
+          "tag": "beta"
+        },
+        {
+          "name": "node",
+          "tag": "^22.x.x"
+        }
+      ]
+    },
+    {
+      "directory": "beta/64bit",
+      "packages": [
+        {
+          "name": "homebridge-config-ui-x",
+          "tag": "beta"
+        },
+        {
+          "name": "homebridge",
+          "tag": "beta"
+        },
+        {
+          "name": "node",
+          "tag": "^22.x.x"
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     env:
-      CONFIG_FILE: ".github/beta-bot.json"
+      CONFIG_FILE: "/.github/beta-bot.json"
     outputs:
       changes_detected: ${{ steps.check-changes.outputs.changes_detected }}
       changed_dir: ${{ steps.check-changes.outputs.changed_dir }}

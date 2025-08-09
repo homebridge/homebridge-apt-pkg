@@ -1,4 +1,4 @@
-name: Beta Bot - Update Beta Dependencies
+name: Beta Bot
 
 on:
   schedule:
@@ -8,8 +8,6 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    env:
-      CONFIG_FILE: "/.github/beta-bot.json"
     outputs:
       changes_detected: ${{ steps.check-changes.outputs.changes_detected }}
       changed_dir: ${{ steps.check-changes.outputs.changed_dir }}
@@ -32,17 +30,19 @@ jobs:
       - name: Load config file
         id: load-config
         run: |
-          config="${{ env.CONFIG_FILE }}"
-          if [ ! -f "$config" ]; then
-            echo "Config file not found: $config"
-            exit 0
+          config=".github/beta-bot.json"
+          config_abs="$(pwd)/$config"
+          if [ ! -f "$config_abs" ]; then
+            echo "::error::Config file not found: $config_abs. Please ensure .github/beta-bot.json exists in the repository."
+            exit 1
           fi
-          echo "Config file loaded: $config"
+          echo "Config file loaded: $config_abs"
+          echo "config_abs=$config_abs" >> $GITHUB_OUTPUT
 
       - name: Process directories and packages
         id: process-dirs
         run: |
-          config="${{ env.CONFIG_FILE }}"
+          config="${{ steps.load-config.outputs.config_abs }}"
           dirs_length=$(jq '.directories | length' "$config")
           echo "Found $dirs_length directories in config"
           for i in $(seq 0 $(($dirs_length - 1))); do
@@ -51,7 +51,7 @@ jobs:
               echo "Directory not found: $dir"
               continue
             fi
-            echo "Processing directory: $dir"
+            echo " rewards Processing directory: $dir"
             cd "$dir"
             pkgs_length=$(jq ".directories[$i].packages | length" "$config")
             echo "Found $pkgs_length packages in $dir"
@@ -68,7 +68,7 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
-          config="${{ env.CONFIG_FILE }}"
+          config="${{ steps.load-config.outputs.config_abs }}"
           auto_merge=$(jq -r ".auto_merge // false" "$config")
           dirs_length=$(jq '.directories | length' "$config")
           changes_detected=false

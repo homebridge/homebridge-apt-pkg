@@ -43,7 +43,6 @@ jobs:
           user_email=$(jq -r '.git_user.email // "actions@github.com"' "$config_abs")
           auto_merge=$(jq -r '.auto_merge // false' "$config_abs")
           dirs_length=$(jq '.directories | length' "$config_abs")
-          dirs_json=$(jq -c '.directories' "$config_abs")
           # Validate that each package has either tag or pattern, but not both
           for i in $(seq 0 $(($dirs_length - 1))); do
             pkgs_length=$(jq ".directories[$i].packages | length" "$config_abs")
@@ -62,15 +61,11 @@ jobs:
             done
           done
           echo "Config file loaded: $config_abs"
-          echo "Raw dirs_json: $dirs_json"
           echo "config_abs=$config_abs" >> $GITHUB_OUTPUT
           echo "user_name=$user_name" >> $GITHUB_OUTPUT
           echo "user_email=$user_email" >> $GITHUB_OUTPUT
           echo "auto_merge=$auto_merge" >> $GITHUB_OUTPUT
           echo "dirs_length=$dirs_length" >> $GITHUB_OUTPUT
-          echo "dirs_json<<EOF" >> $GITHUB_OUTPUT
-          echo "$dirs_json" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Configure Git identity
         run: |
@@ -81,9 +76,8 @@ jobs:
       - name: Process directories and packages
         id: process-dirs
         run: |
+          config="${{ steps.load-config.outputs.config_abs }}"
           dirs_length="${{ steps.load-config.outputs.dirs_length }}"
-          dirs_json="${{ steps.load-config.outputs.dirs_json }}"
-          echo "Processing dirs_json: $dirs_json"
           echo "Found $dirs_length directories in config"
           for i in $(seq 0 $(($dirs_length - 1))); do
             dir=$(jq -r ".directories[$i].directory" "$config")
@@ -93,12 +87,12 @@ jobs:
             fi
             echo "Processing directory: $dir"
             cd "$dir"
-            pkgs_length=$(echo "$dirs_json" | jq ".[$i].packages | length")
+            pkgs_length=$(jq ".directories[$i].packages | length" "$config")
             echo "Found $pkgs_length packages in $dir"
             for j in $(seq 0 $(($pkgs_length - 1))); do
-              pkg=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].name")
-              tag=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].tag // null")
-              pattern=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].pattern // null")
+              pkg=$(jq -r ".directories[$i].packages[$j].name" "$config")
+              tag=$(jq -r ".directories[$i].packages[$j].tag // null" "$config")
+              pattern=$(jq -r ".directories[$i].packages[$j].pattern // null" "$config")
               if [ "$tag" != "null" ]; then
                 latest_version=$(npm view "$pkg@$tag" version)
                 if [ -z "$latest_version" ]; then
@@ -124,13 +118,12 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
+          config="${{ steps.load-config.outputs.config_abs }}"
           dirs_length="${{ steps.load-config.outputs.dirs_length }}"
-          dirs_json="${{ steps.load-config.outputs.dirs_json }}"
-          echo "Checking dirs_json: $dirs_json"
           changes_detected=false
           changed_dirs=""
           for i in $(seq 0 $(($dirs_length - 1))); do
-            dir=$(echo "$dirs_json" | jq -r ".[$i].directory")
+            dir=$(jq -r ".directories[$i].directory" "$config")
             if [ ! -d "$dir" ]; then
               continue
             fi

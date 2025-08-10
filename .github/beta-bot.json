@@ -31,7 +31,7 @@
         },
         {
           "name": "homebridge",
-          "pattern": "^2.0.0-beta\\."
+          "pattern": "^2.0.0-beta"
         },
         {
           "name": "node",

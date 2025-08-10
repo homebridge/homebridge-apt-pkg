@@ -10,10 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changes_detected: ${{ steps.check-changes.outputs.changes_detected }}
-      changed_dir: ${{ steps.check-changes.outputs.changed_dir }}
+      changed_dirs: ${{ steps.check-changes.outputs.changed_dirs }}
       branch_name: ${{ steps.create-branch.outputs.branch_name }}
       pr_number: ${{ steps.create-pr.outputs.pr_number }}
-      auto_merge: ${{ steps.check-changes.outputs.auto_merge }}
+      auto_merge: ${{ steps.load-config.outputs.auto_merge }}
+      user_name: ${{ steps.load-config.outputs.user_name }}
+      user_email: ${{ steps.load-config.outputs.user_email }}
+      dirs_length: ${{ steps.load-config.outputs.dirs_length }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,30 +39,79 @@ jobs:
             echo "::error::Config file not found: $config_abs. Please ensure .github/beta-bot.json exists in the repository."
             exit 1
           fi
+          user_name=$(jq -r '.git_user.name // "GitHub Actions"' "$config_abs")
+          user_email=$(jq -r '.git_user.email // "actions@github.com"' "$config_abs")
+          auto_merge=$(jq -r '.auto_merge // false' "$config_abs")
+          dirs_length=$(jq '.directories | length' "$config_abs")
+          dirs_json=$(jq -c '.directories' "$config_abs")
+          # Validate that each package has either tag or pattern, but not both
+          for i in $(seq 0 $(($dirs_length - 1))); do
+            pkgs_length=$(jq ".directories[$i].packages | length" "$config_abs")
+            for j in $(seq 0 $(($pkgs_length - 1))); do
+              pkg=$(jq -r ".directories[$i].packages[$j].name" "$config_abs")
+              has_tag=$(jq -r ".directories[$i].packages[$j].tag // null" "$config_abs")
+              has_pattern=$(jq -r ".directories[$i].packages[$j].pattern // null" "$config_abs")
+              if [ "$has_tag" != "null" ] && [ "$has_pattern" != "null" ]; then
+                echo "::error::Package $pkg in directory $i has both tag and pattern defined. Specify only one."
+                exit 1
+              fi
+              if [ "$has_tag" = "null" ] && [ "$has_pattern" = "null" ]; then
+                echo "::error::Package $pkg in directory $i has neither tag nor pattern defined. Specify one."
+                exit 1
+              fi
+            done
+          done
           echo "Config file loaded: $config_abs"
           echo "config_abs=$config_abs" >> $GITHUB_OUTPUT
+          echo "user_name=$user_name" >> $GITHUB_OUTPUT
+          echo "user_email=$user_email" >> $GITHUB_OUTPUT
+          echo "auto_merge=$auto_merge" >> $GITHUB_OUTPUT
+          echo "dirs_length=$dirs_length" >> $GITHUB_OUTPUT
+          echo "dirs_json=$dirs_json" >> $GITHUB_OUTPUT
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "${{ steps.load-config.outputs.user_name }}"
+          git config user.email "${{ steps.load-config.outputs.user_email }}"
+          echo "Git identity configured: ${{ steps.load-config.outputs.user_name }} <${{ steps.load-config.outputs.user_email }}>"
 
       - name: Process directories and packages
         id: process-dirs
         run: |
-          config="${{ steps.load-config.outputs.config_abs }}"
-          dirs_length=$(jq '.directories | length' "$config")
+          dirs_length="${{ steps.load-config.outputs.dirs_length }}"
+          dirs_json="${{ steps.load-config.outputs.dirs_json }}"
           echo "Found $dirs_length directories in config"
           for i in $(seq 0 $(($dirs_length - 1))); do
-            dir=$(jq -r ".directories[$i].directory" "$config")
+            dir=$(echo "$dirs_json" | jq -r ".[$i].directory")
             if [ ! -d "$dir" ]; then
               echo "Directory not found: $dir"
               continue
             fi
             echo "Processing directory: $dir"
             cd "$dir"
-            pkgs_length=$(jq ".directories[$i].packages | length" "$config")
+            pkgs_length=$(echo "$dirs_json" | jq ".[$i].packages | length")
             echo "Found $pkgs_length packages in $dir"
             for j in $(seq 0 $(($pkgs_length - 1))); do
-              pkg=$(jq -r ".directories[$i].packages[$j].name" "$config")
-              tag=$(jq -r ".directories[$i].packages[$j].tag" "$config")
-              echo "Installing $pkg@$tag in $dir"
-              npm install "$pkg@$tag" || { echo "Failed to install $pkg@$tag"; exit 1; }
+              pkg=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].name")
+              tag=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].tag // null")
+              pattern=$(echo "$dirs_json" | jq -r ".[$i].packages[$j].pattern // null")
+              if [ "$tag" != "null" ]; then
+                latest_version=$(npm view "$pkg@$tag" version)
+                if [ -z "$latest_version" ]; then
+                  echo "::error::No version found for $pkg@$tag"
+                  exit 1
+                fi
+                echo "Installing $pkg@$latest_version in $dir"
+                npm install "$pkg@$latest_version" || { echo "::error::Failed to install $pkg@$latest_version"; exit 1; }
+              else
+                latest_version=$(npm view "$pkg" versions --json | jq -r ".[] | select(test(\"$pattern\"))" | sort -V | tail -n 1)
+                if [ -z "$latest_version" ]; then
+                  echo "::error::No versions found for $pkg matching pattern $pattern"
+                  exit 1
+                fi
+                echo "Installing $pkg@$latest_version in $dir"
+                npm install "$pkg@$latest_version" || { echo "::error::Failed to install $pkg@$latest_version"; exit 1; }
+              fi
             done
             cd - > /dev/null
             echo "Completed processing $dir"
@@ -68,13 +120,12 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
-          config="${{ steps.load-config.outputs.config_abs }}"
-          auto_merge=$(jq -r ".auto_merge // false" "$config")
-          dirs_length=$(jq '.directories | length' "$config")
+          dirs_length="${{ steps.load-config.outputs.dirs_length }}"
+          dirs_json="${{ steps.load-config.outputs.dirs_json }}"
           changes_detected=false
-          changed_dir=""
+          changed_dirs=""
           for i in $(seq 0 $(($dirs_length - 1))); do
-            dir=$(jq -r ".directories[$i].directory" "$config")
+            dir=$(echo "$dirs_json" | jq -r ".[$i].directory")
             if [ ! -d "$dir" ]; then
               continue
             fi
@@ -84,27 +135,26 @@ jobs:
             else
               echo "Changes detected in $dir"
               changes_detected=true
-              changed_dir="$dir"
-              break  # Stop at first change to handle one directory per run
+              if [ -z "$changed_dirs" ]; then
+                changed_dirs="$dir"
+              else
+                changed_dirs="$changed_dirs,$dir"
+              fi
+              git add package.json package-lock.json
             fi
             cd - > /dev/null
           done
           echo "changes_detected=$changes_detected" >> $GITHUB_OUTPUT
-          echo "changed_dir=$changed_dir" >> $GITHUB_OUTPUT
-          echo "auto_merge=$auto_merge" >> $GITHUB_OUTPUT
+          echo "changed_dirs=$changed_dirs" >> $GITHUB_OUTPUT
 
       - name: Create and push branch
         id: create-branch
         if: steps.check-changes.outputs.changes_detected == 'true'
         run: |
-          dir="${{ steps.check-changes.outputs.changed_dir }}"
+          changed_dirs="${{ steps.check-changes.outputs.changed_dirs }}"
           branch="update/beta-$(date +%s)"
-          cd "$dir"
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
           git checkout -b "$branch"
-          git add package.json package-lock.json
-          git commit -m "Update beta dependencies in $dir"
+          git commit -m "Update beta dependencies in $changed_dirs"
           git push origin "$branch"
           echo "Branch pushed: $branch"
           echo "branch_name=$branch" >> $GITHUB_OUTPUT
@@ -116,8 +166,8 @@ jobs:
         if: steps.check-changes.outputs.changes_detected == 'true'
         run: |
           branch="${{ steps.create-branch.outputs.branch_name }}"
-          dir="${{ steps.check-changes.outputs.changed_dir }}"
-          pr_url=$(gh pr create --title "Update beta dependencies in $dir" --body "Automated dependency update")
+          changed_dirs="${{ steps.check-changes.outputs.changed_dirs }}"
+          pr_url=$(gh pr create --title "Update beta dependencies in $changed_dirs" --body "Automated dependency update")
           pr_number="${pr_url##*/}"
           echo "PR created: $pr_url"
           echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
@@ -126,12 +176,10 @@ jobs:
 
       - name: Auto-merge PR
         id: auto-merge
-        if: steps.check-changes.outputs.changes_detected == 'true' && steps.check-changes.outputs.auto_merge == 'true'
+        if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
         run: |
           pr_number="${{ steps.create-pr.outputs.pr_number }}"
           echo "Auto-merging PR #$pr_number"
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          gh pr merge "$pr_number" --merge --delete-branch || { echo "Failed to merge PR #$pr_number"; exit 1; }
+          gh pr merge "$pr_number" --merge --delete-branch || { echo "::error::Failed to merge PR #$pr_number"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,9 @@
 {
   "auto_merge": false,
+  "git_user": {
+    "name": "GitHub Actions",
+    "email": "actions@github.com"
+  },
   "directories": [
     {
       "directory": "beta/32bit",
@@ -10,7 +14,7 @@
         },
         {
           "name": "homebridge",
-          "tag": "beta"
+          "pattern": "^2.0.0-beta\\."
         },
         {
           "name": "node",
@@ -27,11 +31,11 @@
         },
         {
           "name": "homebridge",
-          "tag": "beta"
+          "pattern": "^2.0.0-beta\\."
         },
         {
           "name": "node",
-          "tag": "^22.x.x"
+          "tag": "^24.x.x"
         }
       ]
     }

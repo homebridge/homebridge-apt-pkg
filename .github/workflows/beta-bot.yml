@@ -51,7 +51,7 @@ jobs:
               echo "Directory not found: $dir"
               continue
             fi
-            echo " rewards Processing directory: $dir"
+            echo "Processing directory: $dir"
             cd "$dir"
             pkgs_length=$(jq ".directories[$i].packages | length" "$config")
             echo "Found $pkgs_length packages in $dir"
@@ -100,6 +100,8 @@ jobs:
           dir="${{ steps.check-changes.outputs.changed_dir }}"
           branch="update/beta-$(date +%s)"
           cd "$dir"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git checkout -b "$branch"
           git add package.json package-lock.json
           git commit -m "Update beta dependencies in $dir"
@@ -128,6 +130,8 @@ jobs:
         run: |
           pr_number="${{ steps.create-pr.outputs.pr_number }}"
           echo "Auto-merging PR #$pr_number"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           gh pr merge "$pr_number" --merge --delete-branch || { echo "Failed to merge PR #$pr_number"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

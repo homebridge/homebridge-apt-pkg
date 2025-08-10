@@ -67,7 +67,9 @@ jobs:
           echo "user_email=$user_email" >> $GITHUB_OUTPUT
           echo "auto_merge=$auto_merge" >> $GITHUB_OUTPUT
           echo "dirs_length=$dirs_length" >> $GITHUB_OUTPUT
-          echo "dirs_json=$dirs_json" >> $GITHUB_OUTPUT
+          echo "dirs_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$dirs_json" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Configure Git identity
         run: |

@@ -86,7 +86,7 @@ jobs:
           echo "Processing dirs_json: $dirs_json"
           echo "Found $dirs_length directories in config"
           for i in $(seq 0 $(($dirs_length - 1))); do
-            dir=$(echo "$dirs_json" | jq -r ".[$i].directory")
+            dir=$(jq -r ".directories[$i].directory" "$config")
             if [ ! -d "$dir" ]; then
               echo "Directory not found: $dir"
               continue

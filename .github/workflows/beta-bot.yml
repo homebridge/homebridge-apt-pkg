@@ -82,7 +82,7 @@ jobs:
         run: |
           dirs_length="${{ steps.load-config.outputs.dirs_length }}"
           dirs_json="${{ steps.load-config.outputs.dirs_json }}"
-          echo "Found $dirs_length directories in config"
+          echo "Found ${{ steps.load-config.outputs.dirs_length }} directories in ${{ steps.load-config.outputs.dirs_json }}"
           for i in $(seq 0 $(($dirs_length - 1))); do
             dir=$(echo "$dirs_json" | jq -r ".[$i].directory")
             if [ ! -d "$dir" ]; then
@@ -90,6 +90,7 @@ jobs:
               continue
             fi
             echo "Processing directory: $dir"
+            echo "::notice::Processing directory: $dir"
             cd "$dir"
             pkgs_length=$(echo "$dirs_json" | jq ".[$i].packages | length")
             echo "Found $pkgs_length packages in $dir"

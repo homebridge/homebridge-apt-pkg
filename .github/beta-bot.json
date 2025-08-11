@@ -1,5 +1,5 @@
 {
-  "auto_merge": false,
+  "auto_merge": true,
   "git_user": {
     "name": "GitHub Actions",
     "email": "actions@github.com"

@@ -197,6 +197,6 @@ jobs:
         if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
         run: |
           echo "::notice::Triggering Beta Stage 2 - Build and Release Beta Package"
-          gh workflow run "Beta Stage 2 - Build and Release Beta Package" --ref main || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
+          gh workflow run beta-stage-2_build_beta_release_and_store.yml --ref main --ref main || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

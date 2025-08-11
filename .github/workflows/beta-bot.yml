@@ -93,7 +93,7 @@ jobs:
               tag=$(jq -r ".directories[$i].packages[$j].tag // null" "$config")
               pattern=$(jq -r ".directories[$i].packages[$j].pattern // null" "$config")
               if [ "$tag" != "null" ]; then
-                echo "Installing $pkg@$tag in $dir"
+                echo "::notice::Installing $pkg@$tag in $dir"
                 npm install "$pkg@$tag" || { echo "::error::Failed to install $pkg@$tag"; exit 1; }
               else
                 unescaped_pattern=$(echo "$pattern" | sed 's/\\\+/\\/g')
@@ -102,7 +102,7 @@ jobs:
                   echo "::error::No versions found for $pkg matching pattern $unescaped_pattern"
                   exit 1
                 fi
-                echo "Installing $pkg@$latest_version in $dir"
+                echo "::notice::Installing $pkg@$latest_version in $dir"
                 npm install "$pkg@$latest_version" || { echo "::error::Failed to install $pkg@$latest_version"; exit 1; }
               fi
             done
@@ -137,6 +137,11 @@ jobs:
             fi
             cd - > /dev/null
           done
+          if [ "$changes_detected" = "true" ]; then
+            echo "::notice::Changes detected in directories: $changed_dirs"
+          else
+            echo "::notice::No changes detected in any directories"
+          fi
           echo "changes_detected=$changes_detected" >> $GITHUB_OUTPUT
           echo "changed_dirs=$changed_dirs" >> $GITHUB_OUTPUT
 
@@ -149,7 +154,7 @@ jobs:
           git checkout -b "$branch"
           git commit -m "Update beta dependencies in $changed_dirs"
           git push origin "$branch"
-          echo "Branch pushed: $branch"
+          echo "::notice::Branch pushed: $branch"
           echo "branch_name=$branch" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -162,6 +167,7 @@ jobs:
           changed_dirs="${{ steps.check-changes.outputs.changed_dirs }}"
           pr_url=$(gh pr create --title "Update beta dependencies in $changed_dirs" --body "Automated dependency update")
           pr_number="${pr_url##*/}"
+          echo "::notice::Pull request created: #$pr_number ($pr_url)"
           echo "PR created: $pr_url"
           echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
         env:
@@ -172,7 +178,15 @@ jobs:
         if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
         run: |
           pr_number="${{ steps.create-pr.outputs.pr_number }}"
-          echo "Auto-merging PR #$pr_number"
+          echo "::notice::Auto-merging PR #$pr_number"
           gh pr merge "$pr_number" --merge --delete-branch || { echo "::error::Failed to merge PR #$pr_number"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Beta Stage 2 Workflow
+        if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
+        run: |
+          echo "::notice::Triggering Beta Stage 2 - Build and Release Beta Package"
+          gh workflow run "Beta Stage 2 - Build and Release Beta Package" --ref main || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

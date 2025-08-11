@@ -16,39 +16,3 @@ updates:
     commit-message:
       prefix: "Production"
       include: "scope"
-
-  # Beta 32-bit package.json
-  - package-ecosystem: npm
-    directory: "/beta/32bit"
-    schedule:
-      interval: daily
-      time: "10:00"
-    open-pull-requests-limit: 5
-    versioning-strategy: increase
-    ignore:
-      - dependency-name: "node"
-        versions: [">23.x"]
-    labels:
-      - "BETA"
-      - "32bit"
-    commit-message:
-      prefix: "BETA-32bit"
-      include: "scope"
-
-  # Beta 64-bit package.json
-  - package-ecosystem: npm
-    directory: "/beta/64bit"
-    schedule:
-      interval: daily
-      time: "10:00"
-    open-pull-requests-limit: 5
-    versioning-strategy: increase
-    ignore:
-      - dependency-name: "node"
-        versions: [">=25.x"]
-    labels:
-      - "BETA"
-      - "64bit"
-    commit-message:
-      prefix: "BETA-64bit"
-      include: "scope"

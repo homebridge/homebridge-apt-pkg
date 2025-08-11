@@ -217,6 +217,33 @@ To revert any changes run:
 sudo systemctl revert homebridge
 ```
 
+## Beta Builds
+
+Beta builds of the homebridge package are supplied with the latest beta versions of Homebridge and Homebridge UI.
+
+### Installing Beta Version via APT
+
+Add package source:
+
+```bash
+# make sure the tools needed to add the repo exist
+sudo apt-get update
+sudo apt-get install -y curl gpg
+
+# add the homebridge gpg key
+curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor | sudo tee /usr/share/keyrings/homebridge.gpg  > /dev/null
+
+# add the homebridge repo
+echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io beta main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+```
+
+Update and install:
+
+```bash
+sudo apt-get update
+sudo apt-get install homebridge
+```
+
 ## Packaging Notes
 
 Package scripts workflow (preinst, postinst, postrm etc.):

@@ -3,7 +3,7 @@ name: Beta Bot
 on:
   schedule:
     - cron: '0 10 * * *'  # 6 AM Eastern (10 AM UTC)
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   update:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # For git diff
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -43,7 +43,6 @@ jobs:
           user_email=$(jq -r '.git_user.email // "actions@github.com"' "$config_abs")
           auto_merge=$(jq -r '.auto_merge // false' "$config_abs")
           dirs_length=$(jq '.directories | length' "$config_abs")
-          # Validate that each package has either tag or pattern, but not both
           for i in $(seq 0 $(($dirs_length - 1))); do
             pkgs_length=$(jq ".directories[$i].packages | length" "$config_abs")
             for j in $(seq 0 $(($pkgs_length - 1))); do
@@ -94,19 +93,13 @@ jobs:
               tag=$(jq -r ".directories[$i].packages[$j].tag // null" "$config")
               pattern=$(jq -r ".directories[$i].packages[$j].pattern // null" "$config")
               if [ "$tag" != "null" ]; then
-                echo "Installing package $pkg with tag $tag in $dir"
-                latest_version=$(npm view "$pkg@$tag" version)
-                if [ -z "$latest_version" ]; then
-                  echo "::error::No version found for $pkg@$tag"
-                  exit 1
-                fi
-                echo "Installing $pkg@$latest_version in $dir"
-                npm install "$pkg@$latest_version" || { echo "::error::Failed to install $pkg@$latest_version"; exit 1; }
+                echo "Installing $pkg@$tag in $dir"
+                npm install "$pkg@$tag" || { echo "::error::Failed to install $pkg@$tag"; exit 1; }
               else
-                echo "Installing package $pkg with pattern $pattern in $dir"
-                latest_version=$(npm view "$pkg" versions --json | jq -r ".[] | select(test(\"$pattern\"))" | sort -V | tail -n 1)
+                unescaped_pattern=$(echo "$pattern" | sed 's/\\\+/\\/g')
+                latest_version=$(npm view "$pkg" versions --json | jq -r ".[] | select(test(\"$unescaped_pattern\"))" | sort -V | tail -n 1)
                 if [ -z "$latest_version" ]; then
-                  echo "::error::No versions found for $pkg matching pattern $pattern"
+                  echo "::error::No versions found for $pkg matching pattern $unescaped_pattern"
                   exit 1
                 fi
                 echo "Installing $pkg@$latest_version in $dir"

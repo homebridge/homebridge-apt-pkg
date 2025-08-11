@@ -189,7 +189,7 @@ jobs:
         run: |
           pr_number="${{ steps.create-pr.outputs.pr_number }}"
           echo "::notice::Auto-merging PR #$pr_number"
-          gh pr merge "$pr_number" --merge --delete-branch || { echo "::error::Failed to merge PR #$pr_number"; exit 1; }
+          gh pr merge "$pr_number" --squash --delete-branch || { echo "::error::Failed to merge PR #$pr_number"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -197,6 +197,6 @@ jobs:
         if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
         run: |
           echo "::notice::Triggering Beta Stage 2 - Build and Release Beta Package"
-          gh workflow run beta-stage-2_build_beta_release_and_store.yml --ref main --ref main || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
+          gh workflow run beta-stage-2_build_beta_release_and_store.yml --ref main || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

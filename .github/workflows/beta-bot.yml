@@ -94,6 +94,7 @@ jobs:
               tag=$(jq -r ".directories[$i].packages[$j].tag // null" "$config")
               pattern=$(jq -r ".directories[$i].packages[$j].pattern // null" "$config")
               if [ "$tag" != "null" ]; then
+                echo "Installing package $pkg with tag $tag in $dir"
                 latest_version=$(npm view "$pkg@$tag" version)
                 if [ -z "$latest_version" ]; then
                   echo "::error::No version found for $pkg@$tag"
@@ -102,6 +103,7 @@ jobs:
                 echo "Installing $pkg@$latest_version in $dir"
                 npm install "$pkg@$latest_version" || { echo "::error::Failed to install $pkg@$latest_version"; exit 1; }
               else
+                echo "Installing package $pkg with pattern $pattern in $dir"
                 latest_version=$(npm view "$pkg" versions --json | jq -r ".[] | select(test(\"$pattern\"))" | sort -V | tail -n 1)
                 if [ -z "$latest_version" ]; then
                   echo "::error::No versions found for $pkg matching pattern $pattern"

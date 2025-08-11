@@ -2,7 +2,7 @@ name: Beta Stage 1 - Update Beta Dependencies, Create PR, Merge PR and Trigger B
 
 on:
   schedule:
-    - cron: '0 10 * * *'  # 6 AM Eastern (10 AM UTC)
+    - cron: '0 8 * * *'  # 4 AM Eastern (10 AM UTC), Docker updates at 6 AM Eastern (12 PM UTC)
   workflow_dispatch:
 
 jobs:

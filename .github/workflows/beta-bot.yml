@@ -173,6 +173,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Approve pull request
+        id: approve-pr
+        if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'
+        run: |
+          pr_number="${{ steps.create-pr.outputs.pr_number }}"
+          echo "::notice::Approving PR #$pr_number"
+          gh pr review "$pr_number" --approve || { echo "::error::Failed to approve PR #$pr_number"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Auto-merge PR
         id: auto-merge
         if: steps.check-changes.outputs.changes_detected == 'true' && steps.load-config.outputs.auto_merge == 'true'

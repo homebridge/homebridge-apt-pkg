@@ -10,10 +10,10 @@ jobs:
     name: Run Homebridge Beta Bot
     uses: homebridge/.github/.github/homebridge-beta-bot.yml@latest
     with:
-      config_file: '.github/homebridge/beta-bot.json'
+      config_file: '.github/homebridge-beta-bot.json'
     secrets:
       github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
   trigger-beta-stage-2:
     name: Trigger Build and Release Beta Package
     needs: homebridge-beta-bot

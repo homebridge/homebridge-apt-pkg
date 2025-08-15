@@ -8,7 +8,7 @@ on:
 jobs:
   homebridge-beta-bot:
     name: Run Homebridge Beta Bot
-    uses: homebridge/.github/.github/homebridge-beta-bot.yml@latest
+    uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
     with:
       config_file: '.github/homebridge-beta-bot.json'
     secrets:

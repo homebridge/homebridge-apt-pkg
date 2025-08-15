@@ -48,3 +48,5 @@ This job is triggered by the successful completion of step 3
 
 1. Download the current homebridge-apt-pkg for x86 and install.
 2. Check that homebridge starts
+
+# Beta Builds

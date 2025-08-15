@@ -6,15 +6,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  call-beta-stage-1:
+  homebridge-beta-bot:
+    name: Run Homebridge Beta Bot
     uses: homebridge/.github/.github/homebridge-beta-bot.yml@latest
     with:
       config_file: '.github/homebridge/beta-bot.json'
     secrets:
       github_token: ${{ secrets.GITHUB_TOKEN }}
+      
   trigger-beta-stage-2:
-    needs: call-beta-stage-1
-    if: needs.call-beta-stage-1.outputs.changes_detected == 'true' && needs.call-beta-stage-1.outputs.auto_merge == 'true'
+    name: Trigger Build and Release Beta Package
+    needs: homebridge-beta-bot
+    if: needs.homebridge-beta-bot.outputs.changes_detected == 'true' && needs.homebridge-beta-bot.outputs.auto_merge == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Beta Stage 2 Workflow

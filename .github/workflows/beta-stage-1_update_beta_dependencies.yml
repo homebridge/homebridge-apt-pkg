@@ -1,17 +1,15 @@
 name: Beta Stage 1 - Update Beta Dependencies, Create PR, Merge PR and Trigger Beta Stage 2
-
 on:
   schedule:
-    - cron: '0 8 * * *'  # 4 AM Eastern (10 AM UTC), Docker updates at 6 AM Eastern (12 PM UTC)
+    - cron: '0 8 * * *' # 4 AM Eastern (10 AM UTC), Docker updates at 6 AM Eastern (12 PM UTC)
   workflow_dispatch:
-
 jobs:
   homebridge-beta-bot:
     name: Run Homebridge Beta Bot
     uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
     with:
       config_file: '.github/homebridge-beta-bot.json'
-
+    secrets: inherit
   trigger-beta-stage-2:
     name: Trigger Build and Release Beta Package
     needs: homebridge-beta-bot

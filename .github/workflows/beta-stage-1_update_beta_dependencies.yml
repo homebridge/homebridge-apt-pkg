@@ -10,6 +10,7 @@ jobs:
     with:
       config_file: '.github/homebridge-beta-bot.json'
     secrets: inherit
+    
   trigger-beta-stage-2:
     name: Trigger Build and Release Beta Package
     needs: homebridge-beta-bot

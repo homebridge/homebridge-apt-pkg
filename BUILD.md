@@ -49,4 +49,20 @@ This job is triggered by the successful completion of step 3
 1. Download the current homebridge-apt-pkg for x86 and install.
 2. Check that homebridge starts
 
+## Package Manifest
+
+Each release includes a Package Manifest file that contains:
+
+- **Release Version**: The version of the APT package
+- **Release Type**: Either `stable` or `beta`
+- **Package Versions**: A table showing the versions of NodeJS, Homebridge UI, and Homebridge included in the package
+- **What's Changed**: A changelog section showing commits since the last release
+
+The changelog section automatically includes:
+- All commits since the previous git tag/release
+- If no previous tag exists, shows the 5 most recent commits
+- If there are no new commits since the last tag, displays "No new commits since last release"
+
+Each changelog entry includes the commit message and short hash for reference.
+
 # Beta Builds

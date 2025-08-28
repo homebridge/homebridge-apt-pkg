@@ -59,9 +59,10 @@ Each release includes a Package Manifest file that contains:
 - **What's Changed**: A changelog section showing commits since the last release
 
 The changelog section automatically includes:
-- All commits since the previous git tag/release
-- If no previous tag exists, shows the 5 most recent commits
-- If there are no new commits since the last tag, displays "No new commits since last release"
+- For **stable releases**: All commits since the previous stable tag/release (excludes beta tags)
+- For **beta releases**: All commits since the previous beta tag/release (excludes stable tags)
+- If no previous tag of the same type exists, shows the 5 most recent commits
+- If there are no new commits since the last tag of the same type, displays "No new commits since last [stable|beta] release"
 
 Each changelog entry includes the commit message and short hash for reference.
 

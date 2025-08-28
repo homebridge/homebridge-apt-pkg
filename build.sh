@@ -30,7 +30,7 @@ if [[ -n "${PKG_RELEASE_TYPE}" && -n "${PKG_RELEASE_VERSION}" ]]; then
   if [ "$PKG_RELEASE_TYPE" != "stable" ]; then
     DISTRO="UNRELEASED"
   fi
-  dch -b -v "$PKG_RELEASE_VERSION" --controlmaint "Automated Release" --distribution "$DISTRO" "Automated release for $PKG_RELEASE_VERSION"
+  dch -v "$PKG_RELEASE_VERSION" --controlmaint "Automated Release" --distribution "$DISTRO" "Automated release for $PKG_RELEASE_VERSION"
   cd ..
 fi
 

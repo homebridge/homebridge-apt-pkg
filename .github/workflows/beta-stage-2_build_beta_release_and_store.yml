@@ -74,9 +74,43 @@ jobs:
           echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
           echo "::notice::📦 Beta version: $VERSION"
 
+  update_changelog:
+    needs: [generate_beta_version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install devscripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y devscripts
+
+      - name: Update changelog
+        run: |
+          cd deb
+          dch -v "${{ needs.generate_beta_version.outputs.version }}" --controlmaint "Automated Release" --distribution "UNRELEASED" "Automated release for ${{ needs.generate_beta_version.outputs.version }}"
+
+      - name: Commit changelog changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add deb/debian/changelog
+          git commit -m "Update changelog for v${{ needs.generate_beta_version.outputs.version }}" || exit 0
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
   build_beta_and_store:
     name: Build Beta Packages for (${{ matrix.name }})
-    needs: [generate_beta_version]
+    needs: [generate_beta_version, update_changelog]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

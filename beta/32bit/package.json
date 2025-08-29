@@ -23,6 +23,6 @@
   "dependencies": {
     "homebridge": "^2.0.0-beta.29",
     "homebridge-config-ui-x": "^5.5.1-beta.0",
-    "node": "^22.18.0"
+    "node": "^22.19.0"
   }
 }

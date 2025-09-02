@@ -185,9 +185,12 @@ echo >> "$MANIFEST"
 if [[ "${PKG_RELEASE_TYPE:-stable}" == "beta" ]]; then
   # For beta releases, only look at beta tags
   LATEST_TAG=$(git tag -l | grep -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
+elif [[ "${PKG_RELEASE_TYPE:-stable}" == "alpha" ]]; then
+  # For alpha releases, only look at alpha tags
+  LATEST_TAG=$(git tag -l | grep -E "alpha\." | sort -V | tail -1 2>/dev/null || echo "")
 else
-  # For stable releases, only look at stable tags (no beta in name)
-  LATEST_TAG=$(git tag -l | grep -v -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
+  # For stable releases, only look at stable tags (no beta or alpha in name)
+  LATEST_TAG=$(git tag -l | grep -v -E "(beta|alpha)\." | sort -V | tail -1 2>/dev/null || echo "")
 fi
 
 if [ -n "$LATEST_TAG" ]; then

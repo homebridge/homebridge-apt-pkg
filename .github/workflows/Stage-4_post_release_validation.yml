@@ -11,11 +11,13 @@ on:
         options:
           - stable
           - beta
+          - alpha
 
   workflow_run:
-    workflows: 
+    workflows:
       - "Stage 3 - Promote Release Package to APT Stores"
       - "Beta Stage 2 - Build and Release Beta Package"
+      - "Alpha Stage 2 - Build and Release Alpha Package"
     types:
       - completed
 
@@ -33,6 +35,8 @@ jobs:
             echo "release_channel=${{ github.event.inputs.release_channel }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event.workflow_run.name }}" == "Beta Stage 2 - Build and Release Beta Package" ]]; then
             echo "release_channel=beta" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.workflow_run.name }}" == "Alpha Stage 2 - Build and Release Alpha Package" ]]; then
+            echo "release_channel=alpha" >> $GITHUB_OUTPUT
           else
             echo "release_channel=stable" >> $GITHUB_OUTPUT
           fi

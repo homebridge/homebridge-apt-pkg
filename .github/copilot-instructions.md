@@ -112,7 +112,8 @@ This repository has **no unit tests or linting**. The `package.json` test script
 ### Version Control Strategy
 - `package.json` in root: Stable release versions
 - `beta/*/package.json`: Beta release versions  
-- Dependabot updates package.json dependencies
+- **Dependabot** updates package.json dependencies for stable releases
+- **homebridge-beta-bot** updates `beta/*/package.json` dependencies for beta releases
 - Release tags created automatically by GitHub workflows
 
 ### GitHub Workflows (4-Stage Release Process)
@@ -135,7 +136,9 @@ This repository has **no unit tests or linting**. The `package.json` test script
 - Workflow: `Stage-4_post_release_validation.yml`
 
 **Additional Workflows:**
-- Beta builds: `beta-stage-*` workflows
+- **Beta builds:** `beta-stage-*` workflows managed by `homebridge-beta-bot`
+  - `beta-stage-1_update_beta_dependencies.yml`: Runs daily, uses homebridge-beta-bot to update beta dependencies in `beta/32bit/` and `beta/64bit/` directories, creates PR and auto-merges if changes detected
+  - `beta-stage-2_build_beta_release_and_store.yml`: Triggered after beta dependency updates, builds and publishes beta packages
 - Cache management: `purge.yml`, `stage-3_5_purge_cloudflare_cache.yml`
 - NPM publishing: `stage-5_update_version_on_npm.yml`
 
@@ -169,6 +172,29 @@ This repository has **no unit tests or linting**. The `package.json` test script
 2. **For beta releases:** Edit `beta/32bit/package.json` or `beta/64bit/package.json`
 3. **Always update package-lock.json** when manually editing dependencies
 4. Test builds locally using Docker commands above
+
+### Configuring homebridge-beta-bot
+The `homebridge-beta-bot` automatically manages beta dependency updates via `.github/homebridge-beta-bot.json`:
+
+```json
+{
+  "auto_merge": true,
+  "directories": [
+    {
+      "directory": "beta/32bit",
+      "packages": [
+        { "name": "homebridge", "pattern": "^2.0.0-beta" },
+        { "name": "homebridge-config-ui-x", "tag": "beta" }
+      ]
+    }
+  ]
+}
+```
+
+- **`auto_merge`**: Whether to automatically merge PRs created by the bot
+- **`directories`**: Array of directories to manage
+- **`packages`**: Packages to track, either by `tag` (e.g., "beta") or `pattern` (regex for version matching)
+- The bot runs daily via `beta-stage-1_update_beta_dependencies.yml` workflow
 
 ### Modifying Package Scripts
 - Edit files in `deb/` directory

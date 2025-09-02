@@ -1,0 +1,29 @@
+{
+  "name": "@homebridge/homebridge-apt-pkg",
+  "version": "0.0.0",
+  "description": "Stub package for tracking Homebridge APT release versions via npm",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "cp ../../README.npm.md README.md",
+    "postpublish": "git restore README.md || true"
+  },
+  "files": [
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/homebridge/homebridge-apt-pkg.git"
+  },
+  "author": "Homebridge",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/homebridge/homebridge-apt-pkg/issues"
+  },
+  "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
+  "private": false,
+  "dependencies": {
+    "homebridge": "^1.11.0",
+    "homebridge-config-ui-x": "^5.5.0",
+    "node": "^24.7.0"
+  }
+}

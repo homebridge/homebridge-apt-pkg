@@ -1,6 +1,39 @@
 version: 2
 updates:
-  # Stable 32-bit package.json
+  # Stable 32-bit package.json (Node.js ≤22 only)
+  - package-ecosystem: npm
+    directory: "/stable/32bit"
+    schedule:
+      interval: daily
+      time: "10:00"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    ignore:
+      - dependency-name: "node"
+        versions: [">23.x"]
+    labels:
+      - "Production"
+      - "32-bit"
+    commit-message:
+      prefix: "Production(32-bit)"
+      include: "scope"
+
+  # Stable 64-bit package.json (any Node.js version)
+  - package-ecosystem: npm
+    directory: "/stable/64bit"
+    schedule:
+      interval: daily
+      time: "10:00"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    labels:
+      - "Production"
+      - "64-bit"
+    commit-message:
+      prefix: "Production(64-bit)"
+      include: "scope"
+
+  # Legacy stable package.json (for backwards compatibility)
   - package-ecosystem: npm
     directory: "/"
     schedule:
@@ -13,6 +46,7 @@ updates:
         versions: [">23.x"]
     labels:
       - "Production"
+      - "Legacy"
     commit-message:
-      prefix: "Production"
+      prefix: "Production(Legacy)"
       include: "scope"

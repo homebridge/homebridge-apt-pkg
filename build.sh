@@ -10,7 +10,7 @@
 # - 64-bit architectures (x86_64, aarch64) can use any Node.js version
 #
 # Package Configuration:
-# - Stable builds: Use main package.json for all architectures
+# - Stable builds: Use stable/64bit for x86_64/aarch64, stable/32bit for arm/i386
 # - Beta builds: Use beta/64bit for x86_64/aarch64, beta/32bit for arm/i386
 #
 # Run ./validate-config.sh to verify package configurations before building
@@ -21,8 +21,8 @@ set -x
 #trap 'rm -rf staging *.tar.gz *.manifest /tmp/*' EXIT
 
 # Determine if beta or stable config should be used
+BUILD_ARCH=${QEMU_ARCH:-aarch64}
 if [[ "$PKG_RELEASE_TYPE" == "beta" ]]; then
-  BUILD_ARCH=${QEMU_ARCH:-aarch64}
   case "$BUILD_ARCH" in
     x86_64|aarch64)
       PACKAGE_JSON_PATH="beta/64bit/package.json"
@@ -33,7 +33,16 @@ if [[ "$PKG_RELEASE_TYPE" == "beta" ]]; then
     *) echo "unsupported architecture"; exit 1 ;;
   esac
 else
-  PACKAGE_JSON_PATH="package.json"
+  # Stable builds also use architecture-specific configs
+  case "$BUILD_ARCH" in
+    x86_64|aarch64)
+      PACKAGE_JSON_PATH="stable/64bit/package.json"
+      ;;
+    arm|i386)
+      PACKAGE_JSON_PATH="stable/32bit/package.json"
+      ;;
+    *) echo "unsupported architecture"; exit 1 ;;
+  esac
 fi
 
 echo "🔧 Using $PACKAGE_JSON_PATH for version resolution"

@@ -34,14 +34,18 @@ cat > "$OUTPUT_FILE" << EOF
 EOF
 
 # Get the latest tag to compare against, filtered by release type
-# This is the same logic as in build.sh lines 118-124
+# This is the same logic as in build.sh lines 129-136
 if [[ "${PKG_RELEASE_TYPE}" == "beta" ]]; then
   # For beta releases, only look at beta tags
   LATEST_TAG=$(git tag -l | grep -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
   echo "🔍 Looking for latest beta tag..."
+elif [[ "${PKG_RELEASE_TYPE}" == "alpha" ]]; then
+  # For alpha releases, only look at alpha tags
+  LATEST_TAG=$(git tag -l | grep -E "alpha\." | sort -V | tail -1 2>/dev/null || echo "")
+  echo "🔍 Looking for latest alpha tag..."
 else
-  # For stable releases, only look at stable tags (no beta in name)
-  LATEST_TAG=$(git tag -l | grep -v -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
+  # For stable releases, only look at stable tags (no beta or alpha in name)
+  LATEST_TAG=$(git tag -l | grep -v -E "(beta|alpha)\." | sort -V | tail -1 2>/dev/null || echo "")
   echo "🔍 Looking for latest stable tag..."
 fi
 
@@ -99,14 +103,19 @@ echo "📖 To test different scenarios:"
 echo "   # Test beta changelog:"
 echo "   PKG_RELEASE_TYPE=beta ./test/test-changelog.sh"
 echo
+echo "   # Test alpha changelog:"
+echo "   PKG_RELEASE_TYPE=alpha ./test/test-changelog.sh"
+echo
 echo "   # Test stable changelog:"
 echo "   PKG_RELEASE_TYPE=stable ./test/test-changelog.sh"
 echo
 echo "   # Test with custom version and output file:"
-echo "   PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh"
+echo "   PKG_RELEASE_TYPE=alpha PKG_RELEASE_VERSION=1.2.3-alpha.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh"
 echo
 echo "📋 Available tags in repository:"
 echo "   Stable tags:"
-git tag -l | grep -v -E "beta\." | sort -V | tail -5 | sed 's/^/     /'
+git tag -l | grep -v -E "(beta|alpha)\." | sort -V | tail -5 | sed 's/^/     /'
 echo "   Beta tags:"
 git tag -l | grep -E "beta\." | sort -V | tail -5 | sed 's/^/     /'
+echo "   Alpha tags:"
+git tag -l | grep -E "alpha\." | sort -V | tail -5 | sed 's/^/     /'

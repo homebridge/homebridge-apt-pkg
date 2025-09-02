@@ -1,0 +1,28 @@
+{
+  "name": "@homebridge/homebridge-apt-pkg-alpha",
+  "version": "0.0.0",
+  "description": "Stub package for tracking ALPHA Homebridge APT release versions via npm",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "cp ../README.npm.md README.md"
+  },
+  "files": [
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/homebridge/homebridge-apt-pkg.git"
+  },
+  "author": "Homebridge",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/homebridge/homebridge-apt-pkg/issues"
+  },
+  "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
+  "private": false,
+  "dependencies": {
+    "homebridge": "^2.0.0-alpha.39",
+    "homebridge-config-ui-x": "^5.5.1-alpha.0",
+    "node": "^24.7.0"
+  }
+}

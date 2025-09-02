@@ -49,4 +49,48 @@ This job is triggered by the successful completion of step 3
 1. Download the current homebridge-apt-pkg for x86 and install.
 2. Check that homebridge starts
 
+## Package Manifest
+
+Each release includes a Package Manifest file that contains:
+
+- **Release Version**: The version of the APT package
+- **Release Type**: Either `stable` or `beta`
+- **Package Versions**: A table showing the versions of NodeJS, Homebridge UI, and Homebridge included in the package
+- **What's Changed**: A changelog section showing commits since the last release
+
+The changelog section automatically includes:
+- For **stable releases**: All commits since the previous stable tag/release (excludes beta tags)
+- For **beta releases**: All commits since the previous beta tag/release (excludes stable tags)
+- If no previous tag of the same type exists, shows the 5 most recent commits
+- If there are no new commits since the last tag of the same type, displays "No new commits since last [stable|beta] release"
+
+Each changelog entry includes the commit message and short hash for reference.
+
+## Testing Changelog Generation
+
+You can test the changelog generation feature outside of the full release process using the provided test script:
+
+```bash
+# Test stable changelog generation
+./test/test-changelog.sh
+
+# Test beta changelog generation  
+PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
+
+# Test with custom parameters
+PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
+```
+
+The test script:
+- Replicates the exact changelog logic from `build.sh`
+- Allows testing different release types (stable/beta) 
+- Shows which tags and commits would be included
+- Generates a sample manifest file for review
+- Provides helpful output about available tags and commit counts
+
+This is useful for:
+- Validating changelog logic changes before releases
+- Understanding what commits will be included in upcoming releases
+- Testing edge cases (no tags, no commits, etc.)
+
 # Beta Builds

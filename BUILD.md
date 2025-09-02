@@ -12,6 +12,38 @@ Then once a change is made to package.json in the latest branch, originated by D
 
 Release TAG is created by `reecetech/version-increment`, and is configured to increment the patch level every time, and not based on the package.json.  To release a minor or major release, the manual workflow dispatch must be used, and package.json/package-lock.json manually updated.
 
+## Local Testing and Development
+
+For local development and testing, you can use the provided build scripts in the `scripts/` directory to create test builds without going through the full CI/CD pipeline:
+
+### Quick Start - Local Build Scripts
+
+```bash
+# Build stable release (uses package.json)
+./scripts/build-stable.sh
+
+# Build beta release (uses beta/*/package.json) 
+./scripts/build-beta.sh aarch64
+
+# Build alpha release (uses alpha/*/package.json)
+./scripts/build-alpha.sh x86_64 my-test-1.0.0-alpha.1
+
+# Unified script for all release types
+./scripts/build-local.sh beta arm64 test-version
+./scripts/build-local.sh --help
+```
+
+These scripts:
+- Reuse the existing `build.sh` and `build/Dockerfile` components
+- Support all architectures (x86_64, aarch64, arm) and release types (stable, beta, alpha)
+- Automatically select the correct package.json configuration
+- Provide clear output and error handling
+- Build time: ~10-15 minutes per architecture
+
+**Prerequisites**: Docker with multiarch support and internet connectivity.
+
+For detailed usage instructions, see [`scripts/README.md`](scripts/README.md).
+
 ## Actions
 
 ### Stage 1 - Create a pre-release and build APT package

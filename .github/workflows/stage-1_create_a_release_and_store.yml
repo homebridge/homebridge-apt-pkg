@@ -16,7 +16,6 @@ on:
     branches:
       - latest
     paths:
-      - package.json
       - stable/32bit/package.json
       - stable/64bit/package.json
 

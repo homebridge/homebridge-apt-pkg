@@ -35,21 +35,3 @@ updates:
     commit-message:
       prefix: "Production(64-bit)"
       include: "scope"
-
-  # Legacy stable package.json (for backwards compatibility)
-  - package-ecosystem: npm
-    directory: "/"
-    schedule:
-      interval: daily
-      time: "10:00"
-    open-pull-requests-limit: 10
-    versioning-strategy: increase
-    ignore:
-      - dependency-name: "node"
-        versions: [">22.x"]
-    labels:
-      - "Production"
-      - "Legacy"
-    commit-message:
-      prefix: "Production(Legacy)"
-      include: "scope"

@@ -9,9 +9,11 @@ The project aims to deploy Homebridge and the Homebridge UI in a secure and stab
 
 Supported architectures:
 
-* x86_64
-* armhf ( armv7) (Pls note that support for 32 Bit OS's will end in Spring of 2027)
-* aarch64 (arm64)
+* x86_64 (64-bit Intel/AMD)
+* armhf (armv7) - 32-bit ARM (⚠️ **Node.js version limited to ≤22**)
+* aarch64 (arm64) - 64-bit ARM
+
+**Important:** Node.js dropped 32-bit support starting with version 23. The 32-bit ARM (armhf) packages are limited to Node.js 22.x and earlier. Support for 32-bit OS's will end in Spring of 2027.
 
 ## Using APT
 

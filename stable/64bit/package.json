@@ -1,10 +1,11 @@
 {
-  "name": "@homebridge/homebridge-apt-pkg-beta",
+  "name": "@homebridge/homebridge-apt-pkg",
   "version": "0.0.0",
-  "description": "Stub package for tracking BETA Homebridge APT release versions via npm",
+  "description": "Stub package for tracking Homebridge APT release versions via npm",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepublishOnly": "cp ../README.npm.md README.md"
+    "prepublishOnly": "cp ../../README.npm.md README.md",
+    "postpublish": "git restore README.md || true"
   },
   "files": [
     "README.md"
@@ -21,9 +22,8 @@
   "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
   "private": false,
   "dependencies": {
-    "homebridge": "^2.0.0-beta.29",
-    "homebridge-config-ui-x": "^5.5.1-beta.4",
-    "homebridge-plugin-update-check": "^2.0.0-beta.2",
-    "node": "^24.12.0"
+    "homebridge": "^1.11.0",
+    "homebridge-config-ui-x": "^5.5.0",
+    "node": "^22.19.0"
   }
 }

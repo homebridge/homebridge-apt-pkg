@@ -17,6 +17,10 @@
           "pattern": "^2.0.0-beta"
         },
         {
+          "name": "homebridge-plugin-update-check",
+          "tag": "beta"
+        },
+        {
           "name": "node",
           "tag": "^22.x.x"
         }
@@ -32,6 +36,10 @@
         {
           "name": "homebridge",
           "pattern": "^2.0.0-beta"
+        },
+        {
+          "name": "homebridge-plugin-update-check",
+          "tag": "beta"
         },
         {
           "name": "node",

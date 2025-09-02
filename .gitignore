@@ -16,3 +16,7 @@ staging/
 beta/README.md
 /beta/32bit/node_modules
 /beta/64bit/node_modules
+
+# Test output files
+changelog-test.md
+*-test.md

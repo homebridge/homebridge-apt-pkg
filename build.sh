@@ -176,6 +176,56 @@ fi
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
 echo "|Homebridge| $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
 
+# Add changelog section to manifest
+echo >> "$MANIFEST"
+echo "## What's Changed" >> "$MANIFEST"
+echo >> "$MANIFEST"
+
+# Get the latest tag to compare against, filtered by release type
+if [[ "${PKG_RELEASE_TYPE:-stable}" == "beta" ]]; then
+  # For beta releases, only look at beta tags
+  LATEST_TAG=$(git tag -l | grep -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
+else
+  # For stable releases, only look at stable tags (no beta in name)
+  LATEST_TAG=$(git tag -l | grep -v -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
+fi
+
+if [ -n "$LATEST_TAG" ]; then
+  # Get commits since the latest tag of the same type
+  CHANGELOG_COMMITS=$(git log --oneline --no-merges "$LATEST_TAG"..HEAD 2>/dev/null)
+  
+  if [ -n "$CHANGELOG_COMMITS" ]; then
+    # Format commits as changelog entries
+    while IFS= read -r commit; do
+      if [ -n "$commit" ]; then
+        # Extract commit hash and message
+        COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+        COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+        echo "* $COMMIT_MSG (\`$COMMIT_HASH\`)" >> "$MANIFEST"
+      fi
+    done <<< "$CHANGELOG_COMMITS"
+  else
+    echo "* No new commits since last ${PKG_RELEASE_TYPE:-stable} release" >> "$MANIFEST"
+  fi
+else
+  # If no tags of this type exist, show recent commits
+  RECENT_COMMITS=$(git log --oneline --no-merges -5 2>/dev/null)
+  if [ -n "$RECENT_COMMITS" ]; then
+    echo "### Recent Changes" >> "$MANIFEST"
+    while IFS= read -r commit; do
+      if [ -n "$commit" ]; then
+        COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+        COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+        echo "* $COMMIT_MSG (\`$COMMIT_HASH\`)" >> "$MANIFEST"
+      fi
+    done <<< "$RECENT_COMMITS"
+  else
+    echo "* No commit history available" >> "$MANIFEST"
+  fi
+fi
+
+echo >> "$MANIFEST"
+
 cp "$MANIFEST" staging/opt/homebridge
 # Build .deb
 cd staging

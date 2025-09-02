@@ -42,6 +42,7 @@ cp "$PACKAGE_JSON_PATH" staging/opt/homebridge/package.json
 NODE_VERSION=$(jq -r '.dependencies.node | gsub("^\\^"; "v")' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_VERSION=$(jq -r '.dependencies["homebridge"]' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_UIX_VERSION=$(jq -r '.dependencies["homebridge-config-ui-x"]' "$PACKAGE_JSON_PATH")
+HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION=$(jq -r '.dependencies["homebridge-plugin-update-check"]' "$PACKAGE_JSON_PATH")
 
 MAJOR_NODE=$(jq -r '.dependencies.node | gsub("^\\^"; "")' "$PACKAGE_JSON_PATH" | cut -d. -f1)
 
@@ -98,6 +99,12 @@ export npm_config_loglevel=error
 # Install packages
 npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION
 echo "|Homebridge UI| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
+
+# Only install homebridge-plugin-update-check if it exists in package.json
+if [ "$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION" != "null" ]; then
+  npm install --location=global homebridge-plugin-update-check@$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION
+  echo "|Plugin Update Check| $HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION |" >> "$MANIFEST"
+fi
 
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
 echo "|Homebridge| $HOMEBRIDGE_VERSION |" >> "$MANIFEST"

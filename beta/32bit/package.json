@@ -22,7 +22,8 @@
   "private": false,
   "dependencies": {
     "homebridge": "^2.0.0-beta.29",
-    "homebridge-config-ui-x": "^5.5.1-beta.0",
-    "node": "^22.18.0"
+    "homebridge-config-ui-x": "^5.5.1-beta.4",
+    "homebridge-plugin-update-check": "^2.0.0-beta.2",
+    "node": "^22.19.0"
   }
 }

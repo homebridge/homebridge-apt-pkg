@@ -72,13 +72,13 @@ You can test the changelog generation feature outside of the full release proces
 
 ```bash
 # Test stable changelog generation
-./test-changelog.sh
+./test/test-changelog.sh
 
 # Test beta changelog generation  
-PKG_RELEASE_TYPE=beta ./test-changelog.sh
+PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
 
 # Test with custom parameters
-PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test-changelog.sh
+PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
 ```
 
 The test script:

@@ -97,13 +97,13 @@ echo "✅ Test completed! Output written to: $OUTPUT_FILE"
 echo
 echo "📖 To test different scenarios:"
 echo "   # Test beta changelog:"
-echo "   PKG_RELEASE_TYPE=beta ./test-changelog.sh"
+echo "   PKG_RELEASE_TYPE=beta ./test/test-changelog.sh"
 echo
 echo "   # Test stable changelog:"
-echo "   PKG_RELEASE_TYPE=stable ./test-changelog.sh"
+echo "   PKG_RELEASE_TYPE=stable ./test/test-changelog.sh"
 echo
 echo "   # Test with custom version and output file:"
-echo "   PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test-changelog.sh"
+echo "   PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh"
 echo
 echo "📋 Available tags in repository:"
 echo "   Stable tags:"

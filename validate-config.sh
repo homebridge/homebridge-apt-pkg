@@ -21,6 +21,24 @@ else
     echo "❌ Main package.json not found"
 fi
 
+# Check alpha configurations
+for config_dir in alpha/32bit alpha/64bit; do
+    if [[ -f "$config_dir/package.json" ]]; then
+        NODE_VERSION=$(jq -r '.dependencies.node | gsub("^\\^"; "")' "$config_dir/package.json" | cut -d. -f1)
+        echo "✅ $config_dir/package.json: Node.js $NODE_VERSION"
+        
+        if [[ "$config_dir" == "alpha/32bit" && "$NODE_VERSION" -gt 22 ]]; then
+            echo "❌ ERROR: $config_dir uses Node.js $NODE_VERSION which is not supported on 32-bit architectures"
+            echo "   Node.js dropped 32-bit support starting with version 23"
+            echo "   Please use Node.js 22.x or earlier for 32-bit configurations"
+            exit 1
+        fi
+    else
+        echo "❌ $config_dir/package.json not found"
+        exit 1
+    fi
+done
+
 # Check stable configurations
 for config_dir in stable/32bit stable/64bit; do
     if [[ -f "$config_dir/package.json" ]]; then
@@ -68,5 +86,6 @@ echo "  • arm (32-bit ARM): Must use Node.js ≤22"
 echo "  • i386 (32-bit Intel): Must use Node.js ≤22"
 echo ""
 echo "💡 Current configurations:"
-echo "  • Stable builds: Use stable/64bit for x86_64/aarch64, stable/32bit for arm/i386"
+echo "  • Alpha builds: Use alpha/64bit for x86_64/aarch64, alpha/32bit for arm/i386"
 echo "  • Beta builds: Use beta/64bit for x86_64/aarch64, beta/32bit for arm/i386"
+echo "  • Stable builds: Use stable/64bit for x86_64/aarch64, stable/32bit for arm/i386"

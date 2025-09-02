@@ -47,9 +47,63 @@ fi
 # Restore original stable config
 cp /tmp/test-config/stable/32bit/package.json.bak stable/32bit/package.json
 
+# Test 2alpha: Test alpha configurations - Node.js 24 on 32-bit (should fail)
+echo ""
+echo "Test 2alpha: Testing alpha config - Node.js 24 on ARM32 (should fail)..."
+
+# Create a temporary package.json with Node.js 24 for alpha 32-bit
+mkdir -p /tmp/test-config/alpha/32bit
+cp alpha/32bit/package.json /tmp/test-config/alpha/32bit/package.json.bak
+jq '.dependencies.node = "^24.0.0"' /tmp/test-config/alpha/32bit/package.json.bak > alpha/32bit/package.json
+
+# Test the validation script
+if ./validate-config.sh >/tmp/test-alpha-output.log 2>&1; then
+    echo "❌ ERROR: Validation should have failed but succeeded"
+    echo "Output:"
+    cat /tmp/test-alpha-output.log
+    # Restore original before exiting
+    cp /tmp/test-config/alpha/32bit/package.json.bak alpha/32bit/package.json
+    exit 1
+else
+    echo "✅ Validation correctly failed for Node.js 24 in alpha/32bit"
+    
+    # Check that the error message mentions alpha/32bit
+    if grep -q "alpha/32bit" /tmp/test-alpha-output.log; then
+        echo "✅ Error message correctly identifies alpha/32bit configuration"
+    else
+        echo "❌ Error message doesn't mention alpha/32bit"
+        echo "Output:"
+        cat /tmp/test-alpha-output.log
+        # Restore original before exiting
+        cp /tmp/test-config/alpha/32bit/package.json.bak alpha/32bit/package.json
+        exit 1
+    fi
+fi
+
+# Restore original alpha config
+cp /tmp/test-config/alpha/32bit/package.json.bak alpha/32bit/package.json
+
 # Test 2b: Test stable build script path selection
 echo ""
-echo "Test 2b: Testing stable build script package path selection..."
+echo "Test 2b: Testing build script package path selection..."
+
+# Test that alpha builds select the right package.json
+ALPHA_ARM_PATH=$(PKG_RELEASE_TYPE="alpha" QEMU_ARCH="arm" bash -c 'case "arm" in x86_64|aarch64) echo "alpha/64bit/package.json";; arm|i386) echo "alpha/32bit/package.json";; esac')
+ALPHA_X64_PATH=$(PKG_RELEASE_TYPE="alpha" QEMU_ARCH="x86_64" bash -c 'case "x86_64" in x86_64|aarch64) echo "alpha/64bit/package.json";; arm|i386) echo "alpha/32bit/package.json";; esac')
+
+if [[ "$ALPHA_ARM_PATH" == "alpha/32bit/package.json" ]]; then
+    echo "✅ Alpha ARM builds correctly select alpha/32bit/package.json"
+else
+    echo "❌ Alpha ARM builds path selection failed: $ALPHA_ARM_PATH"
+    exit 1
+fi
+
+if [[ "$ALPHA_X64_PATH" == "alpha/64bit/package.json" ]]; then
+    echo "✅ Alpha x86_64 builds correctly select alpha/64bit/package.json"
+else
+    echo "❌ Alpha x86_64 builds path selection failed: $ALPHA_X64_PATH"
+    exit 1
+fi
 
 # Test that stable builds select the right package.json
 STABLE_ARM_PATH=$(PKG_RELEASE_TYPE="stable" QEMU_ARCH="arm" bash -c 'echo $QEMU_ARCH; if [[ "$PKG_RELEASE_TYPE" != "beta" ]]; then case "arm" in x86_64|aarch64) echo "stable/64bit/package.json";; arm|i386) echo "stable/32bit/package.json";; esac; fi')
@@ -149,8 +203,8 @@ echo ""
 echo "🎉 All tests passed! Node.js version validation is working correctly."
 echo ""
 echo "Summary:"
-echo "  ✅ Current package configurations are valid (stable and beta)"
+echo "  ✅ Current package configurations are valid (alpha, beta, and stable)"
 echo "  ✅ Node.js >22 correctly blocked on 32-bit architectures" 
 echo "  ✅ Clear error messages provided when constraints violated"
 echo "  ✅ Node.js >22 allowed on 64-bit architectures"
-echo "  ✅ Stable build streams now support architecture-specific configs"
+echo "  ✅ All build streams now support architecture-specific configs"

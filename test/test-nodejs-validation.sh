@@ -9,7 +9,7 @@ echo "🧪 Testing Node.js version validation for 32-bit builds..."
 
 # Test 1: Verify current configurations are valid
 echo "Test 1: Validating current package configurations..."
-./validate-config.sh
+./test/validate-config.sh
 
 # Test 2: Test stable configurations - Node.js 24 on 32-bit (should fail)
 echo ""
@@ -21,7 +21,7 @@ cp stable/32bit/package.json /tmp/test-config/stable/32bit/package.json.bak
 jq '.dependencies.node = "^24.0.0"' /tmp/test-config/stable/32bit/package.json.bak > stable/32bit/package.json
 
 # Test the validation script
-if ./validate-config.sh >/tmp/test-stable-output.log 2>&1; then
+if ./test/validate-config.sh >/tmp/test-stable-output.log 2>&1; then
     echo "❌ ERROR: Validation should have failed but succeeded"
     echo "Output:"
     cat /tmp/test-stable-output.log
@@ -57,7 +57,7 @@ cp alpha/32bit/package.json /tmp/test-config/alpha/32bit/package.json.bak
 jq '.dependencies.node = "^24.0.0"' /tmp/test-config/alpha/32bit/package.json.bak > alpha/32bit/package.json
 
 # Test the validation script
-if ./validate-config.sh >/tmp/test-alpha-output.log 2>&1; then
+if ./test/validate-config.sh >/tmp/test-alpha-output.log 2>&1; then
     echo "❌ ERROR: Validation should have failed but succeeded"
     echo "Output:"
     cat /tmp/test-alpha-output.log

@@ -1,5 +1,7 @@
 # Copilot Instructions for homebridge-apt-pkg
 
+Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
+
 ## Repository Summary
 
 This repository builds and publishes Debian/Ubuntu APT packages for Homebridge, a HomeKit bridge server. It's primarily a **packaging repository**, not a source code repository. The main purpose is to create self-contained APT packages that bundle Node.js, Homebridge, and Homebridge UI together for easy installation on Debian-based systems.
@@ -29,22 +31,26 @@ docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
 #### Build for x86_64 (AMD64)
 ```bash
-# Build Docker image
+# Build Docker image - NEVER CANCEL: Takes 5-10 minutes. Set timeout to 15+ minutes.
 docker build -f build/Dockerfile --build-arg BASE_IMAGE=library/debian:bullseye --build-arg QEMU_ARCH=x86_64 -t package-build .
 
-# Build package (takes ~10-15 minutes)
+# Build package - NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
 docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="stable" -e PKG_RELEASE_VERSION="1.0.0" package-build
 ```
 
 #### Build for ARM64
 ```bash
+# NEVER CANCEL: Takes 5-10 minutes. Set timeout to 15+ minutes.
 docker build -f build/Dockerfile --build-arg BASE_IMAGE=arm64v8/debian:bullseye --build-arg QEMU_ARCH=aarch64 -t package-build .
+# NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
 docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="stable" -e PKG_RELEASE_VERSION="1.0.0" package-build
 ```
 
 #### Build for ARM32 (Raspberry Pi)
 ```bash
+# NEVER CANCEL: Takes 5-10 minutes. Set timeout to 15+ minutes.
 docker build -f build/Dockerfile --build-arg BASE_IMAGE=balenalib/raspberrypi3-debian:bullseye --build-arg QEMU_ARCH=arm -t package-build .
+# NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
 docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="stable" -e PKG_RELEASE_VERSION="1.0.0" package-build
 ```
 
@@ -234,6 +240,7 @@ The `homebridge-beta-bot` automatically manages beta dependency updates via `.gi
 - **Long build times:** Package builds download Node.js and compile native modules (~10-15 min per arch)
 - **Network connectivity:** Docker builds require internet access to download dependencies
 - **No rollback:** Force push not available, use new commits for fixes
+- **No linting:** This repository has no linting tools or scripts configured
 
 ## Validation Steps
 
@@ -254,9 +261,77 @@ The `homebridge-beta-bot` automatically manages beta dependency updates via `.gi
 4. **UI Test:** Web interface accessible on port 8581 (default)
 5. **Plugin Test:** Basic plugin installation works via UI
 
+## Testing Changelog Generation
+
+You can test the changelog generation feature outside of the full release process:
+
+```bash
+# Test stable changelog generation
+./test/test-changelog.sh
+
+# Test beta changelog generation  
+PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
+
+# Test with custom parameters
+PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
+```
+
+The test script:
+- Replicates the exact changelog logic from `build.sh`
+- Allows testing different release types (stable/beta) 
+- Shows which tags and commits would be included
+- Generates a sample manifest file for review
+- Provides helpful output about available tags and commit counts
+
+This is useful for:
+- Validating changelog logic changes before releases
+- Understanding what commits will be included in upcoming releases
+- Testing edge cases (no tags, no commits, etc.)
+
+## Manual Validation Scenarios
+
+After making any changes to package scripts or configuration, always run through these validation scenarios:
+
+1. **Changelog Generation Test** (< 10 seconds):
+   ```bash
+   ./test/test-changelog.sh
+   PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
+   ```
+
+2. **Build Script Analysis** (< 30 seconds):
+   ```bash
+   # Verify build script syntax
+   bash -n build.sh
+   
+   # Check that build.sh downloads correct Node.js version
+   cat package.json | jq -r '.dependencies.node'
+   ```
+
+3. **Package Structure Validation** (< 30 seconds):
+   ```bash
+   # Verify Debian package files exist and are valid
+   find deb/ -name "*.install" -o -name "control" -o -name "preinst" -o -name "postinst" -o -name "postrm"
+   
+   # Check systemd service file syntax
+   systemd-analyze verify deb/etc/systemd/system/homebridge.service || echo "systemd-analyze not available - validation skipped"
+   ```
+
+4. **Dependencies Validation** (< 30 seconds):
+   ```bash
+   # Verify all package.json files are valid JSON
+   jq empty package.json beta/32bit/package.json beta/64bit/package.json
+   
+   # Check version consistency
+   echo "Stable deps:" && jq -r '.dependencies | keys[]' package.json
+   echo "Beta 64-bit deps:" && jq -r '.dependencies | keys[]' beta/64bit/package.json
+   ```
+
+**NOTE:** Full Docker builds take 10-40 minutes and require network access. Use these quick validation steps for iterative development.
+
 ## Additional Notes
 
 - This repository uses **functional testing only** - no unit tests
+- **No linting tools** - no eslint, shellcheck, or similar tools configured
 - Changes trigger expensive build processes (~40+ minutes)
 - Most validation happens in CI/CD pipelines, not locally
 - The package creates an isolated Node.js environment at `/opt/homebridge/`

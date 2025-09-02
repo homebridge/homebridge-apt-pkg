@@ -59,7 +59,20 @@ case "$ARCH" in
 esac
 
 echo "🔧 Building Docker image for $ARCH..."
+
+# Detect macOS and add platform flag to avoid Rosetta/QEMU conflicts
+DOCKER_PLATFORM=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "🍎 macOS detected - using platform-specific build to avoid Rosetta conflicts..."
+  case "$QEMU_ARCH" in
+    x86_64) DOCKER_PLATFORM="--platform linux/amd64" ;;
+    aarch64) DOCKER_PLATFORM="--platform linux/arm64" ;;
+    arm) DOCKER_PLATFORM="--platform linux/arm/v7" ;;
+  esac
+fi
+
 docker build -f build/Dockerfile \
+  $DOCKER_PLATFORM \
   --build-arg BASE_IMAGE="$BASE_IMAGE" \
   --build-arg QEMU_ARCH="$QEMU_ARCH" \
   -t "$BUILD_NAME" \

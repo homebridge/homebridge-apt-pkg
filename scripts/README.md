@@ -100,6 +100,28 @@ Successful builds produce:
 sudo usermod -aG docker $USER
 ```
 
+### macOS Build Issues
+
+If you encounter Rosetta errors on macOS (particularly Apple Silicon Macs), use the `--platform` flag to force native builds:
+
+```bash
+# For x86_64 builds on macOS, use:
+docker build -f build/Dockerfile --platform linux/amd64 \
+  --build-arg BASE_IMAGE="library/debian:bullseye" \
+  --build-arg QEMU_ARCH="x86_64" \
+  -t homebridge-build .
+
+# For ARM64 builds on Apple Silicon, use:
+docker build -f build/Dockerfile --platform linux/arm64 \
+  --build-arg BASE_IMAGE="arm64v8/debian:bullseye" \
+  --build-arg QEMU_ARCH="aarch64" \
+  -t homebridge-build .
+```
+
+**Alternative**: Use the native architecture for your Mac and skip cross-compilation:
+- Apple Silicon Macs: Build for `aarch64` only
+- Intel Macs: Build for `x86_64` only
+
 ### Architecture Not Supported
 - Check that the QEMU static binary exists in `build/qemu/qemu-{arch}-static`
 - Verify the architecture name matches supported values

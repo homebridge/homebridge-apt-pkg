@@ -24,7 +24,7 @@ show_usage() {
     echo "Examples:"
     echo "  $0 stable"
     echo "  $0 beta aarch64"
-    echo "  $0 alpha x86_64 my-test-1.0.0-alpha.1"
+    echo "  $0 alpha x86_64 1.0.0~alpha.1"
     echo "  $0 stable arm my-stable-build"
     echo
     echo "Individual scripts are also available:"
@@ -66,13 +66,13 @@ esac
 if [[ -z "$VERSION" ]]; then
     case "$RELEASE_TYPE" in
         stable)
-            VERSION="test-stable-1.0.0"
+            VERSION="1.0.0~test"
             ;;
         beta)
-            VERSION="test-beta-1.0.0"
+            VERSION="1.0.0~beta.test"
             ;;
         alpha)
-            VERSION="test-alpha-1.0.0"
+            VERSION="1.0.0~alpha.test"
             ;;
     esac
 fi

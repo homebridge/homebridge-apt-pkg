@@ -73,13 +73,13 @@ timeout 10s ./scripts/build-local.sh stable armhf test-version 2>&1 | grep -q "A
 # Test default values
 echo "✅ Testing default values:"
 echo "  - Default stable version:"
-timeout 10s ./scripts/build-stable.sh x86_64 2>&1 | grep -q "test-stable-1.0.0" && echo "  ✓ Default stable version correct" || echo "  ❌ Default stable version incorrect"
+timeout 10s ./scripts/build-stable.sh x86_64 2>&1 | grep -q "1.0.0~test" && echo "  ✓ Default stable version correct" || echo "  ❌ Default stable version incorrect"
 
 echo "  - Default beta version:"
-timeout 10s ./scripts/build-beta.sh x86_64 2>&1 | grep -q "test-beta-1.0.0" && echo "  ✓ Default beta version correct" || echo "  ❌ Default beta version incorrect"
+timeout 10s ./scripts/build-beta.sh x86_64 2>&1 | grep -q "1.0.0~beta.test" && echo "  ✓ Default beta version correct" || echo "  ❌ Default beta version incorrect"
 
 echo "  - Default alpha version:"
-timeout 10s ./scripts/build-alpha.sh x86_64 2>&1 | grep -q "test-alpha-1.0.0" && echo "  ✓ Default alpha version correct" || echo "  ❌ Default alpha version incorrect"
+timeout 10s ./scripts/build-alpha.sh x86_64 2>&1 | grep -q "1.0.0~alpha.test" && echo "  ✓ Default alpha version correct" || echo "  ❌ Default alpha version incorrect"
 
 # Test release type validation in unified script
 echo "✅ Testing release type validation:"

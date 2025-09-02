@@ -26,7 +26,7 @@ This directory contains local build scripts for testing Homebridge APT packages 
 ./scripts/build-beta.sh aarch64
 
 # Build alpha release with custom version
-./scripts/build-alpha.sh x86_64 my-test-1.0.0-alpha.1
+./scripts/build-alpha.sh x86_64 1.0.0~alpha.1
 ```
 
 ### Unified Script Usage
@@ -38,7 +38,7 @@ This directory contains local build scripts for testing Homebridge APT packages 
 # Examples
 ./scripts/build-local.sh stable
 ./scripts/build-local.sh beta aarch64
-./scripts/build-local.sh alpha x86_64 my-test-1.0.0-alpha.1
+./scripts/build-local.sh alpha x86_64 1.0.0~alpha.1
 ./scripts/build-local.sh stable arm my-stable-build
 
 # Show help
@@ -117,17 +117,17 @@ sudo usermod -aG docker $USER
 
 ### Test All Release Types for x86_64
 ```bash
-./scripts/build-stable.sh x86_64 test-stable-1.0.0
-./scripts/build-beta.sh x86_64 test-beta-1.0.0  
-./scripts/build-alpha.sh x86_64 test-alpha-1.0.0
+./scripts/build-stable.sh x86_64 1.0.0~test
+./scripts/build-beta.sh x86_64 1.0.0~beta.test  
+./scripts/build-alpha.sh x86_64 1.0.0~alpha.test
 ```
 
 ### Cross-platform Testing
 ```bash
 # Test beta release across all architectures
-./scripts/build-beta.sh x86_64 test-beta-multiarch
-./scripts/build-beta.sh aarch64 test-beta-multiarch
-./scripts/build-beta.sh arm test-beta-multiarch
+./scripts/build-beta.sh x86_64 1.0.0~beta.test
+./scripts/build-beta.sh aarch64 1.0.0~beta.test
+./scripts/build-beta.sh arm 1.0.0~beta.test
 ```
 
 ### Custom Version Testing

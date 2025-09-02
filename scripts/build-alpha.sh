@@ -7,7 +7,7 @@ set -e
 
 # Default values
 ARCH="${1:-x86_64}"
-VERSION="${2:-test-alpha-1.0.0}"
+VERSION="${2:-1.0.0~alpha.test}"
 BUILD_NAME="homebridge-alpha-build"
 
 echo "🏗️  Building alpha release package..."
@@ -23,14 +23,14 @@ if [[ "$ARCH" == "help" || "$ARCH" == "--help" || "$ARCH" == "-h" ]]; then
     echo
     echo "Arguments:"
     echo "  architecture  - Target architecture (default: x86_64)"
-    echo "  version      - Package version (default: test-alpha-1.0.0)"
+    echo "  version      - Package version (default: 1.0.0~alpha.test)"
     echo
     echo "Supported architectures: x86_64, aarch64, arm64, arm, armhf"
     echo
     echo "Examples:"
     echo "  $0                            # Build for x86_64 with default version"
     echo "  $0 aarch64                    # Build for ARM64"
-    echo "  $0 x86_64 my-test-1.0-alpha  # Build with custom version"
+    echo "  $0 x86_64 1.2.3~alpha.1      # Build with custom version"
     echo
     echo "💡 For unified script with all release types: ./scripts/build-local.sh help"
     exit 0
@@ -84,4 +84,4 @@ echo "   ./scripts/build-alpha.sh"
 echo "   # Build for ARM64:"
 echo "   ./scripts/build-alpha.sh aarch64"
 echo "   # Build with custom version:"
-echo "   ./scripts/build-alpha.sh x86_64 my-test-1.2.3-alpha.1"
+echo "   ./scripts/build-alpha.sh x86_64 1.2.3~alpha.1"

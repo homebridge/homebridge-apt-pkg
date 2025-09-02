@@ -26,7 +26,7 @@ For local development and testing, you can use the provided build scripts in the
 ./scripts/build-beta.sh aarch64
 
 # Build alpha release (uses alpha/*/package.json)
-./scripts/build-alpha.sh x86_64 my-test-1.0.0-alpha.1
+./scripts/build-alpha.sh x86_64 1.0.0~alpha.1
 
 # Unified script for all release types
 ./scripts/build-local.sh beta arm64 test-version
@@ -110,7 +110,7 @@ You can test the changelog generation feature outside of the full release proces
 PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
 
 # Test with custom parameters
-PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
+PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3~beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
 ```
 
 The test script:

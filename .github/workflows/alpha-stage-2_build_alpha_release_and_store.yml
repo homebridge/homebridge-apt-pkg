@@ -1,0 +1,278 @@
+name: Alpha Stage 2 - Build and Release Alpha Package
+
+permissions:
+  contents: write
+  actions: write
+  id-token: write
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  check-changes:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      alpha_only: ${{ steps.verify_changes.outputs.alpha_only }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log event context for debugging
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Merged: ${{ github.event.pull_request.merged }}"
+
+      - name: Verify alpha-only changes
+        id: verify_changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Workflow dispatch detected, setting alpha_only=true"
+            echo "alpha_only=true" >> $GITHUB_OUTPUT
+          else
+            alpha_only=true
+            changed_files=$(git diff --name-only HEAD^ HEAD)
+            for file in $changed_files; do
+              if [[ ! $file == alpha/* ]]; then
+                echo "Non-alpha changes detected in $file. Setting alpha_only=false"
+                alpha_only=false
+              fi
+            done
+            echo "alpha_only=$alpha_only" >> $GITHUB_OUTPUT
+          fi
+
+  generate_alpha_version:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.alpha_only == 'true' }}
+    name: Generate Alpha Package Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.alpha_version.outputs.version }}
+      npm_version: ${{ steps.alpha_version.outputs.npm_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get base version
+        uses: reecetech/version-increment@2023.10.1
+        id: release_version
+        with:
+          scheme: semver
+          increment: patch
+
+      - name: Generate alpha package version
+        id: alpha_version
+        run: |
+          BASE_VERSION=${{ steps.release_version.outputs.version }}
+          BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
+          DATE=$(date +%Y%m%d)
+          VERSION="${BASE_VERSION_CLEAN}~alpha.${DATE}"
+          NPM_VERSION="${BASE_VERSION_CLEAN}-alpha.${DATE}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          echo "::notice::📦 Alpha version: $VERSION"
+
+  build_alpha_and_store:
+    name: Build Alpha Packages for (${{ matrix.name }})
+    needs: [generate_alpha_version]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [debian-x86_64, debian-arm64v8, debian-arm32v6]
+        include:
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:bullseye
+            QEMU_ARCH: x86_64
+
+          - name: debian-arm64v8
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: arm64v8/debian:bullseye
+            QEMU_ARCH: aarch64
+            
+          - name: debian-arm32v6
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
+            QEMU_ARCH: arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup build environment X64
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        run: |
+          sudo apt-get update
+          sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+          docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        continue-on-error: false
+
+      - name: Setup build environment ARM64
+        if: runner.os == 'Linux' && runner.arch == 'ARM64'
+        run: |
+          sudo apt-get update
+          sudo apt-get --yes --no-install-recommends install binfmt-support
+        continue-on-error: false
+
+      - name: Build Docker image
+        run: |
+          docker build -f build/Dockerfile \
+            --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
+            --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
+            -t alpha-package-build \
+            --platform=linux/${{ matrix.QEMU_ARCH }} \
+            --cache-from=alpha-package-build:latest \
+            --build-arg BUILDKIT_INLINE_CACHE=1 .
+        continue-on-error: false
+
+      - name: Build package
+        run: |
+          docker run --rm -v $(pwd):/repo \
+            -e PKG_RELEASE_TYPE="alpha" \
+            -e PKG_RELEASE_VERSION="${{ needs.generate_alpha_version.outputs.version }}" \
+            alpha-package-build
+        continue-on-error: false
+
+      - name: Rename package to include v
+        run: |
+          DEB_FILE=$(ls homebridge*.deb 2>/dev/null || echo "")
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found. Exiting."
+            exit 1
+          fi
+          UPDATED=$(echo "$DEB_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+          mv "$DEB_FILE" "$UPDATED"
+
+      - name: Rename manifest to include v
+        run: |
+          MANIFEST_FILE=$(ls homebridge*.manifest 2>/dev/null || echo "")
+          if [ -z "$MANIFEST_FILE" ]; then
+            echo "No .manifest file found. Exiting."
+            exit 1
+          fi
+          UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+          mv "$MANIFEST_FILE" "$UPDATED"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.name }}
+          retention-days: 7
+          path: |
+            homebridge_v*.deb
+            homebridge_v*.manifest
+
+  publish_apt_alpha:
+    name: APT Alpha Repo Publish ${{ needs.generate_alpha_version.outputs.version }}
+    runs-on: ubuntu-latest
+    needs: [generate_alpha_version, build_alpha_and_store]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          path: repo/
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Upload to Alpha APT Repo
+        run: |
+          sudo chown -R $USER: repo/
+          deb-s3 upload \
+            --codename=alpha \
+            --suite=alpha \
+            --preserve-versions \
+            --s3-region=us-west-2 \
+            --bucket repo.homebridge.io \
+            --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --sign=${{ secrets.GPG_KEY_ID }} \
+            repo/homebridge_v*.deb
+
+  publish_github_alpha_release:
+    name: Publish GitHub Alpha Release v${{ needs.generate_alpha_version.outputs.npm_version }}
+    needs: [check-changes, publish_apt_alpha, generate_alpha_version]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          path: artifacts/
+
+      - name: Read amd64 manifest content
+        id: read_manifest
+        run: |
+          echo "MANIFEST_FILE=$(ls artifacts/*.manifest | head -n 1)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.generate_alpha_version.outputs.npm_version }}
+          name: Alpha Release v${{ needs.generate_alpha_version.outputs.npm_version }}
+          prerelease: true
+          files: |
+            artifacts/homebridge_v*.deb
+            artifacts/homebridge_v*.manifest
+          body_path: ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
+          body: |
+            Homebridge Apt Package Manifest
+
+            Release Version: v${{ needs.generate_alpha_version.outputs.npm_version }}
+            Release Type: alpha
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  purge_cloudflare_cache:
+    name: Purge Cloudflare Cache
+    needs: [publish_apt_alpha]
+    uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+
+  publish_to_npm:
+    needs: [generate_alpha_version, build_alpha_and_store]
+    name: NPM Publish ${{ needs.generate_alpha_version.outputs.npm_version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set package.json version
+        run: |
+          ALPHA_VERSION="${{ needs.generate_alpha_version.outputs.npm_version }}"
+          echo "Setting version to $ALPHA_VERSION"
+          jq ".version = \"$ALPHA_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          cat package.json
+
+      - name: Publish to npm with alpha tag
+        run: npm publish --access public --tag alpha
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Output Success Notice
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_alpha_version.outputs.npm_version }} with alpha tag"

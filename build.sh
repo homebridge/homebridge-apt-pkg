@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Homebridge APT Package Build Script
+# 
+# This script builds Debian packages for Homebridge across multiple architectures.
+# 
+# IMPORTANT: Node.js Version Constraints
+# - Node.js 23+ dropped support for 32-bit architectures (ARM32, i386)
+# - This script enforces Node.js ≤22 for 32-bit builds to prevent failures
+# - 64-bit architectures (x86_64, aarch64) can use any Node.js version
+#
+# Package Configuration:
+# - Stable builds: Use main package.json for all architectures
+# - Beta builds: Use beta/64bit for x86_64/aarch64, beta/32bit for arm/i386
+#
+# Run ./validate-config.sh to verify package configurations before building
+
 set -e
 set -x
 
@@ -22,6 +37,22 @@ else
 fi
 
 echo "🔧 Using $PACKAGE_JSON_PATH for version resolution"
+
+# Validate package.json configuration
+if [[ ! -f "$PACKAGE_JSON_PATH" ]]; then
+  echo "ERROR: Package configuration file not found: $PACKAGE_JSON_PATH"
+  exit 1
+fi
+
+NODE_VERSION_RAW=$(jq -r '.dependencies.node' "$PACKAGE_JSON_PATH")
+if [[ "$NODE_VERSION_RAW" == "null" ]]; then
+  echo "ERROR: Node.js version not specified in $PACKAGE_JSON_PATH"
+  exit 1
+fi
+
+echo "📦 Package configuration: $PACKAGE_JSON_PATH"
+echo "🟢 Node.js version: $NODE_VERSION_RAW"
+echo "🏗️  Target architecture: $BUILD_ARCH"
 
 # Update changelog if version info is present
 if [[ -n "${PKG_RELEASE_TYPE}" && -n "${PKG_RELEASE_VERSION}" ]]; then
@@ -51,14 +82,20 @@ case "$BUILD_ARCH" in
   x86_64) NODE_ARCH='x64' ;;
   arm)
     if [ "$MAJOR_NODE" -gt 22 ]; then
-      echo "Skipping arm build as NodeJS > 22 on 32 Bit OS's is no longer supported"
+      echo "ERROR: Node.js $MAJOR_NODE is not supported on 32-bit ARM (armv7l) architecture"
+      echo "Node.js dropped 32-bit support starting with version 23"
+      echo "Please use Node.js 22.x or earlier for ARM32 builds"
+      echo "Current configuration uses Node.js $NODE_VERSION from $PACKAGE_JSON_PATH"
       exit 1
     fi
     NODE_ARCH='armv7l' ;;
   aarch64) NODE_ARCH='arm64' ;;
   i386)
     if [ "$MAJOR_NODE" -gt 22 ]; then
-      echo "Skipping i386 build as NodeJS > 22 on 32 Bit OS's is no longer supported"
+      echo "ERROR: Node.js $MAJOR_NODE is not supported on 32-bit x86 (i386) architecture"
+      echo "Node.js dropped 32-bit support starting with version 23"
+      echo "Please use Node.js 22.x or earlier for i386 builds"
+      echo "Current configuration uses Node.js $NODE_VERSION from $PACKAGE_JSON_PATH"
       exit 1
     fi
     NODE_ARCH='x86' ;;
@@ -77,9 +114,19 @@ echo "|NodeJS| $NODE_VERSION |" >> "$MANIFEST"
 
 # Download and unpack NodeJS binary
 if [ ! -f "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
+  # Additional safety check: Ensure we're not trying to download Node.js >22 for 32-bit architectures
+  if [[ ("$NODE_ARCH" == "armv7l" || "$NODE_ARCH" == "x86") && "$MAJOR_NODE" -gt 22 ]]; then
+    echo "ERROR: Cannot download Node.js $NODE_VERSION for 32-bit architecture $NODE_ARCH"
+    echo "Node.js versions greater than 22 do not support 32-bit architectures"
+    echo "Please use Node.js 22.x or earlier for ARM32/i386 builds"
+    exit 1
+  fi
+  
   if [[ "$NODE_ARCH" == "armv6l" || "$NODE_ARCH" == "x86" ]]; then
+    echo "Downloading Node.js $NODE_VERSION for 32-bit architecture $NODE_ARCH from unofficial builds..."
     curl -fSLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
   else
+    echo "Downloading Node.js $NODE_VERSION for architecture $NODE_ARCH from official builds..."
     curl -fSLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
   fi
 fi

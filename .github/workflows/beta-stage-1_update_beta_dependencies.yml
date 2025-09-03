@@ -3,6 +3,8 @@ on:
   schedule:
     - cron: '0 8 * * *' # 4 AM Eastern (10 AM UTC), Docker updates at 6 AM Eastern (12 PM UTC)
   workflow_dispatch:
+run-name: Beta Stage 1 - ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} Run
+
 jobs:
   homebridge-beta-bot:
     name: Run Homebridge Beta Bot
@@ -10,7 +12,17 @@ jobs:
     with:
       config_file: '.github/homebridge-beta-bot.json'
     secrets: inherit
-    
+
+  log-skipped-trigger:
+    name: Log Skipped Beta Stage 2 Trigger
+    needs: homebridge-beta-bot
+    if: needs.homebridge-beta-bot.outputs.changes_detected != 'true' || needs.homebridge-beta-bot.outputs.auto_merge != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log Skipped Trigger
+        run: |
+          echo "::warning::Beta Stage 2 not triggered: Changes Detected=${{ needs.homebridge-beta-bot.outputs.changes_detected }}, Auto Merge=${{ needs.homebridge-beta-bot.outputs.auto_merge }}"
+
   trigger-beta-stage-2:
     name: Trigger Build and Release Beta Package
     needs: homebridge-beta-bot

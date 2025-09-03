@@ -19,6 +19,10 @@
         {
           "name": "node",
           "tag": "^22.x.x"
+        },
+        {
+          "name": "homebridge-plugin-update-check",
+          "tag": "beta"
         }
       ]
     },
@@ -36,6 +40,10 @@
         {
           "name": "node",
           "tag": "^24.x.x"
+        },
+        {
+          "name": "homebridge-plugin-update-check",
+          "tag": "beta"
         }
       ]
     }

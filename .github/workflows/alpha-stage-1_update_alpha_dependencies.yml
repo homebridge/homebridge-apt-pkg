@@ -9,6 +9,7 @@ jobs:
     uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
     with:
       config_file: '.github/homebridge-alpha-bot.json'
+      release_stream: 'alpha'
     secrets: inherit
     
   trigger-alpha-stage-2:

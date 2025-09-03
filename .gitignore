@@ -14,8 +14,12 @@ staging/
 *.tgz
 /beta/node_modules
 beta/README.md
+/alpha/32bit/node_modules
+/alpha/64bit/node_modules
 /beta/32bit/node_modules
 /beta/64bit/node_modules
+/stable/32bit/node_modules
+/stable/64bit/node_modules
 
 # Test output files
 changelog-test.md

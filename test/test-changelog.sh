@@ -7,7 +7,7 @@ set -e
 
 # Default values
 PKG_RELEASE_TYPE="${PKG_RELEASE_TYPE:-stable}"
-PKG_RELEASE_VERSION="${PKG_RELEASE_VERSION:-test-1.0.0}"
+PKG_RELEASE_VERSION="${PKG_RELEASE_VERSION:-1.0.0~test}"
 OUTPUT_FILE="${OUTPUT_FILE:-changelog-test.md}"
 
 echo "🧪 Testing changelog generation..."
@@ -110,7 +110,7 @@ echo "   # Test stable changelog:"
 echo "   PKG_RELEASE_TYPE=stable ./test/test-changelog.sh"
 echo
 echo "   # Test with custom version and output file:"
-echo "   PKG_RELEASE_TYPE=alpha PKG_RELEASE_VERSION=1.2.3-alpha.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh"
+echo "   PKG_RELEASE_TYPE=alpha PKG_RELEASE_VERSION=1.2.3~alpha.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh"
 echo
 echo "📋 Available tags in repository:"
 echo "   Stable tags:"

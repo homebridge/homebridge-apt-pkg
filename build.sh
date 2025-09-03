@@ -90,7 +90,7 @@ cp -R deb staging
 
 cp "$PACKAGE_JSON_PATH" staging/opt/homebridge/package.json
 
-NODE_VERSION=$(jq -r '.dependencies.node | gsub("^\\^"; "v")' "$PACKAGE_JSON_PATH")
+NODE_VERSION=$(jq -r '.dependencies.node | ltrimstr("^") | "v" + .' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_VERSION=$(jq -r '.dependencies["homebridge"]' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_UIX_VERSION=$(jq -r '.dependencies["homebridge-config-ui-x"]' "$PACKAGE_JSON_PATH")
 HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION=$(jq -r '.dependencies["homebridge-plugin-update-check"]' "$PACKAGE_JSON_PATH")

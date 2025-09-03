@@ -54,8 +54,29 @@ docker build -f build/Dockerfile --build-arg BASE_IMAGE=balenalib/raspberrypi3-d
 docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="stable" -e PKG_RELEASE_VERSION="1.0.0" package-build
 ```
 
+### Alternative: Local Build Scripts (Recommended for Development)
+
+For easier local development and testing, use the provided build scripts in the `scripts/` directory:
+
+```bash
+# Build stable release - NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
+./scripts/build-stable.sh x86_64
+
+# Build beta release - NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
+./scripts/build-beta.sh aarch64 
+
+# Build alpha release - NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
+./scripts/build-alpha.sh x86_64 1.0.0~alpha.1
+
+# Unified script for all release types - NEVER CANCEL: Takes 10-15 minutes. Set timeout to 30+ minutes.
+./scripts/build-local.sh beta arm64 test-version
+./scripts/build-local.sh --help
+```
+
+These scripts automatically handle Docker image building and container execution with correct parameters for each release type and architecture.
+
 ### Environment Variables for Build
-- `PKG_RELEASE_TYPE`: `"stable"` or `"beta"` (determines which package.json to use)
+- `PKG_RELEASE_TYPE`: `"stable"`, `"beta"`, or `"alpha"` (determines which package.json to use)
 - `PKG_RELEASE_VERSION`: Version string for the package (e.g., "1.0.0")
 - `QEMU_ARCH`: Target architecture (`x86_64`, `aarch64`, `arm`, `i386`)
 
@@ -75,6 +96,9 @@ This repository has **no unit tests or linting**. The `package.json` test script
 ```
 /
 ├── .github/workflows/          # 24 GitHub workflow files for CI/CD
+├── alpha/                      # Alpha build configurations
+│   ├── 32bit/package.json     # Dependencies for 32-bit alpha builds
+│   └── 64bit/package.json     # Dependencies for 64-bit alpha builds
 ├── beta/                       # Beta build configurations
 │   ├── 32bit/package.json     # Dependencies for 32-bit beta builds
 │   └── 64bit/package.json     # Dependencies for 64-bit beta builds
@@ -88,9 +112,14 @@ This repository has **no unit tests or linting**. The `package.json` test script
 │   ├── usr/                   # Symlinks and system integration
 │   └── var/lib/homebridge/    # User data directory structure
 ├── repo/                      # APT repository configuration
+├── scripts/                   # Local build scripts for testing
+├── stable/                    # Stable build configurations
+│   ├── 32bit/package.json     # Dependencies for 32-bit stable builds
+│   └── 64bit/package.json     # Dependencies for 64-bit stable builds
+├── test/                      # Test and validation scripts
 ├── BUILD.md                   # Release workflow documentation
 ├── build.sh                   # Main build script (use with Docker)
-├── package.json               # Stable release dependency versions
+├── package.json               # Legacy configuration for compatibility
 └── purge*.sh                  # CloudFlare cache purging scripts
 ```
 
@@ -174,10 +203,12 @@ This repository has **no unit tests or linting**. The `package.json` test script
 ## Working with This Repository
 
 ### Making Changes to Dependencies
-1. **For stable releases:** Edit `package.json` in root
-2. **For beta releases:** Edit `beta/32bit/package.json` or `beta/64bit/package.json`
-3. **Always update package-lock.json** when manually editing dependencies
-4. Test builds locally using Docker commands above
+1. **For stable releases:** Edit `stable/64bit/package.json` (for 64-bit) or `stable/32bit/package.json` (for 32-bit)
+2. **For beta releases:** Edit `beta/64bit/package.json` (for 64-bit) or `beta/32bit/package.json` (for 32-bit)
+3. **For alpha releases:** Edit `alpha/64bit/package.json` (for 64-bit) or `alpha/32bit/package.json` (for 32-bit)
+4. **Legacy compatibility:** The root `package.json` is maintained for backwards compatibility
+5. **Always update package-lock.json** when manually editing dependencies
+6. Test builds locally using Docker commands or local build scripts
 
 ### Configuring homebridge-beta-bot
 The `homebridge-beta-bot` automatically manages beta dependency updates via `.github/homebridge-beta-bot.json`:
@@ -296,9 +327,16 @@ After making any changes to package scripts or configuration, always run through
    ```bash
    ./test/test-changelog.sh
    PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
+   PKG_RELEASE_TYPE=alpha ./test/test-changelog.sh
    ```
 
-2. **Build Script Analysis** (< 30 seconds):
+2. **Build Scripts Test** (< 30 seconds):
+   ```bash
+   # Test all build script validation (no actual Docker builds)
+   ./test/test-build-scripts.sh
+   ```
+
+3. **Build Script Analysis** (< 30 seconds):
    ```bash
    # Verify build script syntax
    bash -n build.sh
@@ -307,7 +345,7 @@ After making any changes to package scripts or configuration, always run through
    cat package.json | jq -r '.dependencies.node'
    ```
 
-3. **Package Structure Validation** (< 30 seconds):
+4. **Package Structure Validation** (< 30 seconds):
    ```bash
    # Verify Debian package files exist and are valid
    find deb/ -name "*.install" -o -name "control" -o -name "preinst" -o -name "postinst" -o -name "postrm"
@@ -316,14 +354,16 @@ After making any changes to package scripts or configuration, always run through
    systemd-analyze verify deb/etc/systemd/system/homebridge.service || echo "systemd-analyze not available - validation skipped"
    ```
 
-4. **Dependencies Validation** (< 30 seconds):
+5. **Dependencies Validation** (< 30 seconds):
    ```bash
    # Verify all package.json files are valid JSON
-   jq empty package.json beta/32bit/package.json beta/64bit/package.json
+   jq empty package.json beta/32bit/package.json beta/64bit/package.json stable/32bit/package.json stable/64bit/package.json alpha/32bit/package.json alpha/64bit/package.json
    
    # Check version consistency
    echo "Stable deps:" && jq -r '.dependencies | keys[]' package.json
+   echo "Stable 64-bit deps:" && jq -r '.dependencies | keys[]' stable/64bit/package.json
    echo "Beta 64-bit deps:" && jq -r '.dependencies | keys[]' beta/64bit/package.json
+   echo "Alpha 64-bit deps:" && jq -r '.dependencies | keys[]' alpha/64bit/package.json
    ```
 
 **NOTE:** Full Docker builds take 10-40 minutes and require network access. Use these quick validation steps for iterative development.

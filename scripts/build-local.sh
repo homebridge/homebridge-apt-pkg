@@ -5,6 +5,16 @@
 
 set -e
 
+# Ensure we're running from the repository root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Change to repo root if we're not already there
+if [[ "$(pwd)" != "$REPO_ROOT" ]]; then
+    echo "📂 Changing to repository root: $REPO_ROOT"
+    cd "$REPO_ROOT"
+fi
+
 # Show usage function
 show_usage() {
     echo "🏗️  Homebridge APT Package Local Build Script"

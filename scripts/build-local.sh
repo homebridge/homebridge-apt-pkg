@@ -17,8 +17,8 @@ show_usage() {
     echo "  alpha   - Build alpha release (uses alpha/*/package.json)"
     echo
     echo "Architectures:"
-    echo "  x86_64   - Intel/AMD 64-bit (default)"
-    echo "  aarch64  - ARM 64-bit (alias: arm64)"
+    echo "  x86_64   - Intel/AMD 64-bit (default on Intel Macs and non-macOS)"
+    echo "  aarch64  - ARM 64-bit (default on Apple Silicon Macs, alias: arm64)"
     echo "  arm      - ARM 32-bit (alias: armhf)"
     echo
     echo "Examples:"
@@ -35,7 +35,14 @@ show_usage() {
 
 # Parse arguments
 RELEASE_TYPE="${1}"
-ARCH="${2:-x86_64}"
+
+# Default architecture: aarch64 on Apple Silicon Macs, x86_64 otherwise
+DEFAULT_ARCH="x86_64"
+if [[ "$OSTYPE" == "darwin"* && "$(uname -m)" == "arm64" ]]; then
+    DEFAULT_ARCH="aarch64"
+fi
+
+ARCH="${2:-$DEFAULT_ARCH}"
 VERSION="${3}"
 
 # Validate release type

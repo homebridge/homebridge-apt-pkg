@@ -5,8 +5,14 @@
 
 set -e
 
+# Default architecture: aarch64 on Apple Silicon Macs, x86_64 otherwise
+DEFAULT_ARCH="x86_64"
+if [[ "$OSTYPE" == "darwin"* && "$(uname -m)" == "arm64" ]]; then
+    DEFAULT_ARCH="aarch64"
+fi
+
 # Default values
-ARCH="${1:-x86_64}"
+ARCH="${1:-$DEFAULT_ARCH}"
 VERSION="${2:-1.0.0~test}"
 BUILD_NAME="homebridge-stable-build"
 
@@ -22,13 +28,13 @@ if [[ "$ARCH" == "help" || "$ARCH" == "--help" || "$ARCH" == "-h" ]]; then
     echo "Usage: $0 [architecture] [version]"
     echo
     echo "Arguments:"
-    echo "  architecture  - Target architecture (default: x86_64)"
+    echo "  architecture  - Target architecture (default: x86_64 on Intel Macs/non-macOS, aarch64 on Apple Silicon)"
     echo "  version      - Package version (default: 1.0.0~test)"
     echo
     echo "Supported architectures: x86_64, aarch64, arm64, arm, armhf"
     echo
     echo "Examples:"
-    echo "  $0                     # Build for x86_64 with default version"
+    echo "  $0                     # Build for native architecture (x86_64 or aarch64 depending on Mac type)"
     echo "  $0 aarch64             # Build for ARM64"
     echo "  $0 x86_64 1.2.3~test         # Build with custom version"
     echo
@@ -92,7 +98,7 @@ echo "📂 Package files:"
 ls -la homebridge_*.deb homebridge_*.manifest 2>/dev/null || echo "   No package files found - check build output above"
 echo
 echo "💡 Usage examples:"
-echo "   # Build for x86_64 (default):"
+echo "   # Build for native architecture (x86_64 or aarch64 depending on Mac type):"
 echo "   ./scripts/build-stable.sh"
 echo "   # Build for ARM64:"
 echo "   ./scripts/build-stable.sh aarch64"

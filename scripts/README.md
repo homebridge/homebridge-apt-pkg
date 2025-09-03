@@ -19,7 +19,7 @@ This directory contains local build scripts for testing Homebridge APT packages 
 ### Quick Start
 
 ```bash
-# Build stable release for x86_64 (most common)
+# Build stable release for native architecture (ARM64 on Apple Silicon, x86_64 elsewhere)
 ./scripts/build-stable.sh
 
 # Build beta release for ARM64
@@ -49,9 +49,11 @@ This directory contains local build scripts for testing Homebridge APT packages 
 
 | Architecture | Aliases | Description |
 |-------------|---------|-------------|
-| `x86_64` | | Intel/AMD 64-bit (default) |
-| `aarch64` | `arm64` | ARM 64-bit |
+| `x86_64` | | Intel/AMD 64-bit (default on Intel Macs and non-macOS) |
+| `aarch64` | `arm64` | ARM 64-bit (default on Apple Silicon Macs) |
 | `arm` | `armhf` | ARM 32-bit (Raspberry Pi) |
+
+**Default Architecture Detection**: The scripts automatically default to ARM64 (`aarch64`) on Apple Silicon Macs, and x86_64 elsewhere for optimal native development experience.
 
 ## Release Types and Package Sources
 

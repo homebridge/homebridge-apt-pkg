@@ -181,6 +181,9 @@ echo >> "$MANIFEST"
 echo "## What's Changed" >> "$MANIFEST"
 echo >> "$MANIFEST"
 
+# Configure git for Docker containers to avoid "dubious ownership" errors
+git config --global --add safe.directory /repo 2>/dev/null || true
+
 # Get the latest tag to compare against, filtered by release type
 if [[ "${PKG_RELEASE_TYPE:-stable}" == "beta" ]]; then
   # For beta releases, only look at beta tags

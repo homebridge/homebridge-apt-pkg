@@ -1,4 +1,4 @@
-name: Release Stage 2 - Build and Release Alpha, Beta, and Stable Packages
+name: Unified Release Pipeline - Build, Prerelease, Validate, and Publish
 
 on:
   pull_request:
@@ -187,7 +187,7 @@ jobs:
           scheme: semver
           increment: patch
 
-  build_package_and_store:
+  build_packages:
     name: Build Packages for (${{ matrix.name }}) v${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
     needs: [determine-release-type, generate_version, generate_stable_version]
     if: always() && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success')
@@ -281,27 +281,14 @@ jobs:
           *.deb
           *.manifest
 
-  # For alpha/beta releases, publish directly to APT
-  publish_apt:
-    needs: [determine-release-type, generate_version, build_package_and_store]
-    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
-    uses: ./.github/workflows/reusable-publish-apt.yml
-    with:
-      codename: ${{ needs.determine-release-type.outputs.release_type }}
-      suite: ${{ needs.determine-release-type.outputs.release_type }}
-      release_version: ${{ needs.generate_version.outputs.version }}
-    secrets:
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-  # For stable releases, create prerelease instead of publishing to APT
-  create_stable_prerelease:
-    needs: [determine-release-type, generate_stable_version, build_package_and_store]
-    if: ${{ needs.generate_stable_version.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable' }}
+  # Step 1: Create prerelease for all release types
+  create_prerelease:
+    name: Create GitHub Prerelease v${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
+    needs: [determine-release-type, generate_version, generate_stable_version, build_packages]
+    if: always() && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success') && needs.build_packages.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.create_release.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -323,14 +310,35 @@ jobs:
         run: |
           echo "BODY_FILE=$(ls *.manifest | head -n 1)" >> $GITHUB_OUTPUT
 
-      - name: Create Stable Pre-Release
+      - name: Determine release details
+        id: release_details
+        run: |
+          RELEASE_TYPE="${{ needs.determine-release-type.outputs.release_type }}"
+          if [[ "$RELEASE_TYPE" == "stable" ]]; then
+            VERSION="${{ needs.generate_stable_version.outputs.version }}"
+            NPM_VERSION="${{ needs.generate_stable_version.outputs.npm_version }}"
+            TITLE="v$VERSION - ${{ steps.date.outputs.builddate }}"
+          else
+            VERSION="${{ needs.generate_version.outputs.version }}"
+            NPM_VERSION="${{ needs.generate_version.outputs.npm_version }}"
+            TITLE_PREFIX=$(echo "$RELEASE_TYPE" | tr '[:lower:]' '[:upper:]')
+            TITLE="$TITLE_PREFIX: Homebridge APT Pkg Release v$NPM_VERSION"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          echo "release_title=$TITLE" >> $GITHUB_OUTPUT
+          echo "tag_name=v$NPM_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Prerelease
+        id: create_release
         uses: docker://ghcr.io/mini-bomba/create-github-release:v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ needs.generate_stable_version.outputs.version }}
+          tag: ${{ steps.release_details.outputs.tag_name }}
           prerelease: true
           draft: false
-          name: "v${{ needs.generate_stable_version.outputs.version }} - ${{ steps.date.outputs.builddate }}"
+          name: ${{ steps.release_details.outputs.release_title }}
           files: |
             *.deb
             *.manifest
@@ -338,79 +346,115 @@ jobs:
           clear_attachments: true
           fail_on_no_files: true
 
-      - name: update release
+      - name: Set release tag output
+        run: |
+          echo "release_tag=${{ steps.release_details.outputs.tag_name }}" >> $GITHUB_OUTPUT
+
+      - name: Update release body
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: v${{ needs.generate_stable_version.outputs.version }}
+          TAG_NAME: ${{ steps.release_details.outputs.tag_name }}
         with:
           body_path: ${{ steps.release_body.outputs.BODY_FILE }}
 
-  # For alpha/beta releases, create GitHub release
-  publish_github_release:
-    needs: [determine-release-type, publish_apt, generate_version]
-    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+  # Step 2: Validate prerelease artifacts
+  validate_prerelease:
+    name: Validate GitHub Prerelease Artifacts
+    needs: [create_prerelease]
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "prerelease"
+      release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
+      prerelease: true
+      latest: false
+
+  # Step 3: Promote prerelease to full release after validation passes
+  promote_to_release:
+    name: Promote to Full Release
+    needs: [validate_prerelease, create_prerelease, determine-release-type]
+    if: needs.validate_prerelease.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Promote prerelease to full release
+        uses: actions/github-script@v7
         with:
-          pattern: artifacts-*
-          merge-multiple: true
-          path: artifacts/
+          script: |
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: '${{ needs.create_prerelease.outputs.release_tag }}'
+            });
 
-      - name: Read manifest content
-        id: read_manifest
-        run: |
-          echo "MANIFEST_FILE=$(ls artifacts/*.manifest | head -n 1)" >> $GITHUB_OUTPUT
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              prerelease: false
+            });
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.generate_version.outputs.npm_version }}
-          name: "${{ needs.determine-release-type.outputs.release_type == 'alpha' && 'ALPHA' || 'BETA' }}: Homebridge APT Pkg Release v${{ needs.generate_version.outputs.npm_version }}"
-          prerelease: true
-          draft: false
-          files: |
-            artifacts/homebridge_v*.deb
-            artifacts/homebridge_v*.manifest
-          body_path: ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
-          body: |
-            Homebridge Apt Package Manifest
+            console.log('Successfully promoted prerelease to full release: ${{ needs.create_prerelease.outputs.release_tag }}');
 
-            Release Version: v${{ needs.generate_version.outputs.npm_version }}
-            Release Type: ${{ needs.determine-release-type.outputs.release_type }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Step 4: Publish to APT repository
+  publish_apt:
+    name: Publish to APT Repository
+    needs: [promote_to_release, create_prerelease, determine-release-type, generate_version, generate_stable_version]
+    if: needs.promote_to_release.result == 'success'
+    uses: ./.github/workflows/reusable-publish-apt.yml
+    with:
+      codename: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
+      suite: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
+      release_version: ${{ needs.create_prerelease.outputs.release_tag }}
+      download_from_release: true
+      release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
+    secrets:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # For alpha/beta releases, purge CloudFlare cache
+  # Step 5: Validate APT installation after publishing
+  validate_apt:
+    name: Validate APT Installation
+    needs: [publish_apt, determine-release-type]
+    if: needs.publish_apt.result == 'success'
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "apt"
+      release_channel: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
+
+  # Step 6: Purge CloudFlare cache
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
-    needs: [determine-release-type, publish_apt]
-    if: ${{ needs.publish_apt.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    needs: [publish_apt]
+    if: needs.publish_apt.result == 'success'
     uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
-  # For alpha/beta releases, publish to NPM
+  # Step 7: Publish to NPM
   publish_to_npm:
-    needs: [determine-release-type, generate_version, build_package_and_store]
-    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    name: Publish to NPM
+    needs: [validate_apt, create_prerelease, determine-release-type, generate_version, generate_stable_version]
+    if: needs.validate_apt.result == 'success'
     uses: ./.github/workflows/reusable-publish-npm.yml
     with:
-      npm_version: ${{ needs.generate_version.outputs.npm_version }}
-      npm_tag: ${{ needs.determine-release-type.outputs.release_type }}
+      npm_version: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
+      npm_tag: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'latest' || needs.determine-release-type.outputs.release_type }}
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # For stable releases, validate prerelease
-  validate_stable_prerelease:
-    needs: [determine-release-type, create_stable_prerelease, generate_stable_version]
-    if: ${{ needs.create_stable_prerelease.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable' }}
-    uses: ./.github/workflows/reusable-validate-homebridge.yml
+  # Step 8: Notify Discord (for stable releases only)
+  notify_discord:
+    name: Notify Discord
+    needs: [publish_to_npm, create_prerelease, determine-release-type]
+    if: needs.publish_to_npm.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable'
+    uses: homebridge/.github/.github/workflows/discord-webhooks.yml@latest
     with:
-      validation_type: "prerelease"
-      release_tag: v${{ needs.generate_stable_version.outputs.version }}
-      prerelease: true
-      latest: false
+      title: "Homebridge APT Package Released"
+      description: "Version `${{ needs.create_prerelease.outputs.release_tag }}` has been released."
+      url: "https://github.com/homebridge/homebridge-apt-pkg/releases/tag/${{ needs.create_prerelease.outputs.release_tag }}"
+    secrets:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_LATEST }}

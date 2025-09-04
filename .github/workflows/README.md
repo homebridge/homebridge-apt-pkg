@@ -49,6 +49,27 @@ Publishes the package to NPM with specified version and tag.
 
 **Secrets:** NPM token
 
+### `reusable-debug-context.yml`
+Provides comprehensive debug output for GitHub Actions contexts.
+
+**Usage:** Call this workflow from any workflow that needs debug context information.
+
+### `reusable-validate-homebridge.yml`
+Validates Homebridge package installations from different sources.
+
+**Inputs:**
+- `validation_type`: Type of validation ("prerelease" for GitHub releases, "apt" for APT installations)
+- `release_tag`: GitHub release tag (for prerelease validation)
+- `release_channel`: APT release channel (for APT validation)
+- `prerelease`: Whether to download from prerelease
+- `latest`: Whether to download latest release
+
+**Features:**
+- Multi-architecture validation for APT installations
+- Package download and installation verification
+- Service status validation
+- File count verification for prerelease packages
+
 ### `reusable-generate-version.yml`
 Generates version strings for beta and alpha releases using date stamps.
 

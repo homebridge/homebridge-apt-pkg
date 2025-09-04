@@ -1,0 +1,115 @@
+name: "Reusable - Validate Homebridge Package"
+
+on:
+  workflow_call:
+    inputs:
+      validation_type:
+        description: "Type of validation to perform"
+        required: true
+        type: string
+        # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
+      release_tag:
+        description: "Release tag for GitHub release validation"
+        required: false
+        type: string
+      release_channel:
+        description: "APT release channel for APT validation"
+        required: false
+        type: string
+        # Options: "stable", "beta", "alpha"
+      prerelease:
+        description: "Whether to download from prerelease"
+        required: false
+        type: boolean
+        default: false
+      latest:
+        description: "Whether to download latest release"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  validate_github_release:
+    name: Validate GitHub Release Package
+    runs-on: ubuntu-latest
+    if: ${{ inputs.validation_type == 'prerelease' }}
+    steps:
+      - name: Download prerelease assets
+        id: download_assets
+        uses: robinraju/release-downloader@v1.11
+        with:
+          tag: ${{ inputs.release_tag }}
+          preRelease: ${{ inputs.prerelease }}
+          latest: ${{ inputs.latest }}
+          fileName: 'homebridge*.deb'
+      
+      - name: List the downloaded files
+        run: ls -l
+
+      - name: Check the number of downloaded files
+        id: check_file_count
+        run: |
+          FILE_COUNT=$(ls -1 | wc -l)
+          echo "Number of files downloaded: $FILE_COUNT"
+          if [ "$FILE_COUNT" -ne 3 ]; then
+            echo "::error::Expected 3 files, but found $FILE_COUNT"
+            exit 1
+          fi
+
+      - name: Download and install AMD64 package
+        uses: robinraju/release-downloader@v1.11
+        with:
+          tag: ${{ inputs.release_tag }}
+          preRelease: ${{ inputs.prerelease }}
+          latest: ${{ inputs.latest }}
+          fileName: 'homebridge_*_amd64.deb'
+      
+      - name: List downloaded files
+        run: |
+          echo "Downloaded files:"
+          ls -l
+
+      - name: Install the downloaded package
+        run: |
+          sudo dpkg -i homebridge_*_amd64.deb || sudo apt-get install -f -y
+          sleep 30
+
+      - name: Validate Homebridge Service
+        run: |
+          sudo hb-service view
+          sudo hb-service status
+
+  validate_apt_installation:
+    name: Validate APT Installation on ${{ matrix.github-action-runner }}
+    runs-on: ${{ matrix.github-action-runner }}
+    if: ${{ inputs.validation_type == 'apt' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        github-action-runner: [ubuntu-latest, ubuntu-24.04-arm]
+    steps:
+      - name: Install Homebridge from APT
+        run: |
+          curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
+          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ inputs.release_channel }} main" | \
+            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y homebridge
+
+      - name: Display Installed Version
+        id: installed-version
+        run: |
+          dpkg -l homebridge
+          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Homebridge
+        run: |
+          sudo hb-service status
+          sudo hb-service view
+
+      - name: List Available Versions
+        run: |
+          apt-cache madison homebridge
+
+      - name: Publish Notice
+        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.github-action-runner }}"

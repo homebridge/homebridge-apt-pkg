@@ -42,36 +42,8 @@ jobs:
           fi
 
   validate:
-    name: Validate APT Install ${{ matrix.github-action-runner }}
     needs: determine-channel
-    runs-on: ${{ matrix.github-action-runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        github-action-runner: [ubuntu-latest, ubuntu-24.04-arm]
-    steps:
-      - name: Install Homebridge from APT
-        run: |
-          curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
-          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ needs.determine-channel.outputs.channel }} main" | \
-            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y homebridge
-
-      - name: Display Installed Version
-        id: installed-version
-        run: |
-          dpkg -l homebridge
-          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
-
-      - name: Validate Homebridge
-        run: |
-          sudo hb-service status
-          sudo hb-service view
-
-      - name: List Available Versions
-        run: |
-          apt-cache madison homebridge
-
-      - name: Publish Notice
-        run: echo "::notice::APT Package Installed from ${{ needs.determine-channel.outputs.channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.github-action-runner }}"
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "apt"
+      release_channel: ${{ needs.determine-channel.outputs.channel }}

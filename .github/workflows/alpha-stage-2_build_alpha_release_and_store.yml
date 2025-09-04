@@ -54,6 +54,7 @@ jobs:
     outputs:
       version: ${{ steps.alpha_version.outputs.version }}
       npm_version: ${{ steps.alpha_version.outputs.npm_version }}
+      release_title_date: ${{ steps.alpha_version.outputs.release_title_date }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,10 +71,13 @@ jobs:
           BASE_VERSION=${{ steps.release_version.outputs.version }}
           BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
           DATE=$(date +%Y%m%d)
+          DATE_FORMATTED=$(date +%Y-%m-%d)
           VERSION="${BASE_VERSION_CLEAN}~alpha.${DATE}"
           NPM_VERSION="${BASE_VERSION_CLEAN}-alpha.${DATE}"
+          RELEASE_TITLE_DATE="alpha-${DATE_FORMATTED}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          echo "release_title_date=$RELEASE_TITLE_DATE" >> $GITHUB_OUTPUT
           echo "::notice::📦 Alpha version: $VERSION"
 
   build_alpha_and_store:
@@ -228,17 +232,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.generate_alpha_version.outputs.npm_version }}
-          name: Alpha Release v${{ needs.generate_alpha_version.outputs.npm_version }}
+          name: "ALPHA: Homebridge APT Pkg Release ${{ needs.generate_alpha_version.outputs.release_title_date }}"
           prerelease: true
           files: |
             artifacts/homebridge_v*.deb
             artifacts/homebridge_v*.manifest
           body_path: ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
-          body: |
-            Homebridge Apt Package Manifest
-
-            Release Version: v${{ needs.generate_alpha_version.outputs.npm_version }}
-            Release Type: alpha
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -1,0 +1,96 @@
+name: Prerelease Stage 2 - Build and Release Alpha and Beta Packages
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - 'alpha/**'
+      - 'beta/**'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type to build'
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+        default: 'beta'
+
+jobs:
+  determine-release-type:
+    name: Determine Release Type
+    runs-on: ubuntu-latest
+    outputs:
+      release_type: ${{ steps.detect-type.outputs.release_type }}
+      should_run: ${{ steps.detect-type.outputs.should_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release type
+        id: detect-type
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "release_type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "::notice::Manual dispatch for ${{ github.event.inputs.release_type }} release"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ github.event.pull_request.merged }}" != "true" ]]; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "::notice::PR was not merged, skipping build"
+              exit 0
+            fi
+
+            # Check which directories were changed in the merged PR
+            CHANGED_FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }}/files --jq '.[].filename')
+            
+            ALPHA_CHANGES=$(echo "$CHANGED_FILES" | grep -c "^alpha/" || true)
+            BETA_CHANGES=$(echo "$CHANGED_FILES" | grep -c "^beta/" || true)
+            
+            echo "Alpha files changed: $ALPHA_CHANGES"
+            echo "Beta files changed: $BETA_CHANGES"
+            
+            if [[ $ALPHA_CHANGES -gt 0 && $BETA_CHANGES -gt 0 ]]; then
+              echo "::error::PR contains changes to both alpha and beta directories. This should not happen."
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              exit 1
+            elif [[ $ALPHA_CHANGES -gt 0 ]]; then
+              echo "release_type=alpha" >> $GITHUB_OUTPUT
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "::notice::Detected alpha release based on changed files"
+            elif [[ $BETA_CHANGES -gt 0 ]]; then
+              echo "release_type=beta" >> $GITHUB_OUTPUT
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "::notice::Detected beta release based on changed files"
+            else
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "::notice::No relevant changes detected, skipping build"
+            fi
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "::error::Unexpected event type: ${{ github.event_name }}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build_and_release:
+    name: Build and Release ${{ needs.determine-release-type.outputs.release_type }} Package
+    needs: determine-release-type
+    if: needs.determine-release-type.outputs.should_run == 'true'
+    uses: ./.github/workflows/reusable-build-and-release-prerelease.yml
+    with:
+      release_type: ${{ needs.determine-release-type.outputs.release_type }}
+      event_name: ${{ github.event_name }}
+      pr_merged: ${{ github.event.pull_request.merged }}
+    secrets:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

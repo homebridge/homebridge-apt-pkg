@@ -96,21 +96,18 @@ Consolidated build and release logic for alpha and beta packages, including all 
 4. **`Stage-4_post_release_validation.yml`** - Post-release validation
    - Tests APT installation from repository
 
-### Beta Release (2 stages)
-1. **`beta-stage-1_update_beta_dependencies.yml`** - Updates beta dependencies
+### Prerelease (Alpha and Beta) Workflows (2 stages)
+1. **`prerelease-stage-1_update_dependencies.yml`** - Updates dependencies for both alpha and beta
    - Uses: `reusable-update-dependencies.yml`
-   - Managed by homebridge-beta-bot
+   - Supports both scheduled runs (separate cron schedules for alpha/beta) and manual dispatch
+   - Managed by homebridge-alpha-bot and homebridge-beta-bot
+   - Consolidates both alpha and beta dependency updates into a single workflow
 
-2. **`beta-stage-2_build_beta_release_and_store.yml`** - Builds and releases beta packages
+2. **`prerelease-stage-2_build_and_release.yml`** - Builds and releases alpha and beta packages
    - Uses: `reusable-build-and-release-prerelease.yml`
-
-### Alpha Release (2 stages)
-1. **`alpha-stage-1_update_alpha_dependencies.yml`** - Updates alpha dependencies
-   - Uses: `reusable-update-dependencies.yml`
-   - Managed by homebridge-alpha-bot
-
-2. **`alpha-stage-2_build_alpha_release_and_store.yml`** - Builds and releases alpha packages
-   - Uses: `reusable-build-and-release-prerelease.yml`
+   - Automatically detects release type based on changed directories in PRs
+   - Supports manual dispatch with release type selection
+   - Consolidates both alpha and beta build/release logic into a single workflow
 
 ## Utility Workflows
 
@@ -127,7 +124,9 @@ Consolidated build and release logic for alpha and beta packages, including all 
 3. **Maintainability**: Common changes only need to be made in reusable workflows
 4. **Flexibility**: Reusable workflows are parameterized for different use cases
 5. **Reliability**: Shared logic reduces the chance of inconsistencies between release streams
-6. **Simplified Alpha/Beta**: Complete alpha and beta workflow logic consolidated into shared components
+6. **Complete Prerelease Consolidation**: Alpha and beta workflows combined into 2 shared workflows instead of 4 separate ones
+7. **Intelligent Release Detection**: Automatic detection of release type based on changed directories
+8. **Simplified Management**: Single workflow files handle both alpha and beta with appropriate scheduling
 
 ## Making Changes
 
@@ -138,7 +137,7 @@ When modifying build or publishing logic:
 3. **GitHub Releases**: Edit `reusable-create-github-release.yml`
 4. **NPM Publishing**: Edit `reusable-publish-npm.yml`
 5. **Version Generation**: Edit `reusable-generate-version.yml`
-6. **Alpha/Beta Dependency Updates**: Edit `reusable-update-dependencies.yml`
-7. **Alpha/Beta Build and Release**: Edit `reusable-build-and-release-prerelease.yml`
+6. **Prerelease Dependency Updates**: Edit `reusable-update-dependencies.yml`
+7. **Prerelease Build and Release**: Edit `reusable-build-and-release-prerelease.yml`
 
 The changes will automatically apply to all release streams that use these workflows.

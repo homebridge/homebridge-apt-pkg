@@ -169,7 +169,7 @@ echo "|Homebridge UI| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
 
 # Only install homebridge-plugin-update-check if it exists in package.json
 if [ "$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION" != "null" ]; then
-  npm install --location=global @homebridge-plugins/homebridge-plugin-update-check@$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION
+  npm install --prefix "$(pwd)/staging/var/lib/homebridge" @homebridge-plugins/homebridge-plugin-update-check@$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION
   echo "|Plugin Update Check| $HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION |" >> "$MANIFEST"
 fi
 

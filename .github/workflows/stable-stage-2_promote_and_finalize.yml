@@ -73,44 +73,33 @@ jobs:
       validation_type: "apt"
       release_channel: "stable"
 
-  publish_to_npm:
-    needs: [determine_release_tag, update_apt_repo]
+  extract_npm_version:
+    name: Extract NPM Version
+    needs: [determine_release_tag]
     runs-on: ubuntu-latest
+    outputs:
+      npm_version: ${{ steps.extract_version.outputs.npm_version }}
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: latest
-          registry-url: 'https://registry.npmjs.org'
-
       - name: Extract and validate version from tag
-        id: version
+        id: extract_version
         run: |
           RAW_TAG="${{ needs.determine_release_tag.outputs.release_tag }}"
           if [[ "$RAW_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
             CLEAN_VERSION="${BASH_REMATCH[1]}"
-            echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+            echo "npm_version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "::error::Invalid tag format: '$RAW_TAG'. Expected format 'v1.2.3'"
             exit 1
           fi
 
-      - name: Set package.json version
-        run: |
-          echo "Setting version to $CLEAN_VERSION"
-          jq ".version = \"$CLEAN_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
-          cat package.json
-
-      - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Output Success Notice
-        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version $CLEAN_VERSION"
+  publish_to_npm:
+    needs: [extract_npm_version, update_apt_repo]
+    uses: ./.github/workflows/reusable-publish-npm.yml
+    with:
+      npm_version: ${{ needs.extract_npm_version.outputs.npm_version }}
+      npm_tag: 'latest'
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   notify_discord:
     name: Notify Discord

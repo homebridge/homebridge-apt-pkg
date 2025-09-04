@@ -1,4 +1,4 @@
-name: Prerelease Stage 2 - Build and Release Alpha and Beta Packages
+name: Release Stage 2 - Build and Release Alpha, Beta, and Stable Packages
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'alpha/**'
       - 'beta/**'
+      - 'stable/**'
   workflow_dispatch:
     inputs:
       release_type:
@@ -15,6 +16,7 @@ on:
         options:
           - alpha
           - beta
+          - stable
         default: 'beta'
 
 jobs:
@@ -49,15 +51,32 @@ jobs:
             
             ALPHA_CHANGES=$(echo "$CHANGED_FILES" | grep -c "^alpha/" || true)
             BETA_CHANGES=$(echo "$CHANGED_FILES" | grep -c "^beta/" || true)
+            STABLE_CHANGES=$(echo "$CHANGED_FILES" | grep -c "^stable/" || true)
             
             echo "Alpha files changed: $ALPHA_CHANGES"
             echo "Beta files changed: $BETA_CHANGES"
+            echo "Stable files changed: $STABLE_CHANGES"
             
-            if [[ $ALPHA_CHANGES -gt 0 && $BETA_CHANGES -gt 0 ]]; then
-              echo "::error::PR contains changes to both alpha and beta directories. This should not happen."
+            TOTAL_CHANGES=$((ALPHA_CHANGES + BETA_CHANGES + STABLE_CHANGES))
+            
+            if [[ $TOTAL_CHANGES -eq 0 ]]; then
               echo "should_run=false" >> $GITHUB_OUTPUT
-              exit 1
-            elif [[ $ALPHA_CHANGES -gt 0 ]]; then
+              echo "::notice::No relevant changes detected, skipping build"
+            elif [[ $TOTAL_CHANGES -gt 1 ]] && [[ $ALPHA_CHANGES -gt 0 || $BETA_CHANGES -gt 0 || $STABLE_CHANGES -gt 0 ]]; then
+              # Check if more than one release type has changes
+              CHANGE_COUNT=0
+              [[ $ALPHA_CHANGES -gt 0 ]] && CHANGE_COUNT=$((CHANGE_COUNT + 1))
+              [[ $BETA_CHANGES -gt 0 ]] && CHANGE_COUNT=$((CHANGE_COUNT + 1))
+              [[ $STABLE_CHANGES -gt 0 ]] && CHANGE_COUNT=$((CHANGE_COUNT + 1))
+              
+              if [[ $CHANGE_COUNT -gt 1 ]]; then
+                echo "::error::PR contains changes to multiple release type directories. This should not happen."
+                echo "should_run=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            fi
+            
+            if [[ $ALPHA_CHANGES -gt 0 ]]; then
               echo "release_type=alpha" >> $GITHUB_OUTPUT
               echo "should_run=true" >> $GITHUB_OUTPUT
               echo "::notice::Detected alpha release based on changed files"
@@ -65,9 +84,10 @@ jobs:
               echo "release_type=beta" >> $GITHUB_OUTPUT
               echo "should_run=true" >> $GITHUB_OUTPUT
               echo "::notice::Detected beta release based on changed files"
-            else
-              echo "should_run=false" >> $GITHUB_OUTPUT
-              echo "::notice::No relevant changes detected, skipping build"
+            elif [[ $STABLE_CHANGES -gt 0 ]]; then
+              echo "release_type=stable" >> $GITHUB_OUTPUT
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "::notice::Detected stable release based on changed files"
             fi
           else
             echo "should_run=false" >> $GITHUB_OUTPUT
@@ -80,7 +100,7 @@ jobs:
     name: Build and Release ${{ needs.determine-release-type.outputs.release_type }} Package
     needs: determine-release-type
     if: needs.determine-release-type.outputs.should_run == 'true'
-    uses: ./.github/workflows/reusable-build-and-release-prerelease.yml
+    uses: ./.github/workflows/reusable-build-and-release.yml
     with:
       release_type: ${{ needs.determine-release-type.outputs.release_type }}
       event_name: ${{ github.event_name }}

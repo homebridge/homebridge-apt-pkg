@@ -19,6 +19,11 @@ on:
           - stable
         default: 'beta'
 
+permissions:
+  contents: write
+  actions: write
+  id-token: write
+
 jobs:
   determine-release-type:
     name: Determine Release Type
@@ -96,21 +101,316 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build_and_release:
-    name: Build and Release ${{ needs.determine-release-type.outputs.release_type }} Package
+  check-changes:
+    name: Check Changes
     needs: determine-release-type
     if: needs.determine-release-type.outputs.should_run == 'true'
-    uses: ./.github/workflows/reusable-build-and-release.yml
+    runs-on: ubuntu-latest
+    outputs:
+      changes_only: ${{ steps.verify_changes.outputs.changes_only }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Log event context for debugging
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Merged: ${{ github.event.pull_request.merged }}"
+
+      - name: Verify ${{ needs.determine-release-type.outputs.release_type }}-only changes
+        id: verify_changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Workflow dispatch detected, setting changes_only=true"
+            echo "changes_only=true" >> $GITHUB_OUTPUT
+          else
+            changes_only=true
+            changed_files=$(git diff --name-only HEAD^ HEAD)
+            for file in $changed_files; do
+              if [[ ! $file == ${{ needs.determine-release-type.outputs.release_type }}/* ]]; then
+                echo "Non-${{ needs.determine-release-type.outputs.release_type }} changes detected in $file. Setting changes_only=false"
+                changes_only=false
+              fi
+            done
+            echo "changes_only=$changes_only" >> $GITHUB_OUTPUT
+          fi
+
+  # For alpha/beta releases, generate version using date-based approach
+  generate_version:
+    needs: [determine-release-type, check-changes]
+    if: ${{ needs.check-changes.outputs.changes_only == 'true' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version_output.outputs.version }}
+      npm_version: ${{ steps.version_output.outputs.npm_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get base version
+        uses: reecetech/version-increment@2023.10.1
+        id: release_version
+        with:
+          scheme: semver
+          increment: patch
+
+      - name: Generate version
+        id: version_output
+        run: |
+          BASE_VERSION=${{ steps.release_version.outputs.version }}
+          BASE_VERSION_CLEAN=$(echo "$BASE_VERSION" | sed -E 's/-[a-z0-9.]+//')
+          DATE=$(date +%Y%m%d)
+          VERSION="${BASE_VERSION_CLEAN}~${{ needs.determine-release-type.outputs.release_type }}.${DATE}"
+          NPM_VERSION="${BASE_VERSION_CLEAN}-${{ needs.determine-release-type.outputs.release_type }}.${DATE}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          echo "::notice::📦 ${{ needs.determine-release-type.outputs.release_type }} version: $VERSION"
+
+  # For stable releases, generate version using semver increment
+  generate_stable_version:
+    needs: [determine-release-type, check-changes]
+    if: ${{ needs.check-changes.outputs.changes_only == 'true' && needs.determine-release-type.outputs.release_type == 'stable' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release_version.outputs.version }}
+      npm_version: ${{ steps.release_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get next stable version
+        uses: reecetech/version-increment@2023.10.1
+        id: release_version
+        with:
+          scheme: semver
+          increment: patch
+
+  build_package_and_store:
+    name: Build Packages for (${{ matrix.name }}) v${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
+    needs: [determine-release-type, generate_version, generate_stable_version]
+    if: always() && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [
+          debian-x86_64,
+          debian-arm32v6,
+          debian-arm64v8,
+        ]
+        include: 
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:bullseye
+            QEMU_ARCH: x86_64
+
+          - name: debian-arm32v6
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
+            QEMU_ARCH: arm
+
+          - name: debian-arm64v8
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: arm64v8/debian:bullseye
+            QEMU_ARCH: aarch64
+
+    steps: 
+    - uses: actions/checkout@v4
+
+    - name: Setup build environment X64
+      if: runner.os == 'Linux' && runner.arch == 'X64'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      continue-on-error: false
+
+    - name: Setup build environment ARM64
+      if: runner.os == 'Linux' && runner.arch == 'ARM64'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support
+      continue-on-error: false
+
+    - name: Build Docker image
+      run: |
+        docker build -f build/Dockerfile \
+          --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
+          --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
+          -t ${{ needs.determine-release-type.outputs.release_type }}-package-build \
+          --platform=linux/${{ matrix.QEMU_ARCH }} \
+          --cache-from=${{ needs.determine-release-type.outputs.release_type }}-package-build:latest \
+          --build-arg BUILDKIT_INLINE_CACHE=1 .
+      continue-on-error: false
+
+    - name: Build package
+      run: |
+        docker run --rm -v $(pwd):/repo \
+          -e PKG_RELEASE_TYPE="${{ needs.determine-release-type.outputs.release_type }}" \
+          -e PKG_RELEASE_VERSION="${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}" \
+          ${{ needs.determine-release-type.outputs.release_type }}-package-build
+      continue-on-error: false
+
+    - name: Rename package to include v
+      run: |
+        DEB_FILE=$(ls homebridge*.deb 2>/dev/null || echo "")
+        if [ -z "$DEB_FILE" ]; then
+          echo "No .deb file found. Exiting."
+          exit 1
+        fi
+        UPDATED=$(echo "$DEB_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+        mv "$DEB_FILE" "$UPDATED"
+
+    - name: Rename manifest to include v
+      run: |
+        MANIFEST_FILE=$(ls homebridge*.manifest 2>/dev/null || echo "")
+        if [ -z "$MANIFEST_FILE" ]; then
+          echo "No .manifest file found. Exiting."
+          exit 1
+        fi
+        UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+        mv "$MANIFEST_FILE" "$UPDATED"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: artifacts-${{ matrix.name }}
+        retention-days: 7
+        path: |
+          *.deb
+          *.manifest
+
+  # For alpha/beta releases, publish directly to APT
+  publish_apt:
+    needs: [determine-release-type, generate_version, build_package_and_store]
+    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    uses: ./.github/workflows/reusable-publish-apt.yml
     with:
-      release_type: ${{ needs.determine-release-type.outputs.release_type }}
-      event_name: ${{ github.event_name }}
-      pr_merged: ${{ github.event.pull_request.merged }}
+      codename: ${{ needs.determine-release-type.outputs.release_type }}
+      suite: ${{ needs.determine-release-type.outputs.release_type }}
+      release_version: ${{ needs.generate_version.outputs.version }}
     secrets:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  # For stable releases, create prerelease instead of publishing to APT
+  create_stable_prerelease:
+    needs: [determine-release-type, generate_stable_version, build_package_and_store]
+    if: ${{ needs.generate_stable_version.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Get the date
+        id: date
+        run: |
+          echo "builddate=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Create Release Body
+        id: release_body
+        run: |
+          echo "BODY_FILE=$(ls *.manifest | head -n 1)" >> $GITHUB_OUTPUT
+
+      - name: Create Stable Pre-Release
+        uses: docker://ghcr.io/mini-bomba/create-github-release:v1.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ needs.generate_stable_version.outputs.version }}
+          prerelease: true
+          draft: false
+          name: "v${{ needs.generate_stable_version.outputs.version }} - ${{ steps.date.outputs.builddate }}"
+          files: |
+            *.deb
+            *.manifest
+          body: ${{ steps.release_body.outputs.BODY_FILE }}
+          clear_attachments: true
+          fail_on_no_files: true
+
+      - name: update release
+        uses: tubone24/update_release@v1.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: v${{ needs.generate_stable_version.outputs.version }}
+        with:
+          body_path: ${{ steps.release_body.outputs.BODY_FILE }}
+
+  # For alpha/beta releases, create GitHub release
+  publish_github_release:
+    needs: [determine-release-type, publish_apt, generate_version]
+    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          path: artifacts/
+
+      - name: Read manifest content
+        id: read_manifest
+        run: |
+          echo "MANIFEST_FILE=$(ls artifacts/*.manifest | head -n 1)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.generate_version.outputs.npm_version }}
+          name: "${{ needs.determine-release-type.outputs.release_type == 'alpha' && 'ALPHA' || 'BETA' }}: Homebridge APT Pkg Release v${{ needs.generate_version.outputs.npm_version }}"
+          prerelease: true
+          draft: false
+          files: |
+            artifacts/homebridge_v*.deb
+            artifacts/homebridge_v*.manifest
+          body_path: ${{ steps.read_manifest.outputs.MANIFEST_FILE }}
+          body: |
+            Homebridge Apt Package Manifest
+
+            Release Version: v${{ needs.generate_version.outputs.npm_version }}
+            Release Type: ${{ needs.determine-release-type.outputs.release_type }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # For alpha/beta releases, purge CloudFlare cache
+  purge_cloudflare_cache:
+    name: Purge Cloudflare Cache
+    needs: [determine-release-type, publish_apt]
+    if: ${{ needs.publish_apt.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
+    secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+
+  # For alpha/beta releases, publish to NPM
+  publish_to_npm:
+    needs: [determine-release-type, generate_version, build_package_and_store]
+    if: ${{ needs.generate_version.result == 'success' && needs.determine-release-type.outputs.release_type != 'stable' }}
+    uses: ./.github/workflows/reusable-publish-npm.yml
+    with:
+      npm_version: ${{ needs.generate_version.outputs.npm_version }}
+      npm_tag: ${{ needs.determine-release-type.outputs.release_type }}
+    secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # For stable releases, validate prerelease
+  validate_stable_prerelease:
+    needs: [determine-release-type, create_stable_prerelease, generate_stable_version]
+    if: ${{ needs.create_stable_prerelease.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable' }}
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "prerelease"
+      release_tag: v${{ needs.generate_stable_version.outputs.version }}
+      prerelease: true
+      latest: false

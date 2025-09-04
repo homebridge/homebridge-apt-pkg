@@ -46,9 +46,29 @@ jobs:
     needs: determine-release-types
     strategy:
       matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
-    uses: ./.github/workflows/reusable-update-dependencies.yml
-    with:
-      release_type: ${{ matrix.release_type }}
-      config_file: ${{ matrix.config_file }}
-      trigger_workflow: ${{ matrix.trigger_workflow }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Homebridge ${{ matrix.release_type }} Bot
+        id: homebridge-bot
+        uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
+        with:
+          config_file: ${{ matrix.config_file }}
+          release_stream: ${{ matrix.release_type }}
+        secrets: inherit
+
+      - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
+        if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
+        run: |
+          echo "::warning::${{ matrix.release_type }} Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
+
+      - name: Trigger Build and Release ${{ matrix.release_type }} Package
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        run: |
+          echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
+          gh workflow run ${{ matrix.trigger_workflow }} --ref latest || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout repository (for trigger step)
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        uses: actions/checkout@v4

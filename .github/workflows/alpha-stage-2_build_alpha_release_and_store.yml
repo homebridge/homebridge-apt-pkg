@@ -1,102 +1,23 @@
 name: Alpha Stage 2 - Build and Release Alpha Package
 
-permissions:
-  contents: write
-  actions: write
-  id-token: write
-
 on:
   pull_request:
     types: [closed]
   workflow_dispatch:
 
 jobs:
-  check-changes:
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      alpha_only: ${{ steps.verify_changes.outputs.alpha_only }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Log event context for debugging
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Merged: ${{ github.event.pull_request.merged }}"
-
-      - name: Verify alpha-only changes
-        id: verify_changes
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Workflow dispatch detected, setting alpha_only=true"
-            echo "alpha_only=true" >> $GITHUB_OUTPUT
-          else
-            alpha_only=true
-            changed_files=$(git diff --name-only HEAD^ HEAD)
-            for file in $changed_files; do
-              if [[ ! $file == alpha/* ]]; then
-                echo "Non-alpha changes detected in $file. Setting alpha_only=false"
-                alpha_only=false
-              fi
-            done
-            echo "alpha_only=$alpha_only" >> $GITHUB_OUTPUT
-          fi
-
-  generate_alpha_version:
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.alpha_only == 'true' }}
-    uses: ./.github/workflows/reusable-generate-version.yml
+  build_and_release:
+    uses: ./.github/workflows/reusable-build-and-release-prerelease.yml
     with:
       release_type: alpha
-
-  build_alpha_and_store:
-    needs: [generate_alpha_version]
-    uses: ./.github/workflows/reusable-build-package.yml
-    with:
-      release_type: alpha
-      release_version: ${{ needs.generate_alpha_version.outputs.version }}
-      docker_tag_prefix: alpha-package-build
-
-  publish_apt_alpha:
-    needs: [generate_alpha_version, build_alpha_and_store]
-    uses: ./.github/workflows/reusable-publish-apt.yml
-    with:
-      codename: alpha
-      suite: alpha
-      release_version: ${{ needs.generate_alpha_version.outputs.version }}
+      event_name: ${{ github.event_name }}
+      pr_merged: ${{ github.event.pull_request.merged }}
     secrets:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-  publish_github_alpha_release:
-    needs: [check-changes, publish_apt_alpha, generate_alpha_version]
-    uses: ./.github/workflows/reusable-create-github-release.yml
-    with:
-      tag_name: v${{ needs.generate_alpha_version.outputs.npm_version }}
-      release_name: Alpha Release v${{ needs.generate_alpha_version.outputs.npm_version }}
-      release_type: alpha
-      prerelease: true
-
-  purge_cloudflare_cache:
-    name: Purge Cloudflare Cache
-    needs: [publish_apt_alpha]
-    uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
-    secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-
-  publish_to_npm:
-    needs: [generate_alpha_version, build_alpha_and_store]
-    uses: ./.github/workflows/reusable-publish-npm.yml
-    with:
-      npm_version: ${{ needs.generate_alpha_version.outputs.npm_version }}
-      npm_tag: alpha
-    secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

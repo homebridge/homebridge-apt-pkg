@@ -1,0 +1,132 @@
+name: Reusable - Build and Release Prerelease Package
+
+on:
+  workflow_call:
+    inputs:
+      release_type:
+        description: 'Release type (alpha or beta)'
+        required: true
+        type: string
+      event_name:
+        description: 'Event name for conditional execution'
+        required: false
+        type: string
+        default: 'workflow_call'
+      pr_merged:
+        description: 'Whether PR was merged (for pull_request events)'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      GPG_KEY_ID:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ZONE_ID:
+        required: true
+      NPM_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  actions: write
+  id-token: write
+
+jobs:
+  check-changes:
+    if: ${{ inputs.pr_merged == true || inputs.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      changes_only: ${{ steps.verify_changes.outputs.changes_only }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Log event context for debugging
+        if: ${{ inputs.event_name == 'pull_request' }}
+        run: |
+          echo "Event: ${{ inputs.event_name }}"
+          echo "Merged: ${{ inputs.pr_merged }}"
+
+      - name: Verify ${{ inputs.release_type }}-only changes
+        id: verify_changes
+        run: |
+          if [ "${{ inputs.event_name }}" == "workflow_dispatch" ]; then
+            echo "Workflow dispatch detected, setting changes_only=true"
+            echo "changes_only=true" >> $GITHUB_OUTPUT
+          else
+            changes_only=true
+            changed_files=$(git diff --name-only HEAD^ HEAD)
+            for file in $changed_files; do
+              if [[ ! $file == ${{ inputs.release_type }}/* ]]; then
+                echo "Non-${{ inputs.release_type }} changes detected in $file. Setting changes_only=false"
+                changes_only=false
+              fi
+            done
+            echo "changes_only=$changes_only" >> $GITHUB_OUTPUT
+          fi
+
+  generate_version:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.changes_only == 'true' }}
+    uses: ./.github/workflows/reusable-generate-version.yml
+    with:
+      release_type: ${{ inputs.release_type }}
+
+  build_and_store:
+    needs: [generate_version]
+    uses: ./.github/workflows/reusable-build-package.yml
+    with:
+      release_type: ${{ inputs.release_type }}
+      release_version: ${{ needs.generate_version.outputs.version }}
+      docker_tag_prefix: ${{ inputs.release_type }}-package-build
+
+  publish_apt:
+    needs: [generate_version, build_and_store]
+    uses: ./.github/workflows/reusable-publish-apt.yml
+    with:
+      codename: ${{ inputs.release_type }}
+      suite: ${{ inputs.release_type }}
+      release_version: ${{ needs.generate_version.outputs.version }}
+    secrets:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  publish_github_release:
+    needs: [check-changes, publish_apt, generate_version]
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    with:
+      tag_name: v${{ needs.generate_version.outputs.npm_version }}
+      release_name: ${{ inputs.release_type == 'alpha' && 'Alpha' || 'Beta' }} Release v${{ needs.generate_version.outputs.npm_version }}
+      release_type: ${{ inputs.release_type }}
+      prerelease: true
+
+  purge_cloudflare_cache:
+    name: Purge Cloudflare Cache
+    needs: [publish_apt]
+    uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+
+  publish_to_npm:
+    needs: [generate_version, build_and_store]
+    uses: ./.github/workflows/reusable-publish-npm.yml
+    with:
+      npm_version: ${{ needs.generate_version.outputs.npm_version }}
+      npm_tag: ${{ inputs.release_type }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

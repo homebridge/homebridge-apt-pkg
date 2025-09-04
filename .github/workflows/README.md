@@ -60,6 +60,25 @@ Generates version strings for beta and alpha releases using date stamps.
 - `version`: APT package version
 - `npm_version`: NPM version
 
+### `reusable-update-dependencies.yml`
+Handles dependency updates and triggering of Stage 2 workflows for prerelease streams.
+
+**Inputs:**
+- `release_type`: Release type (alpha, beta)
+- `config_file`: Configuration file for homebridge bot
+- `trigger_workflow`: Workflow file to trigger for Stage 2
+- `cron_schedule`: Cron schedule for display purposes
+
+### `reusable-build-and-release-prerelease.yml`
+Consolidated build and release logic for alpha and beta packages, including all steps from version generation through NPM publishing.
+
+**Inputs:**
+- `release_type`: Release type (alpha, beta)
+- `event_name`: Event name for conditional execution
+- `pr_merged`: Whether PR was merged (for pull_request events)
+
+**Secrets:** All required secrets for GPG, AWS, CloudFlare, and NPM
+
 ## Release Stream Workflows
 
 ### Stable Release (4 stages)
@@ -79,17 +98,19 @@ Generates version strings for beta and alpha releases using date stamps.
 
 ### Beta Release (2 stages)
 1. **`beta-stage-1_update_beta_dependencies.yml`** - Updates beta dependencies
+   - Uses: `reusable-update-dependencies.yml`
    - Managed by homebridge-beta-bot
 
 2. **`beta-stage-2_build_beta_release_and_store.yml`** - Builds and releases beta packages
-   - Uses: `reusable-generate-version.yml`, `reusable-build-package.yml`, `reusable-publish-apt.yml`, `reusable-create-github-release.yml`, `reusable-publish-npm.yml`
+   - Uses: `reusable-build-and-release-prerelease.yml`
 
 ### Alpha Release (2 stages)
 1. **`alpha-stage-1_update_alpha_dependencies.yml`** - Updates alpha dependencies
+   - Uses: `reusable-update-dependencies.yml`
    - Managed by homebridge-alpha-bot
 
 2. **`alpha-stage-2_build_alpha_release_and_store.yml`** - Builds and releases alpha packages
-   - Uses: `reusable-generate-version.yml`, `reusable-build-package.yml`, `reusable-publish-apt.yml`, `reusable-create-github-release.yml`, `reusable-publish-npm.yml`
+   - Uses: `reusable-build-and-release-prerelease.yml`
 
 ## Utility Workflows
 
@@ -101,11 +122,12 @@ Generates version strings for beta and alpha releases using date stamps.
 
 ## Benefits of Consolidation
 
-1. **Reduced Duplication**: ~400 lines of duplicate YAML eliminated
+1. **Reduced Duplication**: ~600 lines of duplicate YAML eliminated across all workflow consolidations
 2. **Consistency**: All builds use identical Docker setup and architecture matrix
 3. **Maintainability**: Common changes only need to be made in reusable workflows
 4. **Flexibility**: Reusable workflows are parameterized for different use cases
 5. **Reliability**: Shared logic reduces the chance of inconsistencies between release streams
+6. **Simplified Alpha/Beta**: Complete alpha and beta workflow logic consolidated into shared components
 
 ## Making Changes
 
@@ -116,5 +138,7 @@ When modifying build or publishing logic:
 3. **GitHub Releases**: Edit `reusable-create-github-release.yml`
 4. **NPM Publishing**: Edit `reusable-publish-npm.yml`
 5. **Version Generation**: Edit `reusable-generate-version.yml`
+6. **Alpha/Beta Dependency Updates**: Edit `reusable-update-dependencies.yml`
+7. **Alpha/Beta Build and Release**: Edit `reusable-build-and-release-prerelease.yml`
 
 The changes will automatically apply to all release streams that use these workflows.

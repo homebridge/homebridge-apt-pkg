@@ -6,34 +6,10 @@ on:
 run-name: Beta Stage 1 - ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} Run
 
 jobs:
-  homebridge-beta-bot:
-    name: Run Homebridge Beta Bot
-    uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
+  update_dependencies:
+    uses: ./.github/workflows/reusable-update-dependencies.yml
     with:
+      release_type: beta
       config_file: '.github/homebridge-beta-bot.json'
+      trigger_workflow: 'beta-stage-2_build_beta_release_and_store.yml'
     secrets: inherit
-
-  log-skipped-trigger:
-    name: Log Skipped Beta Stage 2 Trigger
-    needs: homebridge-beta-bot
-    if: needs.homebridge-beta-bot.outputs.changes_detected != 'true' || needs.homebridge-beta-bot.outputs.auto_merge != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log Skipped Trigger
-        run: |
-          echo "::warning::Beta Stage 2 not triggered: Changes Detected=${{ needs.homebridge-beta-bot.outputs.changes_detected }}, Auto Merge=${{ needs.homebridge-beta-bot.outputs.auto_merge }}"
-
-  trigger-beta-stage-2:
-    name: Trigger Build and Release Beta Package
-    needs: homebridge-beta-bot
-    if: needs.homebridge-beta-bot.outputs.changes_detected == 'true' && needs.homebridge-beta-bot.outputs.auto_merge == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Trigger Beta Stage 2 Workflow
-        run: |
-          echo "::notice::Triggering Beta Stage 2 - Build and Release Beta Package"
-          gh workflow run beta-stage-2_build_beta_release_and_store.yml --ref latest || { echo "::error::Failed to trigger Beta Stage 2 workflow"; exit 1; }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

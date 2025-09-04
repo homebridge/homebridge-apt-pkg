@@ -1,0 +1,56 @@
+name: Reusable - Update Dependencies and Trigger Build
+
+on:
+  workflow_call:
+    inputs:
+      release_type:
+        description: 'Release type (alpha or beta)'
+        required: true
+        type: string
+      config_file:
+        description: 'Configuration file for the homebridge bot'
+        required: true
+        type: string
+      trigger_workflow:
+        description: 'Workflow file to trigger for Stage 2'
+        required: true
+        type: string
+      cron_schedule:
+        description: 'Cron schedule for display purposes'
+        required: false
+        type: string
+        default: 'Manual'
+
+jobs:
+  homebridge-bot:
+    name: Run Homebridge ${{ inputs.release_type }} Bot
+    uses: homebridge/.github/.github/workflows/homebridge-beta-bot.yml@latest
+    with:
+      config_file: ${{ inputs.config_file }}
+      release_stream: ${{ inputs.release_type }}
+    secrets: inherit
+
+  log-skipped-trigger:
+    name: Log Skipped ${{ inputs.release_type }} Stage 2 Trigger
+    needs: homebridge-bot
+    if: needs.homebridge-bot.outputs.changes_detected != 'true' || needs.homebridge-bot.outputs.auto_merge != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log Skipped Trigger
+        run: |
+          echo "::warning::${{ inputs.release_type }} Stage 2 not triggered: Changes Detected=${{ needs.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ needs.homebridge-bot.outputs.auto_merge }}"
+
+  trigger-stage-2:
+    name: Trigger Build and Release ${{ inputs.release_type }} Package
+    needs: homebridge-bot
+    if: needs.homebridge-bot.outputs.changes_detected == 'true' && needs.homebridge-bot.outputs.auto_merge == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Trigger ${{ inputs.release_type }} Stage 2 Workflow
+        run: |
+          echo "::notice::Triggering ${{ inputs.release_type }} Stage 2 - Build and Release ${{ inputs.release_type }} Package"
+          gh workflow run ${{ inputs.trigger_workflow }} --ref latest || { echo "::error::Failed to trigger ${{ inputs.release_type }} Stage 2 workflow"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,84 @@
+name: "Reusable - Build APT Package"
+
+on:
+  workflow_call:
+    inputs:
+      release_type:
+        description: 'Release type (stable, beta, alpha)'
+        required: true
+        type: string
+      release_version:
+        description: 'Release version string'
+        required: true
+        type: string
+      docker_tag_prefix:
+        description: 'Docker tag prefix for build image'
+        required: false
+        type: string
+        default: 'package-build'
+
+jobs:
+  build_package_and_store:
+    name: Build Packages for (${{ matrix.name }}) v${{ inputs.release_version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [
+          debian-x86_64,
+          debian-arm32v6,
+          debian-arm64v8,
+        ]
+        include: 
+          - name: debian-x86_64
+            os: ubuntu-latest
+            BASE_IMAGE: library/debian:bullseye
+            QEMU_ARCH: x86_64
+
+          - name: debian-arm32v6
+            os: ubuntu-latest
+            BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
+            QEMU_ARCH: arm
+
+          - name: debian-arm64v8
+            os: ubuntu-latest
+            BASE_IMAGE: arm64v8/debian:bullseye
+            QEMU_ARCH: aarch64
+
+    steps: 
+    - uses: actions/checkout@v4
+
+    - name: Linux - Setup Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+    - name: Linux - Build Docker Image
+      if: runner.os == 'Linux'
+      run: |
+        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }} --platform=linux/${{ matrix.QEMU_ARCH }} .
+
+    - name: Linux - Build Package
+      if: runner.os == 'Linux'
+      run: |
+        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ inputs.release_version }}" ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }}
+
+    - name: Rename package to include v
+      run: |
+        UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
+        mv homebridge_*.deb ${UPDATED}
+
+    - name: Rename manifest to include v
+      run: |
+        UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
+        mv homebridge_*.manifest ${UPDATED}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: artifacts-${{ matrix.name }}
+        retention-days: 7
+        path: |
+          *.deb
+          *.manifest

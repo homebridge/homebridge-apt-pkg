@@ -196,11 +196,88 @@ else
   LATEST_TAG=$(git tag -l | grep -v -E "(beta|alpha)\." | sort -V | tail -1 2>/dev/null || echo "")
 fi
 
+# Check for package manifest changes if we have a previous tag
+HAS_PACKAGE_CHANGES=false
+if [ -n "$LATEST_TAG" ]; then
+  # Get the previous package.json for comparison
+  PREV_PACKAGE_JSON=""
+  case "${PKG_RELEASE_TYPE:-stable}" in
+    beta)
+      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
+        PREV_PACKAGE_JSON="beta/64bit/package.json"
+      else
+        PREV_PACKAGE_JSON="beta/32bit/package.json"
+      fi
+      ;;
+    alpha)
+      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
+        PREV_PACKAGE_JSON="alpha/64bit/package.json"
+      else
+        PREV_PACKAGE_JSON="alpha/32bit/package.json"
+      fi
+      ;;
+    *)
+      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
+        PREV_PACKAGE_JSON="stable/64bit/package.json"
+      else
+        PREV_PACKAGE_JSON="stable/32bit/package.json"
+      fi
+      ;;
+  esac
+  
+  # Compare package versions with previous tag
+  if [ -n "$PREV_PACKAGE_JSON" ] && git show "$LATEST_TAG:$PREV_PACKAGE_JSON" >/dev/null 2>&1; then
+    PREV_NODE=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies.node // "unknown"')
+    PREV_HOMEBRIDGE=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies.homebridge // "unknown"')
+    PREV_HOMEBRIDGE_UI=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies["homebridge-config-ui-x"] // "unknown"')
+    
+    CURR_NODE=$(jq -r '.dependencies.node // "unknown"' "$PACKAGE_JSON_PATH")
+    CURR_HOMEBRIDGE=$(jq -r '.dependencies.homebridge // "unknown"' "$PACKAGE_JSON_PATH")
+    CURR_HOMEBRIDGE_UI=$(jq -r '.dependencies["homebridge-config-ui-x"] // "unknown"' "$PACKAGE_JSON_PATH")
+    
+    # Check for version changes and add them to changelog
+    if [[ "$PREV_NODE" != "$CURR_NODE" && "$CURR_NODE" != "unknown" ]]; then
+      echo "### Package Manifest Changes" >> "$MANIFEST"
+      echo >> "$MANIFEST"
+      HAS_PACKAGE_CHANGES=true
+    fi
+    
+    if [[ "$PREV_NODE" != "$CURR_NODE" && "$CURR_NODE" != "unknown" ]]; then
+      echo "* **Node.js**: Updated from $PREV_NODE to $CURR_NODE" >> "$MANIFEST"
+    fi
+    if [[ "$PREV_HOMEBRIDGE" != "$CURR_HOMEBRIDGE" && "$CURR_HOMEBRIDGE" != "unknown" ]]; then
+      if [ "$HAS_PACKAGE_CHANGES" = false ]; then
+        echo "### Package Manifest Changes" >> "$MANIFEST"
+        echo >> "$MANIFEST"
+        HAS_PACKAGE_CHANGES=true
+      fi
+      echo "* **Homebridge**: Updated from $PREV_HOMEBRIDGE to $CURR_HOMEBRIDGE" >> "$MANIFEST"
+    fi
+    if [[ "$PREV_HOMEBRIDGE_UI" != "$CURR_HOMEBRIDGE_UI" && "$CURR_HOMEBRIDGE_UI" != "unknown" ]]; then
+      if [ "$HAS_PACKAGE_CHANGES" = false ]; then
+        echo "### Package Manifest Changes" >> "$MANIFEST"
+        echo >> "$MANIFEST"
+        HAS_PACKAGE_CHANGES=true
+      fi
+      echo "* **Homebridge Config UI X**: Updated from $PREV_HOMEBRIDGE_UI to $CURR_HOMEBRIDGE_UI" >> "$MANIFEST"
+    fi
+    
+    if [ "$HAS_PACKAGE_CHANGES" = true ]; then
+      echo >> "$MANIFEST"
+    fi
+  fi
+fi
+
 if [ -n "$LATEST_TAG" ]; then
   # Get commits since the latest tag of the same type
   CHANGELOG_COMMITS=$(git log --oneline --no-merges "$LATEST_TAG"..HEAD 2>/dev/null)
   
   if [ -n "$CHANGELOG_COMMITS" ]; then
+    # Add code changes section header
+    if [ "$HAS_PACKAGE_CHANGES" = true ]; then
+      echo "### Code Changes" >> "$MANIFEST"
+      echo >> "$MANIFEST"
+    fi
     # Format commits as changelog entries
     while IFS= read -r commit; do
       if [ -n "$commit" ]; then
@@ -211,13 +288,16 @@ if [ -n "$LATEST_TAG" ]; then
       fi
     done <<< "$CHANGELOG_COMMITS"
   else
-    echo "* No new commits since last ${PKG_RELEASE_TYPE:-stable} release" >> "$MANIFEST"
+    if [ "$HAS_PACKAGE_CHANGES" = false ]; then
+      echo "* No new commits since last ${PKG_RELEASE_TYPE:-stable} release" >> "$MANIFEST"
+    fi
   fi
 else
   # If no tags of this type exist, show recent commits
   RECENT_COMMITS=$(git log --oneline --no-merges -5 2>/dev/null)
   if [ -n "$RECENT_COMMITS" ]; then
     echo "### Recent Changes" >> "$MANIFEST"
+    echo >> "$MANIFEST"
     while IFS= read -r commit; do
       if [ -n "$commit" ]; then
         COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)

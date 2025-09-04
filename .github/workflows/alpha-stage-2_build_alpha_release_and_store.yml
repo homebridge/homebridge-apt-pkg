@@ -228,7 +228,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.generate_alpha_version.outputs.npm_version }}
-          name: Alpha Release v${{ needs.generate_alpha_version.outputs.npm_version }}
+          name: "ALPHA: Homebridge APT Pkg Release v${{ needs.generate_alpha_version.outputs.npm_version }}"
           prerelease: true
           files: |
             artifacts/homebridge_v*.deb

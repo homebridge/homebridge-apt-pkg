@@ -1,4 +1,4 @@
-name: "Stage 3 - Promote Release Package to APT Stores"
+name: "Stable Stage 2 - Promote Release to APT and Finalize"
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "The tag of the release to Package to APT Stores."
+        description: "The tag of the release to promote to APT stores."
         required: true
         type: string
 
@@ -65,6 +65,52 @@ jobs:
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+
+  validate_apt_installation:
+    needs: [purge_cloudflare_cache]
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "apt"
+      release_channel: "stable"
+
+  publish_to_npm:
+    needs: [determine_release_tag, update_apt_repo]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract and validate version from tag
+        id: version
+        run: |
+          RAW_TAG="${{ needs.determine_release_tag.outputs.release_tag }}"
+          if [[ "$RAW_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            CLEAN_VERSION="${BASH_REMATCH[1]}"
+            echo "CLEAN_VERSION=$CLEAN_VERSION" >> "$GITHUB_ENV"
+          else
+            echo "::error::Invalid tag format: '$RAW_TAG'. Expected format 'v1.2.3'"
+            exit 1
+          fi
+
+      - name: Set package.json version
+        run: |
+          echo "Setting version to $CLEAN_VERSION"
+          jq ".version = \"$CLEAN_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          cat package.json
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Output Success Notice
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version $CLEAN_VERSION"
 
   notify_discord:
     name: Notify Discord

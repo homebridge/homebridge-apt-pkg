@@ -36,44 +36,71 @@ jobs:
             QEMU_ARCH: x86_64
 
           - name: debian-arm32v6
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             BASE_IMAGE: balenalib/raspberrypi3-debian:bullseye
             QEMU_ARCH: arm
 
           - name: debian-arm64v8
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             BASE_IMAGE: arm64v8/debian:bullseye
             QEMU_ARCH: aarch64
 
     steps: 
     - uses: actions/checkout@v4
 
-    - name: Linux - Setup Dependencies
-      if: runner.os == 'Linux'
+    - name: Setup build environment X64
+      if: runner.os == 'Linux' && runner.arch == 'X64'
       run: |
         sudo apt-get update
         sudo apt-get --yes --no-install-recommends install binfmt-support qemu-user-static
         docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      continue-on-error: false
 
-    - name: Linux - Build Docker Image
-      if: runner.os == 'Linux'
+    - name: Setup build environment ARM64
+      if: runner.os == 'Linux' && runner.arch == 'ARM64'
       run: |
-        docker build -f build/Dockerfile --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} -t ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }} --platform=linux/${{ matrix.QEMU_ARCH }} .
+        sudo apt-get update
+        sudo apt-get --yes --no-install-recommends install binfmt-support
+      continue-on-error: false
 
-    - name: Linux - Build Package
-      if: runner.os == 'Linux'
+    - name: Build Docker image
       run: |
-        docker run --rm -v $(pwd):/repo -e PKG_RELEASE_TYPE="${{ inputs.release_type }}" -e PKG_RELEASE_VERSION="${{ inputs.release_version }}" ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }}
+        docker build -f build/Dockerfile \
+          --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
+          --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
+          -t ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }} \
+          --platform=linux/${{ matrix.QEMU_ARCH }} \
+          --cache-from=${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }}:latest \
+          --build-arg BUILDKIT_INLINE_CACHE=1 .
+      continue-on-error: false
+
+    - name: Build package
+      run: |
+        docker run --rm -v $(pwd):/repo \
+          -e PKG_RELEASE_TYPE="${{ inputs.release_type }}" \
+          -e PKG_RELEASE_VERSION="${{ inputs.release_version }}" \
+          ${{ inputs.docker_tag_prefix }}-${{ inputs.release_type }}
+      continue-on-error: false
 
     - name: Rename package to include v
       run: |
-        UPDATED=$(ls homebridge*.deb | sed -e 's/homebridge_/homebridge_v/g')
-        mv homebridge_*.deb ${UPDATED}
+        DEB_FILE=$(ls homebridge*.deb 2>/dev/null || echo "")
+        if [ -z "$DEB_FILE" ]; then
+          echo "No .deb file found. Exiting."
+          exit 1
+        fi
+        UPDATED=$(echo "$DEB_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+        mv "$DEB_FILE" "$UPDATED"
 
     - name: Rename manifest to include v
       run: |
-        UPDATED=$(ls homebridge*.manifest | sed -e 's/homebridge_/homebridge_v/g')
-        mv homebridge_*.manifest ${UPDATED}
+        MANIFEST_FILE=$(ls homebridge*.manifest 2>/dev/null || echo "")
+        if [ -z "$MANIFEST_FILE" ]; then
+          echo "No .manifest file found. Exiting."
+          exit 1
+        fi
+        UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
+        mv "$MANIFEST_FILE" "$UPDATED"
 
     - uses: actions/upload-artifact@v4
       with:

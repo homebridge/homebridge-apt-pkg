@@ -221,7 +221,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.generate_version.outputs.npm_version }}
-          name: ${{ inputs.release_type == 'alpha' && 'Alpha' || 'Beta' }} Release v${{ needs.generate_version.outputs.npm_version }}
+          name: "${{ inputs.release_type == 'alpha' && 'ALPHA' || 'BETA' }}: Homebridge APT Pkg Release v${{ needs.generate_version.outputs.npm_version }}"
           prerelease: true
           draft: false
           files: |

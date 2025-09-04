@@ -65,13 +65,27 @@ For detailed usage instructions, see [`scripts/README.md`](scripts/README.md).
 
 ## Actions
 
+The repository uses a consolidated set of GitHub Actions workflows that share common functionality through reusable workflows to reduce duplication and improve maintainability.
+
+### Workflow Architecture
+
+The workflow system consists of:
+- **5 Reusable Workflows**: Common functionality shared across release streams
+- **Stable Release Stream**: 4-stage workflow for production releases  
+- **Beta Release Stream**: 2-stage workflow for beta releases
+- **Alpha Release Stream**: 2-stage workflow for alpha releases
+
+For detailed workflow documentation, see [`.github/workflows/README.md`](.github/workflows/README.md).
+
+### Stable Release Process
+
 ### Stage 1 - Create a pre-release and build APT package
 >Average Execution time: Approx 40 minutes
 
 This job is triggered when any package.json file (stable/32bit, stable/64bit, or legacy root) is updated on the latest branch, and the author of the change is dependabot.
 
 1. Determine release version based on either manual workflow input or the latest release.
-2. Build apt packages for x86_64, Arm ( RPI 32 bit), and aarch64 ( RPI 64 bit ).
+2. Build apt packages for x86_64, Arm ( RPI 32 bit), and aarch64 ( RPI 64 bit ) using the reusable build workflow.
 3. Apt packages are stored as an artifact against the workflow.
 4. Create a Pre-Release, and attach the artifacts.
 
@@ -89,7 +103,7 @@ This job is triggered by the the publishing of a prerelease or the completion of
 This job is triggered by the changing of the Release status from `pre-release` to `released`.  Changing the prerelease to release is a manual step.
 
 1. Release assets are downloaded from the latest release
-2. Assets are promoted to `repo.homebridge.io`
+2. Assets are promoted to `repo.homebridge.io` using the reusable APT publishing workflow
 3. Cloud flare cache is purged
 
 ### Stage 4 - Post Release Validation
@@ -99,6 +113,15 @@ This job is triggered by the successful completion of step 3
 
 1. Download the current homebridge-apt-pkg for x86 and install.
 2. Check that homebridge starts
+
+### Beta and Alpha Release Processes
+
+Both beta and alpha releases follow a similar 2-stage process:
+
+1. **Dependency Updates**: Automated bot updates to package.json files in beta/ or alpha/ directories
+2. **Build and Release**: Automated build, APT publishing, GitHub release creation, and NPM publishing using consolidated reusable workflows
+
+These processes automatically generate date-stamped versions and publish to their respective channels (beta/alpha) in the APT repository and NPM registry.
 
 ## Package Manifest
 

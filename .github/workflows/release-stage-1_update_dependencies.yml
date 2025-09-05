@@ -67,6 +67,8 @@ jobs:
 
       - name: Trigger Build and Release ${{ matrix.release_type }} Package
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
           gh workflow run ${{ matrix.trigger_workflow }} --ref latest || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }

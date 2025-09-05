@@ -2,12 +2,12 @@ name: Release Stage 2 - Build, Prerelease, Validate, and Publish
 run-name: Release Stage 2 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
 
 on:
-  pull_request:
-    types: [closed]
-    paths:
-      - 'alpha/**'
-      - 'beta/**'
-      - 'stable/**'
+#  pull_request:
+#    types: [closed]
+#    paths:
+#      - 'alpha/**'
+#      - 'beta/**'
+#      - 'stable/**'
   workflow_dispatch:
     inputs:
       release_type:

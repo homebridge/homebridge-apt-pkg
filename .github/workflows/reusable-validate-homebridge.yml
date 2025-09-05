@@ -32,7 +32,7 @@ jobs:
   validate_github_release:
     name: Validate GitHub Release Package
     runs-on: ubuntu-latest
-    if: ${{ inputs.validation_type == 'prerelease' }}
+    if: inputs.validation_type == 'prerelease'
     steps:
       - name: Download prerelease assets
         id: download_assets
@@ -42,7 +42,7 @@ jobs:
           preRelease: ${{ inputs.prerelease }}
           latest: ${{ inputs.latest }}
           fileName: 'homebridge*.deb'
-      
+
       - name: List the downloaded files
         run: ls -l
 
@@ -63,7 +63,7 @@ jobs:
           preRelease: ${{ inputs.prerelease }}
           latest: ${{ inputs.latest }}
           fileName: 'homebridge_*_amd64.deb'
-      
+
       - name: List downloaded files
         run: |
           echo "Downloaded files:"
@@ -82,7 +82,7 @@ jobs:
   validate_apt_installation:
     name: Validate APT Installation on ${{ matrix.github-action-runner }}
     runs-on: ${{ matrix.github-action-runner }}
-    if: ${{ inputs.validation_type == 'apt' }}
+    if: inputs.validation_type == 'apt'
     strategy:
       fail-fast: false
       matrix:

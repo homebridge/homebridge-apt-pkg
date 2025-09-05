@@ -17,7 +17,7 @@ on:
           - alpha
           - beta
           - stable
-        default: 'beta'
+        default: 'alpha'
 
 permissions:
   contents: write

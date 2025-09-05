@@ -15,7 +15,7 @@ on:
           - beta
           - stable
           - all
-        default: 'all'
+        default: 'alpha'
 
 run-name: Release Stage 1 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
 

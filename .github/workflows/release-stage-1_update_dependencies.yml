@@ -47,14 +47,22 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
     runs-on: ubuntu-latest
+    
     steps:
+      - name: My first step - check out repository
+        uses: actions/checkout@v5
+        with:
+          repository: homebridge/.github
+          ref: latest
+          path: ./.github/actions/ 
+
       - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
-        uses: homebridge/.github/sharedWorkflows/homebridge-dependency-bot.yml@latest
+        uses: ./.github/actions/.github/.github/workflows/homebridge-beta-bot.yml@latest
         with:
           config_file: ${{ matrix.config_file }}
           release_stream: ${{ matrix.release_type }}
-        secrets: inherit
+          secrets: ${{ secrets }}
 
       - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
         if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'

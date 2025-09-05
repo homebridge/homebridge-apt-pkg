@@ -58,7 +58,7 @@ jobs:
 
       - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
-        uses: ./.github/actions/.github/.github/workflows/homebridge-beta-bot.yml@latest
+        uses: ./.github/actions/.github/sharedWorkflows/homebridge-dependency-bot.yml@latest
         with:
           config_file: ${{ matrix.config_file }}
           release_stream: ${{ matrix.release_type }}

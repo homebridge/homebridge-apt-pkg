@@ -1,0 +1,74 @@
+name: Release Stage 1 - Update Alpha, Beta, and Stable Dependencies, Create PRs, Merge PRs and Trigger Stage 2
+
+on:
+  schedule:
+    # Process alpha, beta, and stable streams at 8 AM UTC daily
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type to update'
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - stable
+          - all
+        default: 'all'
+
+run-name: Release Stage 1 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
+
+jobs:
+  determine-release-types:
+    name: Determine Release Types
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set matrix based on trigger
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.event.inputs.release_type }}" == "all" ]]; then
+              echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"}]}' >> $GITHUB_OUTPUT
+            else
+              CONFIG_FILE=".github/homebridge-${{ github.event.inputs.release_type }}-bot.json"
+              echo "matrix={\"release_type\":[\"${{ github.event.inputs.release_type }}\"],\"include\":[{\"release_type\":\"${{ github.event.inputs.release_type }}\",\"config_file\":\"$CONFIG_FILE\",\"trigger_workflow\":\"release-stage-2_build_and_release.yml\"}]}" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Scheduled run - process alpha, beta, and stable streams
+            echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"}]}' >> $GITHUB_OUTPUT
+          fi
+
+  update_dependencies:
+    name: Update ${{ matrix.release_type }} Dependencies
+    needs: determine-release-types
+    strategy:
+      matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Homebridge ${{ matrix.release_type }} Bot
+        id: homebridge-bot
+        uses: homebridge/.github/sharedWorkflows/homebridge-dependency-bot.yml@latest
+        with:
+          config_file: ${{ matrix.config_file }}
+          release_stream: ${{ matrix.release_type }}
+        secrets: inherit
+
+      - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
+        if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
+        run: |
+          echo "::warning::${{ matrix.release_type }} Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
+
+      - name: Trigger Build and Release ${{ matrix.release_type }} Package
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        run: |
+          echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
+          gh workflow run ${{ matrix.trigger_workflow }} --ref latest || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout repository (for trigger step)
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        uses: actions/checkout@v4

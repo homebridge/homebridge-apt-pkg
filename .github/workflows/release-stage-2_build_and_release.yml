@@ -1,5 +1,5 @@
 name: Release Stage 2 - Build, Prerelease, Validate, and Publish
-run-name: Release Stage 2 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || (github.event_name == 'pull_request' && format('PR Merge - {0}', needs.determine-release-type.outputs.release_type) || 'Scheduled') }} Run
+run-name: Release Stage 2 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
 
 on:
   pull_request:

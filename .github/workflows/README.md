@@ -2,163 +2,68 @@
 
 This directory contains the GitHub Actions workflows for the Homebridge APT package repository. As of the consolidation effort (Issue #190), the workflows have been reorganized to reduce duplication and improve maintainability.
 
-## Reusable Workflows
+## Workflow Directory Structure
 
-The following reusable workflows contain common functionality that is shared across multiple release streams:
+This directory contains GitHub Actions workflows organized by functionality:
 
-### `reusable-build-package.yml`
-Builds APT packages for all supported architectures using Docker and QEMU emulation.
+### Core Release Workflows (2 files)
+- `release-stage-1_update_dependencies.yml` - Bot-managed dependency updates for all release types (stable, beta, alpha)
+- `release-stage-2_build_and_release.yml` - Unified build, validation and publishing pipeline for all releases
 
-**Inputs:**
-- `release_type`: Release type (stable, beta, alpha)
-- `release_version`: Release version string
-- `docker_tag_prefix`: Docker tag prefix for build image
+### Reusable Workflows (1 file)
+- `reusable-validate-homebridge.yml` - Package installation validation (used 2+ times)
 
-**Outputs:** Artifacts containing .deb and .manifest files for each architecture
+### Utility Workflows (7 files)
+- `beta-backup_and_clean.yml` - Beta repository cleanup
+- `pr-labeler.yml` - PR labeling automation
+- `purge.yml` - CloudFlare cache purging
+- `release_trigger_logger.yml` - Release event logging
+- `stage-3_5_purge_cloudflare_cache.yml` - Post-release cache purging
+- `stale.yml` - Stale issue management
+- `README.md` - This documentation
 
-### `reusable-publish-apt.yml`
-Publishes packages to the APT repository hosted on S3.
+## Release Pipeline Architecture
 
-**Inputs:**
-- `codename`: APT repository codename (stable, beta, alpha, test)
-- `suite`: APT repository suite
-- `release_version`: Release version for display
-- `download_from_release`: Whether to download from GitHub release vs artifacts
-- `release_tag`: Release tag to download from (when downloading from release)
+### Unified Process (All Release Types)
+All release streams (stable, beta, alpha) follow the same 8-step pipeline:
 
-**Secrets:** GPG keys and AWS credentials
+1. **Bot Updates Dependencies** - `homebridge-beta-bot` updates package.json files daily
+2. **Build Packages** - Cross-platform package builds for all architectures  
+3. **Create GitHub Prerelease** - Upload artifacts and create prerelease
+4. **Validate Prerelease** - Download and test .deb packages from GitHub
+5. **Promote to Release** - Convert prerelease to full release after validation
+6. **Publish to APT** - Upload packages to repository
+7. **Validate APT Installation** - Test installation from repository
+8. **Publish to NPM** - Publish package with appropriate tags
 
-### `reusable-create-github-release.yml`
-Creates GitHub releases with packages and manifests.
+### Configuration Files
+- `.github/homebridge-stable-bot.json` - Bot configuration for stable releases
+- `.github/homebridge-beta-bot.json` - Bot configuration for beta/alpha releases
 
-**Inputs:**
-- `tag_name`: Release tag name
-- `release_name`: Release name/title
-- `release_type`: Release type (stable, beta, alpha)
-- `prerelease`: Mark as prerelease (boolean)
-- `draft`: Mark as draft (boolean)
-- `body_prefix`: Additional content for release body
+### Workflow Triggers
+- **Scheduled**: Daily at 8 AM UTC for dependency updates
+- **Push**: Triggered by bot commits to package.json files
+- **Manual**: workflow_dispatch for testing and manual releases
 
-### `reusable-publish-npm.yml`
-Publishes the package to NPM with specified version and tag.
+## Development and Maintenance
 
-**Inputs:**
-- `npm_version`: NPM version string
-- `npm_tag`: NPM tag (latest, beta, alpha)
-- `package_name`: NPM package name
+### Modifying Release Logic
+Since all release types use unified workflows, changes only need to be made in 2 places:
+1. **Dependency Updates**: Edit `release-stage-1_update_dependencies.yml`
+2. **Build/Release Pipeline**: Edit `release-stage-2_build_and_release.yml`
 
-**Secrets:** NPM token
+### Adding Validation Steps
+Edit the validation logic in `reusable-validate-homebridge.yml` which is used by both prerelease and APT validation steps.
 
-### `reusable-debug-context.yml`
-Provides comprehensive debug output for GitHub Actions contexts.
-
-**Usage:** Call this workflow from any workflow that needs debug context information.
-
-### `reusable-validate-homebridge.yml`
-Validates Homebridge package installations from different sources.
-
-**Inputs:**
-- `validation_type`: Type of validation ("prerelease" for GitHub releases, "apt" for APT installations)
-- `release_tag`: GitHub release tag (for prerelease validation)
-- `release_channel`: APT release channel (for APT validation)
-- `prerelease`: Whether to download from prerelease
-- `latest`: Whether to download latest release
-
-**Features:**
-- Multi-architecture validation for APT installations
-- Package download and installation verification
-- Service status validation
-- File count verification for prerelease packages
-
-### `reusable-generate-version.yml`
-Generates version strings for beta and alpha releases using date stamps.
-
-**Inputs:**
-- `release_type`: Release type (beta, alpha)
-- `increment`: Version increment type
-
-**Outputs:**
-- `version`: APT package version
-- `npm_version`: NPM version
-
-### `reusable-update-dependencies.yml`
-Handles dependency updates and triggering of Stage 2 workflows for prerelease streams.
-
-**Inputs:**
-- `release_type`: Release type (alpha, beta)
-- `config_file`: Configuration file for homebridge bot
-- `trigger_workflow`: Workflow file to trigger for Stage 2
-- `cron_schedule`: Cron schedule for display purposes
-
-### `reusable-build-and-release-prerelease.yml`
-Consolidated build and release logic for alpha and beta packages, including all steps from version generation through NPM publishing.
-
-**Inputs:**
-- `release_type`: Release type (alpha, beta)
-- `event_name`: Event name for conditional execution
-- `pr_merged`: Whether PR was merged (for pull_request events)
-
-**Secrets:** All required secrets for GPG, AWS, CloudFlare, and NPM
-
-## Release Stream Workflows
-
-### Stable Release (4 stages)
-1. **`stage-1_create_a_release_and_store.yml`** - Creates pre-release and builds packages
-   - Uses: `reusable-build-package.yml`
-   - Triggered by: Dependabot updates to package.json files
-   
-2. **`stage-2_pre-release_validation.yml`** - Validates pre-release packages
-   - Downloads and tests AMD64 package installation
-   
-3. **`stage-3_promote_release_to_apt.yml`** - Promotes to APT repository
-   - Uses: `reusable-publish-apt.yml`
-   - Triggered by: Release publication
-   
-4. **`Stage-4_post_release_validation.yml`** - Post-release validation
-   - Tests APT installation from repository
-
-### Prerelease (Alpha and Beta) Workflows (2 stages)
-1. **`prerelease-stage-1_update_dependencies.yml`** - Updates dependencies for both alpha and beta
-   - Uses: `reusable-update-dependencies.yml`
-   - Supports both scheduled runs (separate cron schedules for alpha/beta) and manual dispatch
-   - Managed by homebridge-alpha-bot and homebridge-beta-bot
-   - Consolidates both alpha and beta dependency updates into a single workflow
-
-2. **`prerelease-stage-2_build_and_release.yml`** - Builds and releases alpha and beta packages
-   - Uses: `reusable-build-and-release-prerelease.yml`
-   - Automatically detects release type based on changed directories in PRs
-   - Supports manual dispatch with release type selection
-   - Consolidates both alpha and beta build/release logic into a single workflow
-
-## Utility Workflows
-
-- **`stage-3_5_purge_cloudflare_cache.yml`** - Reusable CloudFlare cache purging
-- **`stage-5_update_version_on_npm.yml`** - NPM version updates for stable releases
-- **`purge.yml`** - Manual cache purging
-- **`stale.yml`** - Stale issue management
-- **`pr-labeler.yml`** - PR labeling
+### Managing Bot Configuration
+- **Stable releases**: Update `.github/homebridge-stable-bot.json`
+- **Beta/Alpha releases**: Update `.github/homebridge-beta-bot.json`
 
 ## Benefits of Consolidation
 
-1. **Reduced Duplication**: ~600 lines of duplicate YAML eliminated across all workflow consolidations
-2. **Consistency**: All builds use identical Docker setup and architecture matrix
-3. **Maintainability**: Common changes only need to be made in reusable workflows
-4. **Flexibility**: Reusable workflows are parameterized for different use cases
-5. **Reliability**: Shared logic reduces the chance of inconsistencies between release streams
-6. **Complete Prerelease Consolidation**: Alpha and beta workflows combined into 2 shared workflows instead of 4 separate ones
-7. **Intelligent Release Detection**: Automatic detection of release type based on changed directories
-8. **Simplified Management**: Single workflow files handle both alpha and beta with appropriate scheduling
-
-## Making Changes
-
-When modifying build or publishing logic:
-
-1. **Package Building**: Edit `reusable-build-package.yml`
-2. **APT Publishing**: Edit `reusable-publish-apt.yml`
-3. **GitHub Releases**: Edit `reusable-create-github-release.yml`
-4. **NPM Publishing**: Edit `reusable-publish-npm.yml`
-5. **Version Generation**: Edit `reusable-generate-version.yml`
-6. **Prerelease Dependency Updates**: Edit `reusable-update-dependencies.yml`
-7. **Prerelease Build and Release**: Edit `reusable-build-and-release-prerelease.yml`
-
-The changes will automatically apply to all release streams that use these workflows.
+1. **Maximum Workflow Reduction**: 25 → 10 workflows (60% reduction)
+2. **Unified Release Management**: All release streams use identical infrastructure
+3. **Enhanced Quality Assurance**: Double validation (GitHub + APT) for every release
+4. **Simplified Operations**: Single workflow to maintain instead of separate logic
+5. **Automated Process**: Eliminates manual promotion steps with automatic validation gates
+6. **Future-Proof Architecture**: Easy to add validation steps or extend to new release streams

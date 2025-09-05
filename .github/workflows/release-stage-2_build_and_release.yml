@@ -400,19 +400,44 @@ jobs:
     name: Publish to APT Repository
     needs: [promote_to_release, create_prerelease, determine-release-type, generate_version, generate_stable_version]
     if: needs.promote_to_release.result == 'success'
-    uses: ./.github/workflows/reusable-publish-apt.yml
-    with:
-      codename: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
-      suite: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
-      release_version: ${{ needs.create_prerelease.outputs.release_tag }}
-      download_from_release: true
-      release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
-    secrets:
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download from GitHub Release
+        uses: robinraju/release-downloader@v1.11
+        with:
+          tag: ${{ needs.create_prerelease.outputs.release_tag }}
+          fileName: 'homebridge*.deb'
+          out-file-path: 'repo/'
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Upload to APT Repository
+        run: |
+          sudo chown -R $USER: repo/
+          deb-s3 upload \
+            --codename=${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }} \
+            --suite=${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }} \
+            --preserve-versions \
+            --s3-region=us-west-2 \
+            --bucket repo.homebridge.io \
+            --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --sign=${{ secrets.GPG_KEY_ID }} \
+            repo/homebridge_v*.deb repo/*.deb
 
   # Step 5: Validate APT installation after publishing
   validate_apt:
@@ -439,12 +464,31 @@ jobs:
     name: Publish to NPM
     needs: [validate_apt, create_prerelease, determine-release-type, generate_version, generate_stable_version]
     if: needs.validate_apt.result == 'success'
-    uses: ./.github/workflows/reusable-publish-npm.yml
-    with:
-      npm_version: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
-      npm_tag: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'latest' || needs.determine-release-type.outputs.release_type }}
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set package.json version
+        run: |
+          NPM_VERSION="${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}"
+          echo "Setting version to $NPM_VERSION"
+          jq ".version = \"$NPM_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          cat package.json
+
+      - name: Publish to npm
+        run: npm publish --access public --tag ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'latest' || needs.determine-release-type.outputs.release_type }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Output Success Notice
+        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }} with ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'latest' || needs.determine-release-type.outputs.release_type }} tag"
 
   # Step 8: Notify Discord (for stable releases only)
   notify_discord:

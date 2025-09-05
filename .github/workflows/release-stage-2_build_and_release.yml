@@ -365,6 +365,7 @@ jobs:
   validate_prerelease:
     name: Validate GitHub Prerelease Artifacts
     needs: [create_prerelease]
+    if: needs.create_prerelease.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "prerelease"

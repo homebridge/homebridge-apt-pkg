@@ -49,16 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: My first step - check out repository
-        uses: actions/checkout@v5
-        with:
-          repository: homebridge/.github
-          ref: latest
-          path: ./.github/actions/ 
-
       - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
-        uses: ./.github/actions/.github/sharedWorkflows/homebridge-dependency-bot.yml@latest
+        uses: NorthernMan54/Homebridge-Dependency-Bot@latest
         with:
           config_file: ${{ matrix.config_file }}
           release_stream: ${{ matrix.release_type }}

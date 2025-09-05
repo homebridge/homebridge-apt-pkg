@@ -47,6 +47,9 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     
     steps:
       - name: Run Homebridge ${{ matrix.release_type }} Bot
@@ -55,7 +58,7 @@ jobs:
         with:
           config_file: ${{ matrix.config_file }}
           release_stream: ${{ matrix.release_type }}
-          secrets: ${{ secrets }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
 
       - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
         if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
@@ -67,8 +70,6 @@ jobs:
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
           gh workflow run ${{ matrix.trigger_workflow }} --ref latest || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout repository (for trigger step)
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'

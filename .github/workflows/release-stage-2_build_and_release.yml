@@ -1,4 +1,4 @@
-name: Unified Release Pipeline - Build, Prerelease, Validate, and Publish
+name: Release Stage 2 - Build, Prerelease, Validate, and Publish
 
 on:
   pull_request:
@@ -98,8 +98,6 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
             echo "::error::Unexpected event type: ${{ github.event_name }}"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check-changes:
     name: Check Changes

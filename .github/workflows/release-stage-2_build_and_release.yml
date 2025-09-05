@@ -39,6 +39,8 @@ jobs:
 
       - name: Detect release type
         id: detect-type
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "release_type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
@@ -98,6 +100,8 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
             echo "::error::Unexpected event type: ${{ github.event_name }}"
           fi
+
+
 
   check-changes:
     name: Check Changes

@@ -367,7 +367,6 @@ jobs:
   validate_prerelease:
     name: Validate GitHub Prerelease Artifacts
     needs: [create_prerelease]
-    # if: needs.create_prerelease.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "prerelease"
@@ -449,7 +448,6 @@ jobs:
   validate_apt:
     name: Validate APT Installation
     needs: [publish_apt, determine-release-type]
-    if: needs.publish_apt.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "apt"
@@ -459,7 +457,6 @@ jobs:
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     needs: [publish_apt]
-    if: needs.publish_apt.result == 'success'
     uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -469,7 +466,6 @@ jobs:
   publish_to_npm:
     name: Publish to NPM
     needs: [validate_apt, create_prerelease, determine-release-type, generate_version, generate_stable_version]
-    if: needs.validate_apt.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo

@@ -367,6 +367,7 @@ jobs:
   validate_prerelease:
     name: Validate GitHub Prerelease Artifacts
     needs: [create_prerelease]
+    if: needs.create_prerelease.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "prerelease"
@@ -448,6 +449,7 @@ jobs:
   validate_apt:
     name: Validate APT Installation
     needs: [publish_apt, determine-release-type]
+    if: needs.publish_apt.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "apt"

@@ -29,12 +29,17 @@ on:
         default: false
 
 jobs:
-  validate_github_release:
-    name: Validate GitHub Release Package
+  validate_homebridge:
+    name: Validate Homebridge Package
     runs-on: ubuntu-latest
-    if: ${{ inputs.validation_type == 'prerelease' }}
     steps:
+      - name: Validate GitHub Release Package
+        if: inputs.validation_type == 'prerelease'
+        run: |
+          echo "Starting GitHub release package validation..."
+
       - name: Download prerelease assets
+        if: inputs.validation_type == 'prerelease'
         id: download_assets
         uses: robinraju/release-downloader@v1.11
         with:
@@ -42,11 +47,13 @@ jobs:
           preRelease: ${{ inputs.prerelease }}
           latest: ${{ inputs.latest }}
           fileName: 'homebridge*.deb'
-      
+
       - name: List the downloaded files
+        if: inputs.validation_type == 'prerelease'
         run: ls -l
 
       - name: Check the number of downloaded files
+        if: inputs.validation_type == 'prerelease'
         id: check_file_count
         run: |
           FILE_COUNT=$(ls -1 | wc -l)
@@ -57,36 +64,72 @@ jobs:
           fi
 
       - name: Download and install AMD64 package
+        if: inputs.validation_type == 'prerelease'
         uses: robinraju/release-downloader@v1.11
         with:
           tag: ${{ inputs.release_tag }}
           preRelease: ${{ inputs.prerelease }}
           latest: ${{ inputs.latest }}
           fileName: 'homebridge_*_amd64.deb'
-      
+
       - name: List downloaded files
+        if: inputs.validation_type == 'prerelease'
         run: |
           echo "Downloaded files:"
           ls -l
 
       - name: Install the downloaded package
+        if: inputs.validation_type == 'prerelease'
         run: |
           sudo dpkg -i homebridge_*_amd64.deb || sudo apt-get install -f -y
           sleep 30
 
-      - name: Validate Homebridge Service
+      - name: Validate Homebridge Service (prerelease)
+        if: inputs.validation_type == 'prerelease'
         run: |
           sudo hb-service view
           sudo hb-service status
 
-  validate_apt_installation:
-    name: Validate APT Installation on ${{ matrix.github-action-runner }}
-    runs-on: ${{ matrix.github-action-runner }}
-    if: ${{ inputs.validation_type == 'apt' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        github-action-runner: [ubuntu-latest, ubuntu-24.04-arm]
+      - name: Setup APT Validation
+        if: inputs.validation_type == 'apt'
+        run: |
+          echo "Starting APT installation validation..."
+
+      - name: Install Homebridge from APT
+        if: inputs.validation_type == 'apt'
+        run: |
+          curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
+          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ inputs.release_channel }} main" | \
+            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y homebridge
+
+      - name: Display Installed Version
+        if: inputs.validation_type == 'apt'
+        id: installed-version
+        run: |
+          dpkg -l homebridge
+          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Homebridge Service (apt)
+        if: inputs.validation_type == 'apt'
+        run: |
+          sudo hb-service status
+          sudo hb-service view
+
+      - name: List Available Versions
+        if: inputs.validation_type == 'apt'
+        run: |
+          apt-cache madison homebridge
+
+      - name: Publish APT Notice
+        if: inputs.validation_type == 'apt'
+        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ubuntu-latest"
+
+  validate_apt_on_arm:
+    name: Validate APT Installation on ARM64
+    runs-on: ubuntu-24.04-arm
+    if: inputs.validation_type == 'apt'
     steps:
       - name: Install Homebridge from APT
         run: |
@@ -112,4 +155,4 @@ jobs:
           apt-cache madison homebridge
 
       - name: Publish Notice
-        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.github-action-runner }}"
+        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ubuntu-24.04-arm"

@@ -363,10 +363,19 @@ jobs:
         with:
           body_path: ${{ steps.release_body.outputs.BODY_FILE }}
 
+  prelease_created_notice:
+    name: Prerelease Created Notice
+    needs: [create_prerelease]
+    if: always() && needs.create_prerelease.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output Success Notice
+        run: echo "::notice::📦 Created prerelease ${{ needs.create_prerelease.outputs.release_tag }} with ${{ needs.determine-release-type.outputs.release_type }} changes"
+
   # Step 2: Validate prerelease artifacts
   validate_prerelease:
     name: Validate GitHub Prerelease Artifacts
-    needs: [create_prerelease]
+    needs: [create_prerelease, prelease_created_notice]
     if: always() && needs.create_prerelease.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:

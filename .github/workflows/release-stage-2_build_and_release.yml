@@ -26,6 +26,10 @@ permissions:
   id-token: write
   workflows: write
 
+concurrency:
+  group: release-stage-2
+  cancel-in-progress: false
+
 jobs:
   determine-release-type:
     name: Determine Release Type

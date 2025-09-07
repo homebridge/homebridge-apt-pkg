@@ -41,106 +41,38 @@ jobs:
             echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"}]}' >> $GITHUB_OUTPUT
           fi
 
-  update_alpha_dependencies:
-    name: Update alpha Dependencies
+  update_dependencies:
+    name: Update ${{ matrix.release_type }} Dependencies
     needs: determine-release-types
-    if: contains(fromJson(needs.determine-release-types.outputs.matrix).release_type, 'alpha')
+    strategy:
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     
     steps:
-      - name: Run Homebridge alpha Bot
+      - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
         uses: NorthernMan54/Homebridge-Dependency-Bot@latest 
         with:
-          config_file: .github/homebridge-alpha-bot.json
-          release_stream: alpha
+          config_file: ${{ matrix.config_file }}
+          release_stream: ${{ matrix.release_type }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
 
-      - name: Log Skipped alpha Stage 2 Trigger
+      - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
         if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
         run: |
-          echo "::warning::alpha Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
+          echo "::warning::${{ matrix.release_type }} Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
 
-      - name: Trigger Build and Release alpha Package
+      - name: Trigger Build and Release ${{ matrix.release_type }} Package
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "::notice::Triggering alpha Stage 2 - Build and Release alpha Package"
-          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=alpha || { echo "::error::Failed to trigger alpha Stage 2 workflow"; exit 1; }
-
-      - name: Checkout repository (for trigger step)
-        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        uses: actions/checkout@v4
-
-  update_beta_dependencies:
-    name: Update beta Dependencies
-    needs: [determine-release-types, update_alpha_dependencies]
-    if: always() && contains(fromJson(needs.determine-release-types.outputs.matrix).release_type, 'beta')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    
-    steps:
-      - name: Run Homebridge beta Bot
-        id: homebridge-bot
-        uses: NorthernMan54/Homebridge-Dependency-Bot@latest 
-        with:
-          config_file: .github/homebridge-beta-bot.json
-          release_stream: beta
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
-
-      - name: Log Skipped beta Stage 2 Trigger
-        if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
-        run: |
-          echo "::warning::beta Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
-
-      - name: Trigger Build and Release beta Package
-        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "::notice::Triggering beta Stage 2 - Build and Release beta Package"
-          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=beta || { echo "::error::Failed to trigger beta Stage 2 workflow"; exit 1; }
-
-      - name: Checkout repository (for trigger step)
-        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        uses: actions/checkout@v4
-
-  update_stable_dependencies:
-    name: Update stable Dependencies
-    needs: [determine-release-types, update_beta_dependencies]
-    if: always() && contains(fromJson(needs.determine-release-types.outputs.matrix).release_type, 'stable')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    
-    steps:
-      - name: Run Homebridge stable Bot
-        id: homebridge-bot
-        uses: NorthernMan54/Homebridge-Dependency-Bot@latest 
-        with:
-          config_file: .github/homebridge-stable-bot.json
-          release_stream: stable
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
-
-      - name: Log Skipped stable Stage 2 Trigger
-        if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
-        run: |
-          echo "::warning::stable Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
-
-      - name: Trigger Build and Release stable Package
-        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "::notice::Triggering stable Stage 2 - Build and Release stable Package"
-          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=stable || { echo "::error::Failed to trigger stable Stage 2 workflow"; exit 1; }
+          echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
+          gh workflow run ${{ matrix.trigger_workflow }} --ref latest --field release_type=${{ matrix.release_type }} || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
 
       - name: Checkout repository (for trigger step)
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'

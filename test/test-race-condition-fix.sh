@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test script to validate the race condition fix for Release Stage 1
-# This script validates that the workflow no longer uses parallel matrix jobs
+# This script validates that the workflow uses max-parallel: 1 to prevent race conditions
 
 set -e
 
@@ -17,168 +17,118 @@ else
     exit 1
 fi
 
-# Test 2: Check that matrix strategy is removed
+# Test 2: Check that matrix strategy still exists but with max-parallel constraint
 echo
-echo "Test 2: Checking matrix strategy removal..."
+echo "Test 2: Checking matrix strategy with max-parallel constraint..."
 WORKFLOW_FILE=".github/workflows/release-stage-1_update_dependencies.yml"
 
-# Check that there's no matrix strategy in the workflow
+# Check that matrix strategy is present
 if grep -q "strategy:" "$WORKFLOW_FILE"; then
-    echo "❌ Matrix strategy still present in workflow"
-    exit 1
+    echo "✅ Matrix strategy found"
 else
-    echo "✅ Matrix strategy successfully removed"
+    echo "❌ Matrix strategy missing"
+    exit 1
 fi
 
-# Test 3: Check that separate jobs exist for each release type
-echo
-echo "Test 3: Checking separate jobs exist..."
+# Check that matrix configuration is present
+if grep -q "matrix:" "$WORKFLOW_FILE"; then
+    echo "✅ Matrix configuration found"
+else
+    echo "❌ Matrix configuration missing"
+    exit 1
+fi
 
-# Check for alpha job
+# Test 3: Check that max-parallel: 1 constraint is present
+echo
+echo "Test 3: Checking max-parallel constraint..."
+
+if grep -q "max-parallel: 1" "$WORKFLOW_FILE"; then
+    echo "✅ max-parallel: 1 constraint found"
+else
+    echo "❌ max-parallel: 1 constraint missing"
+    exit 1
+fi
+
+# Test 4: Check that single update_dependencies job exists (not separate jobs)
+echo
+echo "Test 4: Checking single matrix job structure..."
+
+if grep -q "update_dependencies:" "$WORKFLOW_FILE"; then
+    echo "✅ Single update_dependencies job found"
+else
+    echo "❌ update_dependencies job missing"
+    exit 1
+fi
+
+# Ensure separate alpha/beta/stable jobs don't exist (those were from the old approach)
 if grep -q "update_alpha_dependencies:" "$WORKFLOW_FILE"; then
-    echo "✅ Alpha dependencies job found"
-else
-    echo "❌ Alpha dependencies job missing"
+    echo "❌ Separate alpha job found (should use matrix instead)"
     exit 1
+else
+    echo "✅ No separate alpha job (using matrix approach correctly)"
 fi
 
-# Check for beta job
+# Ensure separate beta/stable jobs don't exist (those were from the old approach)
 if grep -q "update_beta_dependencies:" "$WORKFLOW_FILE"; then
-    echo "✅ Beta dependencies job found"
-else
-    echo "❌ Beta dependencies job missing"
+    echo "❌ Separate beta job found (should use matrix instead)"
     exit 1
+else
+    echo "✅ No separate beta job (using matrix approach correctly)"
 fi
 
-# Check for stable job
 if grep -q "update_stable_dependencies:" "$WORKFLOW_FILE"; then
-    echo "✅ Stable dependencies job found"
+    echo "❌ Separate stable job found (should use matrix instead)"
+    exit 1
 else
-    echo "❌ Stable dependencies job missing"
+    echo "✅ No separate stable job (using matrix approach correctly)"
+fi
+
+# Test 5: Check that the job still uses matrix variables properly
+echo
+echo "Test 5: Checking matrix variable usage..."
+
+if grep -q "\${{ matrix.release_type }}" "$WORKFLOW_FILE"; then
+    echo "✅ Matrix release_type variable found"
+else
+    echo "❌ Matrix release_type variable missing"
     exit 1
 fi
 
-# Test 4: Check job dependencies for sequential execution
-echo
-echo "Test 4: Checking job dependencies..."
+if grep -q "\${{ matrix.config_file }}" "$WORKFLOW_FILE"; then
+    echo "✅ Matrix config_file variable found"
+else
+    echo "❌ Matrix config_file variable missing"
+    exit 1
+fi
 
-# Extract job dependencies using Python
-ALPHA_NEEDS=$(python3 -c "
+# Test 6: Check that the job name uses matrix variable
+echo
+echo "Test 6: Checking matrix job name..."
+
+if grep -q "Update \${{ matrix.release_type }} Dependencies" "$WORKFLOW_FILE"; then
+    echo "✅ Job name uses matrix variable correctly"
+else
+    echo "❌ Job name does not use matrix variable"
+    exit 1
+fi
+
+# Test 7: Verify that race condition is prevented
+echo
+echo "Test 7: Verifying race condition prevention..."
+
+# Check that max-parallel and matrix are in the same strategy block
+STRATEGY_SECTION=$(python3 -c "
 import yaml
 with open('$WORKFLOW_FILE') as f:
     w = yaml.safe_load(f)
-    needs = w['jobs']['update_alpha_dependencies'].get('needs', [])
-    if isinstance(needs, list):
-        print(','.join(needs))
-    else:
-        print(needs)
-" 2>/dev/null || echo "")
+    strategy = w['jobs']['update_dependencies']['strategy']
+    print('max-parallel' in strategy and 'matrix' in strategy)
+" 2>/dev/null)
 
-BETA_NEEDS=$(python3 -c "
-import yaml
-with open('$WORKFLOW_FILE') as f:
-    w = yaml.safe_load(f)
-    needs = w['jobs']['update_beta_dependencies'].get('needs', [])
-    if isinstance(needs, list):
-        print(','.join(needs))
-    else:
-        print(needs)
-" 2>/dev/null || echo "")
-
-STABLE_NEEDS=$(python3 -c "
-import yaml
-with open('$WORKFLOW_FILE') as f:
-    w = yaml.safe_load(f)
-    needs = w['jobs']['update_stable_dependencies'].get('needs', [])
-    if isinstance(needs, list):
-        print(','.join(needs))
-    else:
-        print(needs)
-" 2>/dev/null || echo "")
-
-echo "Alpha job needs: $ALPHA_NEEDS"
-echo "Beta job needs: $BETA_NEEDS" 
-echo "Stable job needs: $STABLE_NEEDS"
-
-# Alpha should only depend on determine-release-types
-if [[ "$ALPHA_NEEDS" == "determine-release-types" ]]; then
-    echo "✅ Alpha job has correct dependencies"
+if [[ "$STRATEGY_SECTION" == "True" ]]; then
+    echo "✅ max-parallel and matrix are properly configured in strategy"
 else
-    echo "❌ Alpha job dependencies incorrect"
-    exit 1
-fi
-
-# Beta should depend on determine-release-types and update_alpha_dependencies
-if [[ "$BETA_NEEDS" == *"determine-release-types"* && "$BETA_NEEDS" == *"update_alpha_dependencies"* ]]; then
-    echo "✅ Beta job has correct dependencies"
-else
-    echo "❌ Beta job dependencies incorrect"
-    exit 1
-fi
-
-# Stable should depend on determine-release-types and update_beta_dependencies
-if [[ "$STABLE_NEEDS" == *"determine-release-types"* && "$STABLE_NEEDS" == *"update_beta_dependencies"* ]]; then
-    echo "✅ Stable job has correct dependencies"
-else
-    echo "❌ Stable job dependencies incorrect"
-    exit 1
-fi
-
-# Test 5: Check that always() conditions are used for proper error handling
-echo
-echo "Test 5: Checking always() conditions..."
-
-# Beta and stable jobs should use always() to continue even if previous jobs fail
-if grep -A5 "update_beta_dependencies:" "$WORKFLOW_FILE" | grep -q "always()"; then
-    echo "✅ Beta job uses always() condition"
-else
-    echo "❌ Beta job missing always() condition"
-    exit 1
-fi
-
-if grep -A5 "update_stable_dependencies:" "$WORKFLOW_FILE" | grep -q "always()"; then
-    echo "✅ Stable job uses always() condition"
-else
-    echo "❌ Stable job missing always() condition"
-    exit 1
-fi
-
-# Test 6: Check that conditional execution based on matrix still works
-echo
-echo "Test 6: Checking conditional execution..."
-
-# All jobs should have conditions to check if they should run based on the determined matrix
-for job in "alpha" "beta" "stable"; do
-    if grep -A5 "update_${job}_dependencies:" "$WORKFLOW_FILE" | grep -q "contains.*release_type.*${job}"; then
-        echo "✅ ${job^} job has proper conditional execution"
-    else
-        echo "❌ ${job^} job missing conditional execution"
-        exit 1
-    fi
-done
-
-# Test 7: Check that hardcoded config files are correct
-echo
-echo "Test 7: Checking config file references..."
-
-if grep -q ".github/homebridge-alpha-bot.json" "$WORKFLOW_FILE"; then
-    echo "✅ Alpha config file correctly referenced"
-else
-    echo "❌ Alpha config file reference incorrect"
-    exit 1
-fi
-
-if grep -q ".github/homebridge-beta-bot.json" "$WORKFLOW_FILE"; then
-    echo "✅ Beta config file correctly referenced"
-else
-    echo "❌ Beta config file reference incorrect"
-    exit 1
-fi
-
-if grep -q ".github/homebridge-stable-bot.json" "$WORKFLOW_FILE"; then
-    echo "✅ Stable config file correctly referenced"
-else
-    echo "❌ Stable config file reference incorrect"
+    echo "❌ max-parallel and matrix not properly configured"
     exit 1
 fi
 
@@ -186,14 +136,17 @@ echo
 echo "🎉 All tests passed! The race condition fix is properly implemented."
 echo
 echo "Summary of changes:"
-echo "  - ✅ Removed parallel matrix strategy"
-echo "  - ✅ Created separate sequential jobs for alpha, beta, stable"
-echo "  - ✅ Added proper job dependencies to ensure sequential execution"
-echo "  - ✅ Used always() conditions for error resilience"
-echo "  - ✅ Maintained conditional execution based on release types"
-echo "  - ✅ Fixed hardcoded config file references"
+echo "  - ✅ Kept the clean matrix strategy structure"
+echo "  - ✅ Added max-parallel: 1 constraint to prevent race conditions"
+echo "  - ✅ Maintained all existing matrix variable usage"
+echo "  - ✅ Preserved conditional execution logic"
+echo "  - ✅ Much simpler solution than sequential jobs"
 echo
 echo "This should resolve the race condition that caused:"
 echo "  - 'Base branch was modified. Review and try the merge again' errors"
 echo "  - Failed PR merges when multiple bots run simultaneously"
 echo "  - Release Stage 1 workflow failures"
+echo
+echo "The max-parallel: 1 constraint ensures that even though the matrix"
+echo "defines multiple jobs (alpha, beta, stable), only one will run at a time,"
+echo "preventing the race condition while maintaining the clean matrix structure."

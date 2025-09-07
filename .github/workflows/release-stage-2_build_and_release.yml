@@ -24,6 +24,7 @@ permissions:
   contents: write
   actions: write
   id-token: write
+  workflows: write
 
 jobs:
   determine-release-type:

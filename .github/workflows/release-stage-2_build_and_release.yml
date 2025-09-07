@@ -472,6 +472,7 @@ jobs:
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     needs: [publish_apt]
+    if: always() && needs.publish_apt.result == 'success'
     uses: ./.github/workflows/stage-3_5_purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -481,6 +482,7 @@ jobs:
   publish_to_npm:
     name: Publish to NPM
     needs: [validate_apt, create_prerelease, determine-release-type, generate_version, generate_stable_version]
+    if: always() && needs.validate_apt.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo

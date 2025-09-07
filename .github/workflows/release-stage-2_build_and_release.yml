@@ -388,7 +388,7 @@ jobs:
   promote_to_release:
     name: Promote to Full Release
     needs: [validate_prerelease, create_prerelease, determine-release-type]
-    if: needs.validate_prerelease.result == 'success'
+    if: always() && needs.validate_prerelease.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Promote prerelease to full release
@@ -414,7 +414,7 @@ jobs:
   publish_apt:
     name: Publish to APT Repository
     needs: [promote_to_release, create_prerelease, determine-release-type, generate_version, generate_stable_version]
-    if: needs.promote_to_release.result == 'success'
+    if: always() && needs.promote_to_release.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -507,7 +507,7 @@ jobs:
   notify_discord:
     name: Notify Discord
     needs: [publish_to_npm, create_prerelease, determine-release-type]
-    if: needs.publish_to_npm.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable'
+    if: always() && needs.publish_to_npm.result == 'success' && needs.determine-release-type.outputs.release_type == 'stable'
     uses: homebridge/.github/.github/workflows/discord-webhooks.yml@latest
     with:
       title: "Homebridge APT Package Released"

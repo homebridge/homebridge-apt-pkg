@@ -45,6 +45,7 @@ jobs:
     name: Update ${{ matrix.release_type }} Dependencies
     needs: determine-release-types
     strategy:
+      max-parallel: 1
       matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
     runs-on: ubuntu-latest
     permissions:

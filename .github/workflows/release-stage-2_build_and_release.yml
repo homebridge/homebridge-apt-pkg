@@ -458,17 +458,7 @@ jobs:
             --sign=${{ secrets.GPG_KEY_ID }} \
             repo/homebridge_v*.deb repo/*.deb
 
-  # Step 5: Validate APT installation after publishing
-  validate_apt:
-    name: Validate APT Installation
-    needs: [publish_apt, determine-release-type]
-    if: always() && needs.publish_apt.result == 'success'
-    uses: ./.github/workflows/reusable-validate-homebridge.yml
-    with:
-      validation_type: "apt"
-      release_channel: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
-
-  # Step 6: Purge CloudFlare cache
+  # Step 5: Purge CloudFlare cache
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     needs: [publish_apt]
@@ -477,6 +467,16 @@ jobs:
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+
+  # Step 6: Validate APT installation after publishing
+  validate_apt:
+    name: Validate APT Installation
+    needs: [purge_cloudflare_cache, determine-release-type, publish_apt]
+    if: always() && needs.publish_apt.result == 'success'
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: "apt"
+      release_channel: ${{ needs.determine-release-type.outputs.release_type == 'stable' && 'stable' || needs.determine-release-type.outputs.release_type }}
 
   # Step 7: Publish to NPM
   publish_to_npm:

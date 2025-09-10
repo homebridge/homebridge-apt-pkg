@@ -1,0 +1,65 @@
+name: Display or Clean APT Repository
+run-name: ${{ github.event.inputs.cleanup}} === 'true' && Clean || Display ${{ github.event.inputs.stream }} Release Stream
+
+on:
+  workflow_dispatch:
+    inputs:
+      cleanup:
+        description: 'Erase beta codename (true/false)'
+        required: true
+        default: 'false'
+      stream:
+        description: 'Choose release stream to clean'
+        required: true
+        type: choice
+        options:
+          - beta
+          - alpha
+        default: beta
+
+jobs:
+  backup_and_reset_beta:
+    name: Backup and Reset ${{ inputs.stream }} Codename
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Display Current ${{ inputs.stream }} Codename
+        run: |
+          aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
+          aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
+
+      - name: Delete ${{ inputs.stream }} Metadata
+        if: github.event.inputs.cleanup == 'true'
+        run: |
+          aws s3 rm s3://repo.homebridge.io/dists/${{ inputs.stream }}/ --recursive
+          echo "Deleted dists/${{ inputs.stream }}/"
+
+      - name: Delete ${{ inputs.stream }} Packages
+        if: github.event.inputs.cleanup == 'true'
+        run: |
+          aws s3 rm s3://repo.homebridge.io/pool/${{ inputs.stream }}/ --recursive
+          echo "Deleted pool/${{ inputs.stream }}/"
+
+      - name: Verify Deletion
+        if: github.event.inputs.cleanup == 'true'
+        run: |
+          aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "dists/${{ inputs.stream }}/ is empty"
+          aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "pool/${{ inputs.stream }}/ is empty"
+
+      - name: Verify Stable Codename
+        run: |
+          aws s3 ls s3://repo.homebridge.io/dists/stable/ || echo "No stable codename found"
+
+      - name: Verify Alpha Codename
+        run: |
+          aws s3 ls s3://repo.homebridge.io/dists/alpha/ || echo "No alpha codename found"
+
+      - name: Verify Beta Codename
+        run: |
+          aws s3 ls s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"

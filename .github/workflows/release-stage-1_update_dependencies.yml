@@ -72,7 +72,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
-          gh workflow run ${{ matrix.trigger_workflow }} --ref latest --field release_type=${{ matrix.release_type }} || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
+          gh workflow run ${{ matrix.trigger_workflow }} --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=Scheduled || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
 
       - name: Checkout repository (for trigger step)
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'

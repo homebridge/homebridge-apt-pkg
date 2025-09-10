@@ -1,5 +1,5 @@
 name: Display or Clean APT Repository
-run-name: ${{ github.event.inputs.cleanup}} === true && Clean || Display ${{ github.event.inputs.stream }} Release Stream
+run-name: APT Repository - ${{ github.event.inputs.cleanup == true && format('Clean {0}', github.event.inputs.stream) || format('Display {0}', github.event.inputs.stream) }} Run
 
 on:
   workflow_dispatch:
@@ -32,8 +32,8 @@ jobs:
 
       - name: Display Current ${{ inputs.stream }} Codename
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
-          aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
+          aws s3 ls --recursive s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
+          aws s3 ls --recursive s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
 
       - name: Delete ${{ inputs.stream }} Metadata
         if: github.event.inputs.cleanup == true

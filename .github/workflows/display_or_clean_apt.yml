@@ -1,21 +1,22 @@
 name: Display or Clean APT Repository
-run-name: ${{ github.event.inputs.cleanup}} === 'true' && Clean || Display ${{ github.event.inputs.stream }} Release Stream
+run-name: ${{ github.event.inputs.cleanup}} === true && Clean || Display ${{ github.event.inputs.stream }} Release Stream
 
 on:
   workflow_dispatch:
     inputs:
-      cleanup:
-        description: 'Erase beta codename (true/false)'
-        required: true
-        default: 'false'
       stream:
-        description: 'Choose release stream to clean'
+        description: 'Choose release'
         required: true
         type: choice
         options:
           - beta
           - alpha
         default: beta
+      cleanup:
+        description: 'Erase stream'
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   backup_and_reset_beta:
@@ -35,19 +36,19 @@ jobs:
           aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
 
       - name: Delete ${{ inputs.stream }} Metadata
-        if: github.event.inputs.cleanup == 'true'
+        if: github.event.inputs.cleanup == true
         run: |
           aws s3 rm s3://repo.homebridge.io/dists/${{ inputs.stream }}/ --recursive
           echo "Deleted dists/${{ inputs.stream }}/"
 
       - name: Delete ${{ inputs.stream }} Packages
-        if: github.event.inputs.cleanup == 'true'
+        if: github.event.inputs.cleanup == true
         run: |
           aws s3 rm s3://repo.homebridge.io/pool/${{ inputs.stream }}/ --recursive
           echo "Deleted pool/${{ inputs.stream }}/"
 
       - name: Verify Deletion
-        if: github.event.inputs.cleanup == 'true'
+        if: github.event.inputs.cleanup == true
         run: |
           aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "dists/${{ inputs.stream }}/ is empty"
           aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "pool/${{ inputs.stream }}/ is empty"

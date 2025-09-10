@@ -55,12 +55,18 @@ jobs:
 
       - name: Verify Stable Codename
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/stable/ || echo "No stable codename found"
+          echo "::Group::Display Stable Codename"
+          aws s3 ls --recursive s3://repo.homebridge.io/dists/stable/ || echo "No stable codename found"
+          echo "::endgroup::"
 
       - name: Verify Alpha Codename
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/alpha/ || echo "No alpha codename found"
+          echo "::Group::Display Alpha Codename"
+          aws s3 ls --recursive s3://repo.homebridge.io/dists/alpha/ || echo "No alpha codename found"
+
 
       - name: Verify Beta Codename
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"
+          echo "::Group::Display Beta Codename"
+          aws s3 ls --recursive s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"
+          echo "::endgroup::"

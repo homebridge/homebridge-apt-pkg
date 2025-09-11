@@ -65,7 +65,7 @@ on:
 
 jobs:
   validate_prerelease_homebridge:
-    name: Validate Homebridge Package
+    name: Validate Homebridge PreRelease Package
     if: inputs.validation_type == 'prerelease'
     runs-on: ubuntu-latest
     steps:
@@ -118,17 +118,16 @@ jobs:
           sudo hb-service view
           sudo hb-service status
 
-  validate_apt_on_x86:
-    name: Validate Homebridge Package
-    runs-on: ubuntu-latest
+  validate_apt:
+    name: Validate APT Installation
     if: inputs.validation_type == 'apt'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     steps:
-
-      - name: Setup APT Validation
-        run: |
-          echo "Starting APT installation validation..."
-
       - name: Install Homebridge from APT
+        continue-on-error: true
         run: |
           curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
           echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ inputs.release_channel }} main" | \
@@ -137,50 +136,38 @@ jobs:
           sudo apt-get install -y homebridge
 
       - name: Display Installed Version
+        if: success()
         id: installed-version
         run: |
           dpkg -l homebridge
           echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
 
-      - name: Validate Homebridge Service (apt)
+      - name: Validate Homebridge Service
+        if: success()
         run: |
           sudo hb-service status
           sudo hb-service view
 
       - name: List Available Versions
-        run: |
-          apt-cache madison homebridge
-
-      - name: Publish APT Notice
-        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ubuntu-latest"
-
-  validate_apt_on_arm:
-    name: Validate APT Installation on ARM64
-    runs-on: ubuntu-24.04-arm
-    if: inputs.validation_type == 'apt'
-    steps:
-      - name: Install Homebridge from APT
-        run: |
-          curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
-          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ inputs.release_channel }} main" | \
-            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y homebridge
-
-      - name: Display Installed Version
-        id: installed-version
-        run: |
-          dpkg -l homebridge
-          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
-
-      - name: Validate Homebridge
-        run: |
-          sudo hb-service status
-          sudo hb-service view
-
-      - name: List Available Versions
+        if: success()
         run: |
           apt-cache madison homebridge
 
       - name: Publish Notice
-        run: echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ubuntu-24.04-arm"
+        if: success()
+        run: |
+          echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.os }}"
+
+      - name: Configure AWS Credentials
+        if: failure()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Display Current ${{ inputs.release_channel }} Codename
+        if: failure()
+        run: |
+          aws s3 ls --recursive s3://repo.homebridge.io/dists/${{ inputs.release_channel }}/ || echo "No ${{ inputs.release_channel }} codename found"
+          aws s3 ls --recursive s3://repo.homebridge.io/pool/${{ inputs.release_channel }}/ || echo "No ${{ inputs.release_channel }} codename found"

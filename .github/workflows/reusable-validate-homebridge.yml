@@ -12,6 +12,7 @@ on:
         options:
           - prerelease
           - apt
+        default: apt
         # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
       release_tag:
         description: "Release tag for GitHub release validation"
@@ -25,6 +26,7 @@ on:
           - stable
           - beta
           - alpha
+        default: alpha
         # Options: "stable", "beta", "alpha"
       prerelease:
         description: "Whether to download from prerelease"

@@ -20,7 +20,7 @@ on:
 
 jobs:
   backup_and_reset_beta:
-    name: Backup and Reset ${{ inputs.stream }} Codename
+    name: Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -36,19 +36,19 @@ jobs:
           aws s3 ls --recursive s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
 
       - name: Delete ${{ inputs.stream }} Metadata
-        if: github.event.inputs.cleanup == true
+        if: ${{ inputs.cleanup == true }}
         run: |
           aws s3 rm s3://repo.homebridge.io/dists/${{ inputs.stream }}/ --recursive
           echo "Deleted dists/${{ inputs.stream }}/"
 
       - name: Delete ${{ inputs.stream }} Packages
-        if: github.event.inputs.cleanup == true
+        if: ${{ inputs.cleanup == true }}
         run: |
           aws s3 rm s3://repo.homebridge.io/pool/${{ inputs.stream }}/ --recursive
           echo "Deleted pool/${{ inputs.stream }}/"
 
       - name: Verify Deletion
-        if: github.event.inputs.cleanup == true
+        if: ${{ inputs.cleanup == true }}
         run: |
           aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "dists/${{ inputs.stream }}/ is empty"
           aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "pool/${{ inputs.stream }}/ is empty"

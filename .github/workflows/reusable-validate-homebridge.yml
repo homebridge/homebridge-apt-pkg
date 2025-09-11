@@ -3,6 +3,32 @@ name: "Reusable - Validate Homebridge Package"
 on:
 
   workflow_dispatch:
+    inputs:
+      validation_type:
+        description: "Type of validation to perform"
+        required: true
+        type: string
+        # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
+      release_tag:
+        description: "Release tag for GitHub release validation"
+        required: false
+        type: string
+      release_channel:
+        description: "APT release channel for APT validation"
+        required: false
+        type: string
+        # Options: "stable", "beta", "alpha"
+      prerelease:
+        description: "Whether to download from prerelease"
+        required: false
+        type: boolean
+        default: false
+      latest:
+        description: "Whether to download latest release"
+        required: false
+        type: boolean
+        default: false
+        
   workflow_call:
     inputs:
       validation_type:

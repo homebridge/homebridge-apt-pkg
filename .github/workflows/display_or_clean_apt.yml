@@ -1,5 +1,5 @@
 name: Display or Clean APT Repository
-run-name: APT Repository - ${{ github.event.inputs.cleanup == true && format('Clean {0}', github.event.inputs.stream) || format('Display {0}', github.event.inputs.stream) }} Run
+run-name: APT Repository ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
 
 on:
   workflow_dispatch:

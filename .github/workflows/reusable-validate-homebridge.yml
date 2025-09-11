@@ -7,7 +7,10 @@ on:
       validation_type:
         description: "Type of validation to perform"
         required: true
-        type: string
+        type: choice
+        options:
+          - prerelease
+          - apt
         # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
       release_tag:
         description: "Release tag for GitHub release validation"
@@ -16,7 +19,11 @@ on:
       release_channel:
         description: "APT release channel for APT validation"
         required: false
-        type: string
+        type: choice
+        options:
+          - stable
+          - beta
+          - alpha
         # Options: "stable", "beta", "alpha"
       prerelease:
         description: "Whether to download from prerelease"
@@ -28,7 +35,7 @@ on:
         required: false
         type: boolean
         default: false
-        
+
   workflow_call:
     inputs:
       validation_type:

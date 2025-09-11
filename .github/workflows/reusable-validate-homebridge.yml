@@ -1,4 +1,5 @@
 name: "Reusable - Validate Homebridge Package"
+run-name: "Reusable - Validate Homebridge Package - ${{ github.event.inputs.validation_type }} - ${{ github.event.inputs.release_channel || 'N/A' }}"
 
 on:
 

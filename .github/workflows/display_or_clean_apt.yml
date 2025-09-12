@@ -30,7 +30,7 @@ jobs:
 
       - name: Verify deb-s3 Installation
         run: |
-          deb-s3 upload \
+          deb-s3 verify \
               --codename=${{ inputs.stream }} \
               --suite=${{ inputs.stream }} \
               --s3-region=us-west-2 \

@@ -20,6 +20,7 @@ on:
 
 jobs:
   verify_apt:
+    name: Verify APT Repository - ${{ inputs.stream }} Codename
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +28,12 @@ jobs:
         run: |
           curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
           sudo gem install deb-s3-0.11.8.gem
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Verify deb-s3 Installation
         run: |

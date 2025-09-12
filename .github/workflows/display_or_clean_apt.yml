@@ -19,7 +19,27 @@ on:
         default: false
 
 jobs:
-  backup_and_reset_beta:
+  verify_apt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Verify deb-s3 Installation
+        run: |
+          deb-s3 upload \
+              --codename=${{ inputs.stream }} \
+              --suite=${{ inputs.stream }} \
+              --s3-region=us-west-2 \
+              --bucket repo.homebridge.io \
+              --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              --sign=${{ secrets.GPG_KEY_ID }} 
+
+  display_or_clean_apt:
     name: Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
     runs-on: ubuntu-latest
     steps:

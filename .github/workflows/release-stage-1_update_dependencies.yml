@@ -31,14 +31,14 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             if [[ "${{ github.event.inputs.release_type }}" == "all" ]]; then
-              echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"}]}' >> $GITHUB_OUTPUT
+              echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json"}]}' >> $GITHUB_OUTPUT
             else
               CONFIG_FILE=".github/homebridge-${{ github.event.inputs.release_type }}-bot.json"
               echo "matrix={\"release_type\":[\"${{ github.event.inputs.release_type }}\"],\"include\":[{\"release_type\":\"${{ github.event.inputs.release_type }}\",\"config_file\":\"$CONFIG_FILE\",\"trigger_workflow\":\"release-stage-2_build_and_release.yml\"}]}" >> $GITHUB_OUTPUT
             fi
           else
             # Scheduled run - process alpha, beta, and stable streams
-            echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json","trigger_workflow":"release-stage-2_build_and_release.yml"}]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json"}]}' >> $GITHUB_OUTPUT
           fi
 
   update_dependencies:
@@ -76,4 +76,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
-          gh workflow run ${{ matrix.trigger_workflow }} --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=Scheduled || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
+          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }

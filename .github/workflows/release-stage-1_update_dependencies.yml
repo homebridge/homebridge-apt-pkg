@@ -31,14 +31,13 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             if [[ "${{ github.event.inputs.release_type }}" == "all" ]]; then
-              echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json"}]}' >> $GITHUB_OUTPUT
+              echo 'matrix={"release_type":["stable","beta","alpha"]}' >> $GITHUB_OUTPUT
             else
-              CONFIG_FILE=".github/homebridge-${{ github.event.inputs.release_type }}-bot.json"
-              echo "matrix={\"release_type\":[\"${{ github.event.inputs.release_type }}\"],\"include\":[{\"release_type\":\"${{ github.event.inputs.release_type }}\",\"config_file\":\"$CONFIG_FILE\",\"trigger_workflow\":\"release-stage-2_build_and_release.yml\"}]}" >> $GITHUB_OUTPUT
+              echo "matrix={\"release_type\":[\"${{ github.event.inputs.release_type }}\"]}" >> $GITHUB_OUTPUT
             fi
           else
-            # Scheduled run - process alpha, beta, and stable streams
-            echo 'matrix={"release_type":["alpha","beta","stable"],"include":[{"release_type":"alpha","config_file":".github/homebridge-alpha-bot.json"},{"release_type":"beta","config_file":".github/homebridge-beta-bot.json"},{"release_type":"stable","config_file":".github/homebridge-stable-bot.json"}]}' >> $GITHUB_OUTPUT
+            # Scheduled run - process stable, beta, and alpha streams
+            echo 'matrix={"release_type":["stable","beta","alpha"]}' >> $GITHUB_OUTPUT
           fi
 
   update_dependencies:
@@ -57,7 +56,7 @@ jobs:
         id: homebridge-bot
         uses: NorthernMan54/Homebridge-Dependency-Bot@latest 
         with:
-          config_file: ${{ matrix.config_file }}
+          config_file: '.github/homebridge-${{ matrix.release_type }}-bot.json'
           release_stream: ${{ matrix.release_type }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
 

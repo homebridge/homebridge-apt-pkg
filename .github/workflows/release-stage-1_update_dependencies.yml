@@ -66,6 +66,10 @@ jobs:
         run: |
           echo "::warning::${{ matrix.release_type }} Stage 2 not triggered: Changes Detected=${{ steps.homebridge-bot.outputs.changes_detected }}, Auto Merge=${{ steps.homebridge-bot.outputs.auto_merge }}"
 
+      - name: Checkout repository (for trigger step)
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        uses: actions/checkout@v4
+
       - name: Trigger Build and Release ${{ matrix.release_type }} Package
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         env:
@@ -73,7 +77,3 @@ jobs:
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
           gh workflow run ${{ matrix.trigger_workflow }} --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=Scheduled || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
-
-      - name: Checkout repository (for trigger step)
-        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        uses: actions/checkout@v4

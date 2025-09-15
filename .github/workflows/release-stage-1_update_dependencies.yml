@@ -69,10 +69,25 @@ jobs:
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         uses: actions/checkout@v4
 
-      - name: Trigger Build and Release ${{ matrix.release_type }} Package
+      - name: Trigger and Wait for ${{ matrix.release_type }} Stage 2 Workflow
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
-          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} || { echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; exit 1; }
+        uses: ./.github/actions/trigger-and-wait-workflow
+        with:
+          workflow-file: 'release-stage-2_build_and_release.yml'
+          ref: 'latest'
+          release-type: ${{ matrix.release_type }}
+          scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
+          github-token: ${{ secrets.GH_TOKEN }}
+          timeout-minutes: '30'
+
+  validate_apt_channels:
+    name: Post Release Validation of all APT Release Channels
+    needs: update_dependencies
+    if: always()
+    strategy:
+      matrix:
+        release_channel: [stable, beta, alpha]
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: apt
+      release_channel: ${{ matrix.release_channel }}

@@ -137,8 +137,21 @@ jobs:
           RUN_ID="${{ steps.extract-run-id.outputs.run_id }}"
           echo "::notice::Waiting for ${{ matrix.release_type }} Stage 2 workflow (run $RUN_ID) to complete..."
           
+          # Set maximum wait time of 30 minutes (1800 seconds)
+          MAX_WAIT_SECONDS=1800
+          START_TIME=$(date +%s)
+          
           # Poll the workflow status until it completes
           while true; do
+            # Check if we've exceeded the maximum wait time
+            CURRENT_TIME=$(date +%s)
+            ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+            
+            if [[ $ELAPSED_TIME -gt $MAX_WAIT_SECONDS ]]; then
+              echo "::error::${{ matrix.release_type }} Stage 2 workflow timed out after 30 minutes"
+              exit 1
+            fi
+            
             STATUS=$(gh run view "$RUN_ID" --json status -q '.status')
             
             case "$STATUS" in
@@ -153,7 +166,7 @@ jobs:
                 fi
                 ;;
               "in_progress"|"queued"|"requested"|"waiting")
-                echo "::notice::${{ matrix.release_type }} workflow status: $STATUS - continuing to wait..."
+                echo "::notice::${{ matrix.release_type }} workflow status: $STATUS - continuing to wait... (elapsed: ${ELAPSED_TIME}s)"
                 sleep 30
                 ;;
               *)
@@ -162,3 +175,15 @@ jobs:
                 ;;
             esac
           done
+
+  validate_apt_channels:
+    name: Validate APT Release Channels
+    needs: update_dependencies
+    if: always() && contains(needs.update_dependencies.result, 'success')
+    strategy:
+      matrix:
+        release_channel: [stable, beta, alpha]
+    uses: ./.github/workflows/reusable-validate-homebridge.yml
+    with:
+      validation_type: apt
+      release_channel: ${{ matrix.release_channel }}

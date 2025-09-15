@@ -69,18 +69,30 @@ jobs:
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         uses: actions/checkout@v4
 
-      - name: Trigger Build and Release ${{ matrix.release_type }} Package
+      - name: Trigger ${{ matrix.release_type }} Stage 2 Workflow
         if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
           
-          # Trigger the workflow
-          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} || { 
+          gh workflow run release-stage-2_build_and_release.yml \
+            --ref latest \
+            --field release_type=${{ matrix.release_type }} \
+            --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} || { 
             echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; 
             exit 1; 
           }
+          
+          echo "::notice::${{ matrix.release_type }} Stage 2 workflow triggered successfully"
+
+      - name: Find ${{ matrix.release_type }} Stage 2 Workflow Run
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        id: find-workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "::notice::Waiting for ${{ matrix.release_type }} Stage 2 workflow to appear in run list..."
           
           # Wait for the workflow to appear in the list
           sleep 5
@@ -99,38 +111,54 @@ jobs:
           fi
           
           echo "::notice::Found ${{ matrix.release_type }} workflow run: $WORKFLOW_URL"
+          echo "workflow_url=$WORKFLOW_URL" >> $GITHUB_OUTPUT
+
+      - name: Extract ${{ matrix.release_type }} Workflow Run ID
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        id: extract-run-id
+        run: |
+          WORKFLOW_URL="${{ steps.find-workflow.outputs.workflow_url }}"
           
           # Extract run ID from the URL
           if [[ "$WORKFLOW_URL" =~ actions/runs/([0-9]+) ]]; then
             RUN_ID="${BASH_REMATCH[1]}"
-            echo "::notice::Waiting for ${{ matrix.release_type }} Stage 2 workflow (run $RUN_ID) to complete..."
-            
-            # Poll the workflow status until it completes
-            while true; do
-              STATUS=$(gh run view "$RUN_ID" --json status -q '.status')
-              
-              case "$STATUS" in
-                "completed")
-                  CONCLUSION=$(gh run view "$RUN_ID" --json conclusion -q '.conclusion')
-                  if [[ "$CONCLUSION" == "success" ]]; then
-                    echo "::notice::${{ matrix.release_type }} Stage 2 workflow completed successfully"
-                    break
-                  else
-                    echo "::error::${{ matrix.release_type }} Stage 2 workflow failed with conclusion: $CONCLUSION"
-                    exit 1
-                  fi
-                  ;;
-                "in_progress"|"queued"|"requested"|"waiting")
-                  echo "::notice::${{ matrix.release_type }} workflow status: $STATUS - continuing to wait..."
-                  sleep 30
-                  ;;
-                *)
-                  echo "::error::${{ matrix.release_type }} Stage 2 workflow has unexpected status: $STATUS"
-                  exit 1
-                  ;;
-              esac
-            done
+            echo "::notice::Extracted run ID: $RUN_ID"
+            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           else
             echo "::error::Could not extract run ID from workflow URL: $WORKFLOW_URL"
             exit 1
           fi
+
+      - name: Wait for ${{ matrix.release_type }} Stage 2 Completion
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          RUN_ID="${{ steps.extract-run-id.outputs.run_id }}"
+          echo "::notice::Waiting for ${{ matrix.release_type }} Stage 2 workflow (run $RUN_ID) to complete..."
+          
+          # Poll the workflow status until it completes
+          while true; do
+            STATUS=$(gh run view "$RUN_ID" --json status -q '.status')
+            
+            case "$STATUS" in
+              "completed")
+                CONCLUSION=$(gh run view "$RUN_ID" --json conclusion -q '.conclusion')
+                if [[ "$CONCLUSION" == "success" ]]; then
+                  echo "::notice::${{ matrix.release_type }} Stage 2 workflow completed successfully"
+                  break
+                else
+                  echo "::error::${{ matrix.release_type }} Stage 2 workflow failed with conclusion: $CONCLUSION"
+                  exit 1
+                fi
+                ;;
+              "in_progress"|"queued"|"requested"|"waiting")
+                echo "::notice::${{ matrix.release_type }} workflow status: $STATUS - continuing to wait..."
+                sleep 30
+                ;;
+              *)
+                echo "::error::${{ matrix.release_type }} Stage 2 workflow has unexpected status: $STATUS"
+                exit 1
+                ;;
+            esac
+          done

@@ -76,30 +76,61 @@ jobs:
         run: |
           echo "::notice::Triggering ${{ matrix.release_type }} Stage 2 - Build and Release ${{ matrix.release_type }} Package"
           
-          # Trigger the workflow and capture the run URL
-          WORKFLOW_URL=$(gh workflow run release-stage-2_build_and_release.yml \
-            --ref latest \
-            --field release_type=${{ matrix.release_type }} \
-            --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} \
-            2>&1) || { 
+          # Trigger the workflow
+          gh workflow run release-stage-2_build_and_release.yml --ref latest --field release_type=${{ matrix.release_type }} --field Scheduled=${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} || { 
             echo "::error::Failed to trigger ${{ matrix.release_type }} Stage 2 workflow"; 
             exit 1; 
           }
           
-          # Extract run ID from the URL (format: https://github.com/owner/repo/actions/runs/RUN_ID)
+          # Wait for the workflow to appear in the list
+          sleep 5
+          
+          # Get the URL of the most recent workflow run
+          WORKFLOW_URL=$(gh run list --workflow release-stage-2_build_and_release.yml \
+            --event workflow_dispatch \
+            --branch latest \
+            --limit 1 \
+            --json url \
+            | jq -r '.[].url')
+          
+          if [[ -z "$WORKFLOW_URL" || "$WORKFLOW_URL" == "null" ]]; then
+            echo "::error::Could not find triggered ${{ matrix.release_type }} Stage 2 workflow run"
+            exit 1
+          fi
+          
+          echo "::notice::Found ${{ matrix.release_type }} workflow run: $WORKFLOW_URL"
+          
+          # Extract run ID from the URL
           if [[ "$WORKFLOW_URL" =~ actions/runs/([0-9]+) ]]; then
             RUN_ID="${BASH_REMATCH[1]}"
-            echo "::notice::Triggered ${{ matrix.release_type }} workflow run ID: $RUN_ID"
-            
-            # Wait for the workflow to complete before proceeding
             echo "::notice::Waiting for ${{ matrix.release_type }} Stage 2 workflow (run $RUN_ID) to complete..."
-            gh run watch "$RUN_ID" --exit-status || {
-              echo "::error::${{ matrix.release_type }} Stage 2 workflow failed or was cancelled"
-              exit 1
-            }
             
-            echo "::notice::${{ matrix.release_type }} Stage 2 workflow completed successfully"
+            # Poll the workflow status until it completes
+            while true; do
+              STATUS=$(gh run view "$RUN_ID" --json status -q '.status')
+              
+              case "$STATUS" in
+                "completed")
+                  CONCLUSION=$(gh run view "$RUN_ID" --json conclusion -q '.conclusion')
+                  if [[ "$CONCLUSION" == "success" ]]; then
+                    echo "::notice::${{ matrix.release_type }} Stage 2 workflow completed successfully"
+                    break
+                  else
+                    echo "::error::${{ matrix.release_type }} Stage 2 workflow failed with conclusion: $CONCLUSION"
+                    exit 1
+                  fi
+                  ;;
+                "in_progress"|"queued"|"requested"|"waiting")
+                  echo "::notice::${{ matrix.release_type }} workflow status: $STATUS - continuing to wait..."
+                  sleep 30
+                  ;;
+                *)
+                  echo "::error::${{ matrix.release_type }} Stage 2 workflow has unexpected status: $STATUS"
+                  exit 1
+                  ;;
+              esac
+            done
           else
-            echo "::error::Could not extract run ID from workflow trigger output: $WORKFLOW_URL"
+            echo "::error::Could not extract run ID from workflow URL: $WORKFLOW_URL"
             exit 1
           fi

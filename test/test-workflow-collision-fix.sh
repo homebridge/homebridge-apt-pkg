@@ -31,8 +31,8 @@ with open('.github/workflows/release-stage-1_update_dependencies.yml') as f:
             break
 ")
 
-if [[ "$TRIGGER_STEP" == *"gh run watch"* ]]; then
-    echo "✅ Workflow wait logic (gh run watch) found in trigger step"
+if [[ "$TRIGGER_STEP" == *"gh run list"* && "$TRIGGER_STEP" == *"while true"* ]]; then
+    echo "✅ Workflow wait logic (gh run list + polling) found in trigger step"
 else
     echo "❌ Missing workflow wait logic in trigger step"
     exit 1
@@ -48,13 +48,13 @@ else
     exit 1
 fi
 
-# Test 4: Check for proper error handling
+# Test 4: Check for proper polling and status checking
 echo
-echo "Test 4: Checking for proper error handling..."
-if [[ "$TRIGGER_STEP" == *"--exit-status"* ]]; then
-    echo "✅ Exit status handling for gh run watch found"
+echo "Test 4: Checking for proper status polling..."
+if [[ "$TRIGGER_STEP" == *"gh run view"* && "$TRIGGER_STEP" == *"status"* ]]; then
+    echo "✅ Status polling with gh run view found"
 else
-    echo "❌ Missing exit status handling"
+    echo "❌ Missing status polling logic"
     exit 1
 fi
 
@@ -86,12 +86,22 @@ else
     exit 1
 fi
 
+# Test 7: Check for proper conclusion handling
+echo
+echo "Test 7: Checking for conclusion handling..."
+if [[ "$TRIGGER_STEP" == *"conclusion"* && "$TRIGGER_STEP" == *"success"* ]]; then
+    echo "✅ Proper conclusion handling found"
+else
+    echo "❌ Missing proper conclusion handling"
+    exit 1
+fi
+
 echo
 echo "🎉 All tests passed! The workflow collision fix should resolve the issue."
 echo
 echo "Summary of the fix:"
-echo "  - Stage 1 now captures workflow run ID when triggering Stage 2"
-echo "  - Uses 'gh run watch --exit-status' to wait for each Stage 2 workflow to complete"
-echo "  - Includes proper error handling and logging"
+echo "  - Stage 1 now uses 'gh run list' to find triggered Stage 2 workflows"
+echo "  - Uses polling with 'gh run view' to wait for each Stage 2 workflow to complete"
+echo "  - Includes proper status and conclusion checking"
 echo "  - Preserves existing max-parallel: 1 constraint for sequential processing"
 echo "  - This prevents workflow collision by ensuring Stage 2 workflows complete sequentially"

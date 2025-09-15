@@ -36,8 +36,6 @@ A reusable GitHub Action that triggers a workflow and waits for its completion w
 | `release-type` | Yes | - | The release type parameter to pass to the workflow |
 | `scheduled` | No | `Manual` | The scheduled parameter to pass to the workflow |
 | `github-token` | Yes | - | GitHub token for authentication |
-| `changes-detected` | Yes | - | Whether changes were detected (used for conditional execution) |
-| `auto-merge` | Yes | - | Whether auto merge is enabled (used for conditional execution) |
 | `timeout-minutes` | No | `30` | Maximum wait time in minutes |
 
 ## Outputs

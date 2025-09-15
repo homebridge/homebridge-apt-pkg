@@ -104,7 +104,7 @@ runs:
         echo "::notice::Waiting for ${{ inputs.release-type }} workflow (run $RUN_ID) to complete..."
         
         # Set maximum wait time (convert minutes to seconds)
-        MAX_WAIT_SECONDS=$(({{ inputs.timeout-minutes }} * 60))
+        MAX_WAIT_SECONDS=$(( ${{ inputs.timeout-minutes }} * 60 ))
         START_TIME=$(date +%s)
         
         # Poll the workflow status until it completes

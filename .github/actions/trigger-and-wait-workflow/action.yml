@@ -18,12 +18,6 @@ inputs:
   github-token:
     description: 'GitHub token for authentication'
     required: true
-  changes-detected:
-    description: 'Whether changes were detected (used for conditional execution)'
-    required: true
-  auto-merge:
-    description: 'Whether auto merge is enabled (used for conditional execution)'
-    required: true
   timeout-minutes:
     description: 'Maximum wait time in minutes'
     required: false
@@ -41,7 +35,6 @@ runs:
   using: 'composite'
   steps:
     - name: Trigger ${{ inputs.release-type }} Workflow
-      if: inputs.changes-detected == 'true' && inputs.auto-merge == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
@@ -59,7 +52,6 @@ runs:
         echo "::notice::${{ inputs.release-type }} workflow triggered successfully"
 
     - name: Find ${{ inputs.release-type }} Workflow Run
-      if: inputs.changes-detected == 'true' && inputs.auto-merge == 'true'
       id: find-workflow
       shell: bash
       env:
@@ -87,7 +79,6 @@ runs:
         echo "workflow_url=$WORKFLOW_URL" >> $GITHUB_OUTPUT
 
     - name: Extract ${{ inputs.release-type }} Workflow Run ID
-      if: inputs.changes-detected == 'true' && inputs.auto-merge == 'true'
       id: extract-run-id
       shell: bash
       run: |
@@ -104,7 +95,6 @@ runs:
         fi
 
     - name: Wait for ${{ inputs.release-type }} Workflow Completion
-      if: inputs.changes-detected == 'true' && inputs.auto-merge == 'true'
       id: wait-completion
       shell: bash
       env:

@@ -70,6 +70,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trigger and Wait for ${{ matrix.release_type }} Stage 2 Workflow
+        if: steps.homebridge-bot.outputs.changes_detected == 'true' && steps.homebridge-bot.outputs.auto_merge == 'true'
         uses: ./.github/actions/trigger-and-wait-workflow
         with:
           workflow-file: 'release-stage-2_build_and_release.yml'
@@ -77,14 +78,12 @@ jobs:
           release-type: ${{ matrix.release_type }}
           scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
           github-token: ${{ secrets.GH_TOKEN }}
-          changes-detected: ${{ steps.homebridge-bot.outputs.changes_detected }}
-          auto-merge: ${{ steps.homebridge-bot.outputs.auto_merge }}
           timeout-minutes: '30'
 
   validate_apt_channels:
-    name: Validate APT Release Channels
+    name: Post Release Validation of all APT Release Channels
     needs: update_dependencies
-    if: always() && contains(needs.update_dependencies.result, 'success')
+    if: always()
     strategy:
       matrix:
         release_channel: [stable, beta, alpha]

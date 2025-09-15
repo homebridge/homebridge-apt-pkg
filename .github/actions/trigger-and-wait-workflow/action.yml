@@ -61,15 +61,17 @@ runs:
         
         # Wait for the workflow to appear in the list
         sleep 5
-        
+
+        # gh run list --workflow "release-stage-2_build_and_release.yml" --event workflow_dispatch --json url,name --jq '[.[] | select(.name | contains("Scheduled - beta"))] | .[].url'
+
         # Get the URL of the most recent workflow run
         WORKFLOW_URL=$(gh run list --workflow "${{ inputs.workflow-file }}" \
           --event workflow_dispatch \
           --branch "${{ inputs.ref }}" \
           --limit 1 \
-          --json url \
-          | jq -r '.[].url')
-        
+          --json url,name \
+          --jq '[.[] | select(.name | contains("${{ inputs.scheduled }} - ${{ inputs.release-type }}"))] | .[].url' | \
+          head -n 1)
         if [[ -z "$WORKFLOW_URL" || "$WORKFLOW_URL" == "null" ]]; then
           echo "::error::Could not find triggered ${{ inputs.release-type }} workflow run"
           exit 1

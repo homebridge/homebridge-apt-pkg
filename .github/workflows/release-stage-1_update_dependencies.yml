@@ -79,6 +79,7 @@ jobs:
           scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
           github-token: ${{ secrets.GH_TOKEN }}
           timeout-minutes: '30'
+          run-name: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} - ${{ matrix.release_type }}
 
   validate_apt_channels:
     name: Post Release Validation of all APT Release Channels

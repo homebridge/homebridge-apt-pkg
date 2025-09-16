@@ -22,6 +22,10 @@ inputs:
     description: 'Maximum wait time in minutes'
     required: false
     default: '30'
+  run-name:
+    description: 'Name of the triggered workflow run'
+    required: false
+    default: ''
 
 outputs:
   workflow-conclusion:
@@ -70,10 +74,11 @@ runs:
           --branch "${{ inputs.ref }}" \
           --limit 1 \
           --json url,name \
-          --jq '[.[] | select(.name | contains("${{ inputs.scheduled }} - ${{ inputs.release-type }}"))] | .[].url' | \
+          --jq '[.[] | select(.name | contains("${{ inputs.run-name }}"))] | .[].url' | \
           head -n 1)
         if [[ -z "$WORKFLOW_URL" || "$WORKFLOW_URL" == "null" ]]; then
-          echo "::error::Could not find triggered ${{ inputs.release-type }} workflow run"
+          echo "::error::Could not find triggered ${{ inputs.run-name }} workflow run"
+          gh run list --workflow "${{ inputs.workflow-file }}" --event workflow_dispatch --branch "${{ inputs.ref }}" --limit 5 --json url,name
           exit 1
         fi
         

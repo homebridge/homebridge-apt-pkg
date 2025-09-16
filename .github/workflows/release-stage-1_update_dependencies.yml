@@ -81,6 +81,14 @@ jobs:
           timeout-minutes: '30'
           run-name: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} - ${{ matrix.release_type }}
 
+      - name: Cleanup older beta and alpha release and tags
+        if: ${{ matrix.release_type != 'stable' }}
+        uses: ./.github/actions/cleanup-old-releases-and-tags
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          release-type: ${{ matrix.release_type }}
+          releases-to-keep: 5
+
   validate_apt_channels:
     name: Post Release Validation of all APT Release Channels
     needs: update_dependencies

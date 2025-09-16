@@ -19,6 +19,10 @@ on:
 
 run-name: Release Stage 1 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
 
+concurrency:
+  group: release-stage-1-update-dependencies
+  cancel-in-progress: false
+
 jobs:
   determine-release-types:
     name: Determine Release Types

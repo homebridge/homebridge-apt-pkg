@@ -19,3 +19,12 @@ export UIX_CUSTOM_PLUGIN_PATH=$HB_SERVICE_STORAGE_PATH/node_modules
 export UIX_BASE_PATH_OVERRIDE=/opt/homebridge/lib/node_modules/homebridge-config-ui-x
 export UIX_USE_PNPM=0
 export UIX_USE_PLUGIN_BUNDLES=1
+
+# Source additional environment variables if the file exists
+if [ -f "/opt/homebridge/source-vm.sh" ]; then
+  source /opt/homebridge/source-vm.sh
+fi
+if [ -f "/opt/homebridge/source-docker.sh" ]; then
+  source /opt/homebridge/source-docker.sh
+fi
+# End of appended block

@@ -130,7 +130,7 @@ echo "**Release Type**: ${PKG_RELEASE_TYPE:-stable}" >> "$MANIFEST"
 echo >> "$MANIFEST"
 echo "| Package | Version |" >> "$MANIFEST"
 echo "|:-------:|:-------:|" >> "$MANIFEST"
-echo "|NodeJS| $NODE_VERSION |" >> "$MANIFEST"
+echo "| NodeJS | $NODE_VERSION |" >> "$MANIFEST"
 
 # Download and unpack NodeJS binary
 if [ ! -f "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
@@ -165,16 +165,16 @@ export npm_config_loglevel=error
 
 # Install packages
 npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION
-echo "|Homebridge UI| $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
+echo "| Homebridge UI | $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
 
 # Only install homebridge-plugin-update-check if it exists in package.json
 if [ "$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION" != "null" ]; then
   npm install --prefix "$(pwd)/staging/var/lib/homebridge" @homebridge-plugins/homebridge-plugin-update-check@$HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION
-  echo "|Plugin Update Check| $HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION |" >> "$MANIFEST"
+  echo "| Plugin Update Check | $HOMEBRIDGE_PLUGIN_UPDATE_CHECK_VERSION |" >> "$MANIFEST"
 fi
 
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
-echo "|Homebridge| $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
+echo "| Homebridge | $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
 
 # Add changelog section to manifest
 echo >> "$MANIFEST"

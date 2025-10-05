@@ -22,9 +22,9 @@ export UIX_USE_PLUGIN_BUNDLES=1
 
 # Source additional environment variables if the file exists
 if [ -f "/opt/homebridge/source-vm.sh" ]; then
-  source /opt/homebridge/source-vm.sh
+  . /opt/homebridge/source-vm.sh
 fi
 if [ -f "/opt/homebridge/source-docker.sh" ]; then
-  source /opt/homebridge/source-docker.sh
+  . /opt/homebridge/source-docker.sh
 fi
 # End of appended block

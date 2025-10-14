@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
-        uses: NorthernMan54/Homebridge-Dependency-Bot@latest 
+        uses: homebridge/dependency-bot@latest 
         with:
           config_file: '.github/homebridge-${{ matrix.release_type }}-bot.json'
           release_stream: ${{ matrix.release_type }}

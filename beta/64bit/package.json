@@ -21,7 +21,7 @@
   "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
   "private": false,
   "dependencies": {
-    "@homebridge-plugins/homebridge-plugin-update-check": "3.0.0-beta.9",
+    "@homebridge-plugins/homebridge-plugin-update-check": "3.0.0-beta.10",
     "homebridge": "2.0.0-beta.50",
     "homebridge-config-ui-x": "5.9.1-beta.9",
     "node": "24.11.0"

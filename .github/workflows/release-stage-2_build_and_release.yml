@@ -21,6 +21,15 @@ on:
           - Scheduled
           - Manual
         default: Manual
+      release_increment:
+        description: 'Version increment for stable releases'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
       
 permissions:
   contents: write
@@ -48,7 +57,7 @@ jobs:
         id: release_version
         with:
           scheme: semver
-          increment: patch
+          increment: ${{ inputs.release_increment }}
 
       - name: Generate version
         id: version_output

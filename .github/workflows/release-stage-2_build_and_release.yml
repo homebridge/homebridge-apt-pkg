@@ -57,7 +57,7 @@ jobs:
         id: release_version
         with:
           scheme: semver
-          increment: ${{ inputs.release_increment }}
+          increment: patch
 
       - name: Generate version
         id: version_output

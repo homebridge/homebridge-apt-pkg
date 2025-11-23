@@ -21,6 +21,15 @@ on:
           - Scheduled
           - Manual
         default: Manual
+      release_increment:
+        description: 'Version increment for stable releases'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
       
 permissions:
   contents: write
@@ -78,7 +87,7 @@ jobs:
         id: release_version
         with:
           scheme: semver
-          increment: patch
+          increment: ${{ inputs.release_increment }}
 
   build_packages:
     name: Build Packages for (${{ matrix.name }}) v${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}

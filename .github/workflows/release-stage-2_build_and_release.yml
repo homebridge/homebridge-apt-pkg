@@ -177,7 +177,7 @@ jobs:
         UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
         mv "$MANIFEST_FILE" "$UPDATED"
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: artifacts-${{ matrix.name }}
         retention-days: 7
@@ -196,7 +196,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           pattern: artifacts-*
           merge-multiple: true

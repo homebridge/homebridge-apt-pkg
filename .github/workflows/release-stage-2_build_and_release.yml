@@ -369,12 +369,12 @@ jobs:
     needs: [purge_cloudflare_cache, publish_apt]
     if: always() && needs.publish_apt.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
     with:
       validation_type: "apt"
       release_channel: ${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}}
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
   # Step 7: Publish to NPM
   publish_to_npm:

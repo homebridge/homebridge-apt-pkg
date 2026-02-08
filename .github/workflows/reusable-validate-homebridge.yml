@@ -40,6 +40,11 @@ on:
         default: false
 
   workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ZONE_ID:
+        required: true
     inputs:
       validation_type:
         description: "Type of validation to perform"
@@ -65,11 +70,6 @@ on:
         required: false
         type: boolean
         default: false
-    secrets:
-      CLOUDFLARE_API_TOKEN:
-        required: true
-      CLOUDFLARE_ZONE_ID:
-        required: true
 
 jobs:
   validate_prerelease_homebridge:

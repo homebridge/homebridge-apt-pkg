@@ -282,6 +282,9 @@ jobs:
       release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
       prerelease: true
       latest: false
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
   # Step 3: Promote prerelease to full release after validation passes
   promote_to_release:

@@ -41,9 +41,9 @@ on:
 
   workflow_call:
     secrets:
-      CLOUDFLARE_API_TOKEN:
+      AWS_ACCESS_KEY_ID:
         required: true
-      CLOUDFLARE_ZONE_ID:
+      AWS_SECRET_ACCESS_KEY:
         required: true
     inputs:
       validation_type:

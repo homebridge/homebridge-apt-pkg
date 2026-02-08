@@ -398,8 +398,6 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public --tag ${{ inputs.release_type== 'stable' && 'latest' || inputs.release_type}}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Output Success Notice
         run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }} with ${{ inputs.release_type== 'stable' && 'latest' || inputs.release_type}} tag"

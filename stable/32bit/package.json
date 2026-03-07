@@ -24,6 +24,6 @@
   "dependencies": {
     "homebridge": "1.11.2",
     "homebridge-config-ui-x": "5.19.0",
-    "node": "22.22.0"
+    "node": "22.22.1"
   }
 }

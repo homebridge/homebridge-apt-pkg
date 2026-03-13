@@ -177,7 +177,7 @@ jobs:
         UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
         mv "$MANIFEST_FILE" "$UPDATED"
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v7
       with:
         name: artifacts-${{ matrix.name }}
         retention-days: 7
@@ -196,7 +196,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           pattern: artifacts-*
           merge-multiple: true
@@ -332,7 +332,7 @@ jobs:
         run: ls -R
 
       - name: Import GPG Key
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}

@@ -24,6 +24,6 @@
     "@homebridge-plugins/homebridge-plugin-update-check": "2.3.8-beta.7",
     "homebridge": "2.0.0-alpha.81",
     "homebridge-config-ui-x": "5.20.1-alpha.0",
-    "node": "24.14.1"
+    "node": "24.15.0"
   }
 }

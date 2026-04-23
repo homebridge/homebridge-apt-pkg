@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download from GitHub Release
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           tag: ${{ needs.create_prerelease.outputs.release_tag }}
           fileName: 'homebridge*.deb'

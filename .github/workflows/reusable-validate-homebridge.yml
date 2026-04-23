@@ -83,7 +83,7 @@ jobs:
 
       - name: Download prerelease assets
         id: download_assets
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           tag: ${{ inputs.release_tag }}
           preRelease: ${{ inputs.prerelease }}
@@ -104,7 +104,7 @@ jobs:
           fi
 
       - name: Download and install AMD64 package
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           tag: ${{ inputs.release_tag }}
           preRelease: ${{ inputs.prerelease }}

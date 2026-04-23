@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 9.20160709) | dh-systemd
 Standards-Version: 4.0.0
 
 Package: homebridge
-Pre-Depends: libc6 (>= 2.31), jq (>= 1.4), openssl, psmisc, make, gcc, g++, python3, net-tools, python3-venv, python3-dev
+Pre-Depends: libc6 (>= 2.31), jq (>= 1.4), openssl, psmisc, make, gcc, g++, python3, net-tools, python3-venv, python3-dev, iproute2
 Architecture: any
 Description: HomeKit support for the impatient.
 Homepage: http://homebridge.io

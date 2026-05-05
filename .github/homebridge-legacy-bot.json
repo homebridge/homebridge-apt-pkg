@@ -6,7 +6,7 @@
   },
   "directories": [
     {
-      "directory": "stable/32bit",
+      "directory": "legacy/32bit",
       "packages": [
         {
           "name": "homebridge-config-ui-x",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "directory": "stable/64bit",
+      "directory": "legacy/64bit",
       "packages": [
         {
           "name": "homebridge-config-ui-x",

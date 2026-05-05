@@ -44,6 +44,17 @@
     "https://repo.homebridge.io/dists/alpha/main/binary-armhf/Packages",
     "https://repo.homebridge.io/dists/alpha/main/binary-armhf/Packages.gz",
     "https://repo.homebridge.io/dists/alpha/main/binary-i386/Packages",
-    "https://repo.homebridge.io/dists/alpha/main/binary-i386/Packages.gz"
+    "https://repo.homebridge.io/dists/alpha/main/binary-i386/Packages.gz",
+    "https://repo.homebridge.io/dists/legacy/InRelease",
+    "https://repo.homebridge.io/dists/legacy/Release",
+    "https://repo.homebridge.io/dists/legacy/Release.gpg",
+    "https://repo.homebridge.io/dists/legacy/main/binary-amd64/Packages",
+    "https://repo.homebridge.io/dists/legacy/main/binary-amd64/Packages.gz",
+    "https://repo.homebridge.io/dists/legacy/main/binary-arm64/Packages",
+    "https://repo.homebridge.io/dists/legacy/main/binary-arm64/Packages.gz",
+    "https://repo.homebridge.io/dists/legacy/main/binary-armhf/Packages",
+    "https://repo.homebridge.io/dists/legacy/main/binary-armhf/Packages.gz",
+    "https://repo.homebridge.io/dists/legacy/main/binary-i386/Packages",
+    "https://repo.homebridge.io/dists/legacy/main/binary-i386/Packages.gz"
   ]
 }

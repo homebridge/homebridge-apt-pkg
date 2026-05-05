@@ -18,6 +18,8 @@ beta/README.md
 /alpha/64bit/node_modules
 /beta/32bit/node_modules
 /beta/64bit/node_modules
+/legacy/32bit/node_modules
+/legacy/64bit/node_modules
 /stable/32bit/node_modules
 /stable/64bit/node_modules
 

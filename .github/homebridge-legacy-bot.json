@@ -1,0 +1,43 @@
+{
+  "auto_merge": true,
+  "git_user": {
+    "name": "Homebridge Legacy Bot",
+    "email": "actions@github.com"
+  },
+  "directories": [
+    {
+      "directory": "stable/32bit",
+      "packages": [
+        {
+          "name": "homebridge-config-ui-x",
+          "tag": "latest"
+        },
+        {
+          "name": "homebridge",
+          "tag": "^1.x.x"
+        },
+        {
+          "name": "node",
+          "tag": "^22.x.x"
+        }
+      ]
+    },
+    {
+      "directory": "stable/64bit",
+      "packages": [
+        {
+          "name": "homebridge-config-ui-x",
+          "tag": "latest"
+        },
+        {
+          "name": "homebridge",
+          "tag": "^1.x.x"
+        },
+        {
+          "name": "node",
+          "tag": "^24.x.x"
+        }
+      ]
+    }
+  ]
+}

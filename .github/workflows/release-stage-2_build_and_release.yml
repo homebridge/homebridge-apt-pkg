@@ -12,6 +12,7 @@ on:
           - alpha
           - beta
           - stable
+          - legacy
         default: 'alpha'
       Scheduled:
         description: 'Whether this is a scheduled run'

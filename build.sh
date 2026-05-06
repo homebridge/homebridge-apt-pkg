@@ -43,6 +43,16 @@ elif [[ "$PKG_RELEASE_TYPE" == "alpha" ]]; then
       ;;
     *) echo "unsupported architecture"; exit 1 ;;
   esac
+elif [[ "$PKG_RELEASE_TYPE" == "legacy" ]]; then
+  case "$BUILD_ARCH" in
+    x86_64|aarch64)
+      PACKAGE_JSON_PATH="legacy/64bit/package.json"
+      ;;
+    arm|i386)
+      PACKAGE_JSON_PATH="legacy/32bit/package.json"
+      ;;
+    *) echo "unsupported architecture"; exit 1 ;;
+  esac
 else
   # Stable builds also use architecture-specific configs
   case "$BUILD_ARCH" in

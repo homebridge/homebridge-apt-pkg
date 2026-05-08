@@ -17,7 +17,7 @@
           "pattern": "^2.0.0-beta"
         },
         {
-          "name": "@homebridge-plugins/homebridge-plugin-update-check",
+          "name": "@homebridge-plugins/homebridge-updater",
           "tag": "beta"
         },
         {
@@ -38,7 +38,7 @@
           "pattern": "^2.0.0-beta"
         },
         {
-          "name": "@homebridge-plugins/homebridge-plugin-update-check",
+          "name": "@homebridge-plugins/homebridge-updater",
           "tag": "beta"
         },
         {

@@ -21,7 +21,7 @@
           "tag": "^22.x.x"
         },
         {
-          "name": "@homebridge-plugins/homebridge-plugin-update-check",
+          "name": "@homebridge-plugins/homebridge-updater",
           "tag": "beta"
         }
       ]
@@ -42,7 +42,7 @@
           "tag": "^24.x.x"
         },
         {
-          "name": "@homebridge-plugins/homebridge-plugin-update-check",
+          "name": "@homebridge-plugins/homebridge-updater",
           "tag": "beta"
         }
       ]

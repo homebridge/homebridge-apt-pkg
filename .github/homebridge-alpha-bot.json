@@ -22,7 +22,7 @@
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",
-          "tag": "beta"
+          "tag": "latest"
         }
       ]
     },
@@ -43,7 +43,7 @@
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",
-          "tag": "beta"
+          "tag": "latest"
         }
       ]
     }

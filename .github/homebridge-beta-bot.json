@@ -18,7 +18,7 @@
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",
-          "tag": "beta"
+          "tag": "latest"
         },
         {
           "name": "node",
@@ -39,7 +39,7 @@
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",
-          "tag": "beta"
+          "tag": "latest"
         },
         {
           "name": "node",

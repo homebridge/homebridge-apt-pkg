@@ -14,7 +14,7 @@
         },
         {
           "name": "homebridge",
-          "pattern": "^2.0.0-beta"
+          "pattern": "beta"
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",

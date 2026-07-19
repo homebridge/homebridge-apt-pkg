@@ -23,8 +23,8 @@
   "dependencies": {
     "@homebridge-plugins/homebridge-plugin-update-check": "3.0.2-beta.22",
     "@homebridge-plugins/homebridge-updater": "3.1.7",
-    "homebridge": "2.1.2-beta.8",
-    "homebridge-config-ui-x": "5.25.1-beta.6",
+    "homebridge": "2.2.1-beta.0",
+    "homebridge-config-ui-x": "5.26.1-beta.0",
     "node": "22.23.1"
   }
 }

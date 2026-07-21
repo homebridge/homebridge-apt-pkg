@@ -35,11 +35,11 @@
         },
         {
           "name": "homebridge",
-          "pattern": "^2.0.0-alpha"
+          "pattern": "beta"
         },
         {
           "name": "node",
-          "tag": "^24.x.x"
+          "tag": "^26.x.x"
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",

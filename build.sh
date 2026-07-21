@@ -146,6 +146,12 @@ export npm_config_update_notifier=false
 export npm_config_auto_install_peers=true
 export npm_config_loglevel=error
 
+case "${PKG_RELEASE_TYPE}" in
+  alpha) 
+    echo "Installing latest npm for alpha release"
+    npm install --location=global npm@latest ;;
+esac
+
 # Install packages
 npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION
 echo "| Homebridge UI | $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"

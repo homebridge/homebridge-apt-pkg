@@ -149,7 +149,8 @@ export npm_config_loglevel=error
 case "${PKG_RELEASE_TYPE}" in
   alpha) 
     echo "Installing latest npm for alpha release"
-    npm install --location=global npm@latest ;;
+    npm install --location=global npm@latest 
+    echo "Installed $(npm -v)"
 esac
 
 # Install packages

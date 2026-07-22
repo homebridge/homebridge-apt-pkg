@@ -22,8 +22,8 @@
   "private": false,
   "dependencies": {
     "@homebridge-plugins/homebridge-plugin-update-check": "3.0.2-beta.22",
-    "@homebridge-plugins/homebridge-updater": "3.1.7",
-    "homebridge": "2.2.2-beta.2",
+    "@homebridge-plugins/homebridge-updater": "3.1.8",
+    "homebridge": "2.2.2-beta.5",
     "homebridge-config-ui-x": "5.27.1-beta.4",
     "node": "22.23.1"
   }

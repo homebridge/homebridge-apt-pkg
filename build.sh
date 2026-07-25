@@ -147,8 +147,8 @@ export npm_config_auto_install_peers=true
 export npm_config_loglevel=error
 
 case "${PKG_RELEASE_TYPE}" in
-  alpha) 
-    echo "Installing latest npm for alpha release"
+  alpha|beta) 
+    echo "Installing latest npm for alpha/beta release"
     npm install --location=global npm@latest 
     echo "Installed $(npm -v)"
 esac

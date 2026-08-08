@@ -22,7 +22,7 @@
   "homepage": "https://github.com/homebridge/homebridge-apt-pkg#readme",
   "private": false,
   "dependencies": {
-    "homebridge": "2.2.1",
+    "homebridge": "2.3.0",
     "homebridge-config-ui-x": "5.27.0",
     "node": "22.23.2"
   }

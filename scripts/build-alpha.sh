@@ -55,15 +55,15 @@ fi
 # Validate architecture
 case "$ARCH" in
   x86_64)
-    BASE_IMAGE="library/debian:bullseye"
+    BASE_IMAGE="library/debian:bookworm"
     QEMU_ARCH="x86_64"
     ;;
   aarch64|arm64)
-    BASE_IMAGE="arm64v8/debian:bullseye"
+    BASE_IMAGE="arm64v8/debian:bookworm"
     QEMU_ARCH="aarch64"
     ;;
   arm|armhf)
-    BASE_IMAGE="balenalib/raspberrypi3-debian:bullseye"
+    BASE_IMAGE="balenalib/raspberrypi3-debian:bookworm"
     QEMU_ARCH="arm"
     ;;
   *)

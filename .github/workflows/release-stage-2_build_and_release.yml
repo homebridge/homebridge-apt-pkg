@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Get base version
-        uses: reecetech/version-increment@2024.10.1
+        uses: reecetech/version-increment@2026.8.4
         id: release_version
         with:
           scheme: semver
@@ -84,7 +84,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Get next stable version
-        uses: reecetech/version-increment@2024.10.1
+        uses: reecetech/version-increment@2026.8.4
         id: release_version
         with:
           scheme: semver

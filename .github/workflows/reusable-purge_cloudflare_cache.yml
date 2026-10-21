@@ -8,6 +8,8 @@ on:
         required: true
       CLOUDFLARE_ZONE_ID:
         required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
 
 jobs:
   purge_cloudflare_cache:
@@ -21,4 +23,5 @@ jobs:
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       run: ./purge-cf-cache.sh

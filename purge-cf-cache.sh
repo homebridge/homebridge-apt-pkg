@@ -2,6 +2,7 @@
 
 # CLOUDFLARE_API_TOKEN=
 # CLOUDFLARE_ZONE_ID=
+# CLOUDFLARE_ACCOUNT_ID=
 
 if [ -z $CLOUDFLARE_API_TOKEN ]; then
   echo >&2 echo "CLOUDFLARE_API_TOKEN missing."
@@ -13,8 +14,13 @@ if [ -z $CLOUDFLARE_ZONE_ID ]; then
   exit 1
 fi
 
+if [ -z $CLOUDFLARE_ACCOUNT_ID ]; then
+  echo >&2 echo "CLOUDFLARE_ACCOUNT_ID missing."
+  exit 1
+fi
+
 # test the token is working still
-curl -sSf -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+curl -sSf -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify" \
   -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
   -H "Content-Type:application/json" > /dev/null
 

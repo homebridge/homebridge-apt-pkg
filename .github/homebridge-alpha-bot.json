@@ -10,11 +10,11 @@
       "packages": [
         {
           "name": "homebridge-config-ui-x",
-          "tag": "alpha"
+          "tag": ["alpha", "beta", "latest"]
         },
         {
           "name": "homebridge",
-          "pattern": "^2.0.0-alpha"
+          "tag": ["alpha", "beta", "latest"]
         },
         {
           "name": "node",
@@ -31,11 +31,11 @@
       "packages": [
         {
           "name": "homebridge-config-ui-x",
-          "tag": "alpha"
+          "tag": ["alpha", "beta", "latest"]
         },
         {
           "name": "homebridge",
-          "pattern": "beta"
+          "tag": ["alpha", "beta", "latest"]
         },
         {
           "name": "node",

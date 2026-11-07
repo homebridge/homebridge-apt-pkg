@@ -1,5 +1,6 @@
 {
   "auto_merge": true,
+  "update_method": "push",
   "git_user": {
     "name": "Homebridge Stable Bot",
     "email": "actions@github.com"

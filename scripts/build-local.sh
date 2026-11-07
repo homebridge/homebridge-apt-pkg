@@ -22,7 +22,7 @@ show_usage() {
     echo "Usage: $0 <release_type> [architecture] [version]"
     echo
     echo "Release Types:"
-    echo "  stable  - Build stable release (uses package.json)"
+    echo "  stable  - Build stable release (uses stable/*/package.json)"
     echo "  beta    - Build beta release (uses beta/*/package.json)"
     echo "  alpha   - Build alpha release (uses alpha/*/package.json)"
     echo
@@ -136,11 +136,19 @@ esac
 # Check if package.json exists for the release type
 case "$RELEASE_TYPE" in
   stable)
-    if [[ ! -f "package.json" ]]; then
-        echo "❌ Error: package.json not found for stable release"
+    case "$ARCH" in
+      x86_64|aarch64)
+        PACKAGE_JSON_PATH="stable/64bit/package.json"
+        ;;
+      arm)
+        PACKAGE_JSON_PATH="stable/32bit/package.json"
+        ;;
+    esac
+    if [[ ! -f "$PACKAGE_JSON_PATH" ]]; then
+        echo "❌ Error: $PACKAGE_JSON_PATH not found for stable release"
         exit 1
     fi
-    echo "📋 Using: package.json"
+    echo "📋 Using: $PACKAGE_JSON_PATH"
     ;;
   beta)
     case "$ARCH" in

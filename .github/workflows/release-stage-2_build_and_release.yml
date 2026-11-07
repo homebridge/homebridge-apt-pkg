@@ -397,11 +397,16 @@ jobs:
           node-version: latest
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Set package.json version
+      - name: Create package.json from the ${{ inputs.release_type }} release stream
         run: |
+          # The npm stub is the stream's 64-bit manifest, so its dependencies record exactly
+          # what this apt release contains. There is no package.json in the repo root.
           NPM_VERSION="${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}"
-          echo "Setting version to $NPM_VERSION"
-          jq ".version = \"$NPM_VERSION\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+          STREAM_PACKAGE_JSON="${{ inputs.release_type }}/64bit/package.json"
+          echo "Creating package.json from $STREAM_PACKAGE_JSON with version $NPM_VERSION"
+          jq --arg version "$NPM_VERSION" \
+            '.name = "@homebridge/homebridge-apt-pkg" | .version = $version | .scripts = {"prepublishOnly": "cp README.npm.md README.md"}' \
+            "$STREAM_PACKAGE_JSON" > package.json
           cat package.json
 
       - name: Publish to npm

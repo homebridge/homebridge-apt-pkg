@@ -85,7 +85,7 @@ These scripts automatically handle Docker image building and container execution
 - `homebridge_vX.X.X_ARCH.manifest` - Build manifest with component versions
 
 ### No Traditional Testing
-This repository has **no unit tests or linting**. The `package.json` test script returns an error. Validation is done by:
+This repository has **no unit tests or linting**. Validation is done by:
 1. Successfully building the package
 2. Installing the package in a clean environment  
 3. Verifying the Homebridge service starts correctly using `hb-service` commands
@@ -119,7 +119,6 @@ This repository has **no unit tests or linting**. The `package.json` test script
 ├── test/                      # Test and validation scripts
 ├── BUILD.md                   # Release workflow documentation
 ├── build.sh                   # Main build script (use with Docker)
-├── package.json               # Legacy configuration for compatibility
 └── purge*.sh                  # CloudFlare cache purging scripts
 ```
 
@@ -145,15 +144,14 @@ This repository has **no unit tests or linting**. The `package.json` test script
 ```
 
 ### Version Control Strategy
-- `package.json` in root: Stable release versions
-- `beta/*/package.json`: Beta release versions  
-- **Dependabot** updates package.json dependencies for stable releases
-- **homebridge-beta-bot** updates `beta/*/package.json` dependencies for beta releases
+- `{stable,beta,alpha,legacy}/{32bit,64bit}/package.json`: the versions each stream bundles
+- **homebridge/dependency-bot** (`.github/homebridge-<stream>-bot.json`) updates them daily
+- There is no `package.json` in the repo root. When Stage 2 publishes `@homebridge/homebridge-apt-pkg` to npm, it creates one from the stream's `64bit/package.json`
 - Release tags created automatically by GitHub workflows
 
 ### GitHub Workflows (4-Stage Release Process)
 
-**Stage 1** (~40 min): Triggered by Dependabot updating package.json
+**Stage 1** (~40 min): Triggered by the dependency bot updating a stream's package.json
 - Builds packages for all architectures using Docker/QEMU
 - Creates pre-release with artifacts
 - Workflow: `stage-1_create_a_release_and_store.yml`
@@ -206,8 +204,6 @@ This repository has **no unit tests or linting**. The `package.json` test script
 1. **For stable releases:** Edit `stable/64bit/package.json` (for 64-bit) or `stable/32bit/package.json` (for 32-bit)
 2. **For beta releases:** Edit `beta/64bit/package.json` (for 64-bit) or `beta/32bit/package.json` (for 32-bit)
 3. **For alpha releases:** Edit `alpha/64bit/package.json` (for 64-bit) or `alpha/32bit/package.json` (for 32-bit)
-4. **Legacy compatibility:** The root `package.json` is maintained for backwards compatibility
-5. **Always update package-lock.json** when manually editing dependencies
 6. Test builds locally using Docker commands or local build scripts
 
 ### Configuring homebridge-beta-bot
@@ -342,7 +338,7 @@ After making any changes to package scripts or configuration, always run through
    bash -n build.sh
    
    # Check that build.sh downloads correct Node.js version
-   cat package.json | jq -r '.dependencies.node'
+   jq -r '.dependencies.node' stable/64bit/package.json
    ```
 
 4. **Package Structure Validation** (< 30 seconds):
@@ -357,10 +353,9 @@ After making any changes to package scripts or configuration, always run through
 5. **Dependencies Validation** (< 30 seconds):
    ```bash
    # Verify all package.json files are valid JSON
-   jq empty package.json beta/32bit/package.json beta/64bit/package.json stable/32bit/package.json stable/64bit/package.json alpha/32bit/package.json alpha/64bit/package.json
+   jq empty beta/32bit/package.json beta/64bit/package.json stable/32bit/package.json stable/64bit/package.json alpha/32bit/package.json alpha/64bit/package.json
    
    # Check version consistency
-   echo "Stable deps:" && jq -r '.dependencies | keys[]' package.json
    echo "Stable 64-bit deps:" && jq -r '.dependencies | keys[]' stable/64bit/package.json
    echo "Beta 64-bit deps:" && jq -r '.dependencies | keys[]' beta/64bit/package.json
    echo "Alpha 64-bit deps:" && jq -r '.dependencies | keys[]' alpha/64bit/package.json

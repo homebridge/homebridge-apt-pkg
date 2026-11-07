@@ -6,7 +6,7 @@ This directory contains local build scripts for testing Homebridge APT packages 
 
 ### Individual Release Stream Scripts
 
-- **`build-stable.sh`** - Build stable releases (uses `package.json`)
+- **`build-stable.sh`** - Build stable releases (uses `stable/*/package.json`)
 - **`build-beta.sh`** - Build beta releases (uses `beta/*/package.json`)  
 - **`build-alpha.sh`** - Build alpha releases (uses `alpha/*/package.json`)
 
@@ -67,7 +67,7 @@ cd scripts/
 
 | Release Type | Package Configuration |
 |-------------|---------------------|
-| `stable` | `package.json` (root) |
+| `stable` | `stable/64bit/package.json` or `stable/32bit/package.json` |
 | `beta` | `beta/64bit/package.json` or `beta/32bit/package.json` |
 | `alpha` | `alpha/64bit/package.json` or `alpha/32bit/package.json` |
 

@@ -10,11 +10,11 @@
       "packages": [
         {
           "name": "homebridge-config-ui-x",
-          "tag": "beta"
+          "tag": ["beta", "latest"]
         },
         {
           "name": "homebridge",
-          "tag": "beta"
+          "tag": ["beta", "latest"]
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",
@@ -31,11 +31,11 @@
       "packages": [
         {
           "name": "homebridge-config-ui-x",
-          "tag": "beta"
+          "tag": ["beta", "latest"]
         },
         {
           "name": "homebridge",
-          "tag": "beta"
+          "tag": ["beta", "latest"]
         },
         {
           "name": "@homebridge-plugins/homebridge-updater",

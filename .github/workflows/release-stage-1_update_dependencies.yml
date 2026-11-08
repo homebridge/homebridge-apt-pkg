@@ -1,8 +1,8 @@
+
 name: Release Stage 1 - Update Alpha, Beta, and Stable Dependencies, Create PRs, Merge PRs and Trigger Stage 2
 
 on:
   schedule:
-    # Process alpha, beta, and stable streams at 8 AM UTC daily
     - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
@@ -10,12 +10,7 @@ on:
         description: 'Release type to update'
         required: true
         type: choice
-        options:
-          - alpha
-          - beta
-          - stable
-          - legacy
-          - all
+        options: [alpha, beta, stable, legacy, all]
         default: 'alpha'
 
 run-name: Release Stage 1 - ${{ github.event_name == 'workflow_dispatch' && format('Manual - {0}', github.event.inputs.release_type) || 'Scheduled' }} Run
@@ -41,7 +36,6 @@ jobs:
               echo "matrix={\"release_type\":[\"${{ github.event.inputs.release_type }}\"]}" >> $GITHUB_OUTPUT
             fi
           else
-            # Scheduled run - process stable, beta, and alpha streams
             echo 'matrix={"release_type":["stable","beta","alpha", "legacy"]}' >> $GITHUB_OUTPUT
           fi
 
@@ -56,15 +50,26 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
+      - name: Create Dependency Bot App Token
+        id: dependency-bot-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
+          private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
+          owner: homebridge
+          repositories: homebridge-apt-pkg
+          permission-contents: write
+
       - name: Run Homebridge ${{ matrix.release_type }} Bot
         id: homebridge-bot
-        uses: homebridge/dependency-bot@latest 
+        uses: homebridge/dependency-bot@latest
         with:
           config_file: '.github/homebridge-${{ matrix.release_type }}-bot.json'
           release_stream: ${{ matrix.release_type }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval
+          PUBLISH_TOKEN: ${{ steps.dependency-bot-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval and merging
 
       - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
         if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
@@ -85,7 +90,7 @@ jobs:
           scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
           github-token: ${{ secrets.GH_TOKEN }}
           timeout-minutes: '30'
-          run-name: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }} - ${{ matrix.release_type }}
+          run-name: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
 
       - name: Cleanup older beta and alpha release and tags
         if: ${{ matrix.release_type != 'stable' }}

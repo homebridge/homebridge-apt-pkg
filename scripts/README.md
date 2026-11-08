@@ -78,7 +78,7 @@ The script automatically selects 32-bit or 64-bit package configurations based o
 Each script:
 
 1. **Validates** the architecture and release type
-2. **Selects** the appropriate Docker base image and QEMU architecture
+2. **Selects** the appropriate Docker base image and target architecture
 3. **Builds** a Docker image with the necessary build tools
 4. **Runs** the containerized build process
 5. **Outputs** the resulting `.deb` package and `.manifest` file
@@ -86,7 +86,6 @@ Each script:
 ## Prerequisites
 
 - Docker with multiarch support
-- QEMU static binaries (included in `build/qemu/`)
 - Internet connection (for downloading Node.js and dependencies)
 
 ## Build Time
@@ -133,7 +132,6 @@ docker build -f build/Dockerfile --platform linux/arm64 \
 - Intel Macs: Build for `x86_64` only
 
 ### Architecture Not Supported
-- Check that the QEMU static binary exists in `build/qemu/qemu-{arch}-static`
 - Verify the architecture name matches supported values
 
 ### Package Configuration Missing

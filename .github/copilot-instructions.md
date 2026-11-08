@@ -20,9 +20,9 @@ This repository builds and publishes Debian/Ubuntu APT packages for Homebridge, 
 sudo apt-get update
 sudo apt-get install -y docker.io jq build-essential debhelper devscripts
 
-# Enable Docker multiarch support
-sudo apt-get install -y binfmt-support qemu-user-static
-docker run --rm --privileged multiarch/qemu-user-static:register --reset
+# Only needed to build a non-native architecture locally on Linux.
+# CI does not need this: every architecture builds on a matching native runner.
+docker run --rm --privileged tonistiigi/binfmt --install all
 ```
 
 ### Building Packages
@@ -103,8 +103,7 @@ This repository has **no unit tests or linting**. Validation is done by:
 │   ├── 32bit/package.json     # Dependencies for 32-bit beta builds
 │   └── 64bit/package.json     # Dependencies for 64-bit beta builds
 ├── build/                      # Docker build configuration
-│   ├── Dockerfile             # Multi-arch build container
-│   └── qemu/                  # QEMU static binaries for emulation
+│   └── Dockerfile             # Multi-arch build container
 ├── deb/                       # Debian package structure
 │   ├── debian/                # Package control files and scripts
 │   ├── etc/                   # System configuration files
@@ -152,7 +151,7 @@ This repository has **no unit tests or linting**. Validation is done by:
 ### GitHub Workflows (4-Stage Release Process)
 
 **Stage 1** (~40 min): Triggered by the dependency bot updating a stream's package.json
-- Builds packages for all architectures using Docker/QEMU
+- Builds packages for all architectures using Docker on native runners
 - Creates pre-release with artifacts
 - Workflow: `stage-1_create_a_release_and_store.yml`
 

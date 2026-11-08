@@ -1,0 +1,100 @@
+# Throwaway test for the QEMU removal. Build only: no secrets, nothing published.
+name: Test - Build Packages Without QEMU
+
+on:
+  push:
+    branches:
+      - test/remove-qemu
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-x86_64
+            os: ubuntu-26.04
+            BASE_IMAGE: library/debian:bookworm
+            QEMU_ARCH: x86_64
+            DEB_ARCH: amd64
+            INSTALL: true
+
+          - name: debian-x86_64
+            os: ubuntu-24.04
+            BASE_IMAGE: library/debian:bookworm
+            QEMU_ARCH: x86_64
+            DEB_ARCH: amd64
+            INSTALL: true
+
+          - name: debian-arm32v6
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: balenalib/raspberrypi3-debian:bookworm
+            QEMU_ARCH: arm
+            DEB_ARCH: armhf
+            INSTALL: false
+
+          - name: debian-arm64v8
+            os: ubuntu-24.04-arm
+            BASE_IMAGE: arm64v8/debian:bookworm
+            QEMU_ARCH: aarch64
+            DEB_ARCH: arm64
+            INSTALL: true
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Show host emulation state
+        run: |
+          echo "host: $(uname -m)"
+          echo "binfmt_misc entries:"
+          ls /proc/sys/fs/binfmt_misc/ || true
+          echo "qemu on host:"
+          ls /usr/bin/qemu-* 2>/dev/null || echo "none"
+
+      - name: Build Docker image
+        run: |
+          docker build -f build/Dockerfile \
+            --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
+            --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
+            -t alpha-package-build \
+            --platform=linux/${{ matrix.QEMU_ARCH }} \
+            --build-arg BUILDKIT_INLINE_CACHE=1 .
+
+      - name: Show container state
+        run: |
+          docker run --rm alpha-package-build sh -c 'echo "container: $(uname -m) QEMU_ARCH=$QEMU_ARCH"; ls /usr/bin/qemu-* 2>/dev/null || echo "no qemu in image"'
+
+      - name: Build package
+        run: |
+          docker run --rm -v $(pwd):/repo \
+            -e PKG_RELEASE_TYPE="alpha" \
+            -e PKG_RELEASE_VERSION="0.0.1~alpha.noqemu" \
+            alpha-package-build
+
+      - name: Check package
+        run: |
+          DEB_FILE=$(ls homebridge*.deb)
+          echo "Built $DEB_FILE"
+          dpkg-deb -f "$DEB_FILE" Package Version Architecture
+          ARCH=$(dpkg-deb -f "$DEB_FILE" Architecture)
+          if [ "$ARCH" != "${{ matrix.DEB_ARCH }}" ]; then
+            echo "::error::Expected ${{ matrix.DEB_ARCH }}, got $ARCH"
+            exit 1
+          fi
+          dpkg-deb -c "$DEB_FILE" | grep -E 'opt/homebridge/bin/node$'
+          ls -l homebridge*.manifest
+
+      - name: Install and check service
+        if: matrix.INSTALL
+        run: |
+          sudo dpkg -i homebridge*.deb || sudo apt-get install -f -y
+          sleep 30
+          sudo hb-service view
+          sudo hb-service status

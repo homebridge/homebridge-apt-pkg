@@ -342,6 +342,18 @@ jobs:
             --sign=${{ secrets.GPG_KEY_ID }} \
             repo/homebridge_v*.deb repo/*.deb
 
+  # Step 4b: Publish to the Cloudflare R2 APT repository, in parallel with S3.
+  # Independent of the S3 jobs and never fails the release (continue-on-error inside).
+  publish_apt_r2:
+    name: Publish to R2 APT Repository
+    needs: [promote_to_release, create_prerelease]
+    if: always() && needs.promote_to_release.result == 'success'
+    uses: ./.github/workflows/reusable-publish_apt_r2.yml
+    with:
+      release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
+      release_channel: ${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}}
+    secrets: inherit
+
   # Step 5: Purge CloudFlare cache
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache

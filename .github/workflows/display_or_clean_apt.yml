@@ -97,3 +97,33 @@ jobs:
           echo "::Group::Display Beta Codename"
           aws s3 ls --recursive s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"
           echo "::endgroup::"
+
+  # R2 copy of the display/clean steps above. Runs alongside S3; remove the S3 jobs at cutover.
+  display_or_clean_apt_r2:
+    name: R2 - Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      STREAM: ${{ inputs.stream }}
+    steps:
+      - name: Delete ${{ inputs.stream }} Metadata and Packages
+        if: ${{ inputs.cleanup == true }}
+        run: |
+          aws s3 rm "s3://$R2_BUCKET/dists/$STREAM/" --recursive --endpoint-url "$R2_ENDPOINT"
+          aws s3 rm "s3://$R2_BUCKET/pool/$STREAM/" --recursive --endpoint-url "$R2_ENDPOINT"
+          echo "Deleted dists/$STREAM/ and pool/$STREAM/ from R2"
+
+      - name: Display Codenames
+        run: |
+          for ch in stable alpha beta; do
+            echo "::group::R2 $ch codename"
+            aws s3 ls --recursive "s3://$R2_BUCKET/dists/$ch/" --endpoint-url "$R2_ENDPOINT" || echo "No $ch codename found"
+            echo "::endgroup::"
+          done
+          aws s3 ls "s3://$R2_BUCKET" --recursive --summarize --endpoint-url "$R2_ENDPOINT" | tail -2

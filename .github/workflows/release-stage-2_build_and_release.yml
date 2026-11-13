@@ -346,11 +346,13 @@ jobs:
   # Independent of the S3 jobs and never fails the release (continue-on-error inside).
   publish_apt_r2:
     name: Publish to R2 APT Repository
-    needs: [promote_to_release, create_prerelease]
+    needs: [promote_to_release, create_prerelease, generate_version, generate_stable_version]
     if: always() && needs.promote_to_release.result == 'success'
     uses: ./.github/workflows/reusable-publish_apt_r2.yml
     with:
       release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
+      version: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
+      npm_version: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
       release_channel: ${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}}
     secrets: inherit
 

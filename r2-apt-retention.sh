@@ -7,6 +7,7 @@
 #
 # Usage: ./r2-apt-retention.sh <codename> <keep>
 # Env:   R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, GPG_KEY_ID
+#        RETENTION_REPORT (optional): file that gets the removed and remaining versions
 #
 set -euo pipefail
 
@@ -37,9 +38,14 @@ for key in $(echo "$LIST" | awk 'NF==3 {print $1 "|" $3}' | sort -u); do
   # Never call delete with an empty list: deb-s3 would delete ALL versions.
   if [ -n "$old" ]; then
     echo "Removing $pkg ($arch): $(echo $old)"
+    [ -n "${RETENTION_REPORT:-}" ] && echo "removed $pkg $arch $(echo $old)" >> "$RETENTION_REPORT"
     # shellcheck disable=SC2086 # versions are passed as separate arguments
     deb-s3 delete "$pkg" "${DEB_S3_ARGS[@]}" --arch="$arch" --sign="$GPG_KEY_ID" --versions $old
   fi
 done
 
 deb-s3 clean "${DEB_S3_ARGS[@]}"
+
+if [ -n "${RETENTION_REPORT:-}" ]; then
+  deb-s3 list "${DEB_S3_ARGS[@]}" | awk 'NF==3 {print "kept", $1, $3, $2}' >> "$RETENTION_REPORT"
+fi

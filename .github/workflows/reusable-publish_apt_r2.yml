@@ -15,6 +15,16 @@ on:
         description: "APT codename (stable, beta, alpha, legacy, test)"
         required: true
         type: string
+      version:
+        description: "APT package version (for the job summary)"
+        required: false
+        type: string
+        default: ""
+      npm_version:
+        description: "npm version of @homebridge/homebridge-apt-pkg (for the job summary)"
+        required: false
+        type: string
+        default: ""
       public_host:
         description: "Hostname serving the R2 bucket, used for the cache purge"
         required: false
@@ -39,6 +49,7 @@ jobs:
       AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
       GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
       CHANNEL: ${{ inputs.release_channel }}
+      RETENTION_REPORT: ${{ github.workspace }}/r2-retention-report.txt
       KEEP_VERSIONS: ${{ inputs.release_channel == 'stable' && '3' || '2' }}
     steps:
       - uses: actions/checkout@v7
@@ -92,7 +103,8 @@ jobs:
           total=$(aws s3 ls "s3://$R2_BUCKET" --recursive --summarize --endpoint-url "$R2_ENDPOINT" \
             | awk '/Total Size/ {print $3}')
           gb=$(awk -v b="$total" 'BEGIN {printf "%.2f", b / 1024^3}')
-          echo "R2 bucket size: ${gb} GB" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "R2 bucket size: ${gb} GB"
+          echo "R2_SIZE_GB=$gb" >> "$GITHUB_ENV"
           if [ "$total" -gt 10200547328 ]; then      # 9.5 GB
             echo "::error::R2 bucket is ${gb} GB, close to the 10 GB free tier. Lower KEEP_VERSIONS."
             exit 1
@@ -109,3 +121,44 @@ jobs:
           sed 's#://repo.homebridge.io/#://${{ inputs.public_host }}/#' repo/cf-cache-purge-urls.json \
             > repo/cf-cache-purge-urls-r2.json
           ./purge-cf-cache.sh repo/cf-cache-purge-urls-r2.json
+
+      - name: Write Job Summary
+        if: always()
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          VERSION: ${{ inputs.version }}
+          NPM_VERSION: ${{ inputs.npm_version }}
+          NPM_TAG: ${{ inputs.release_channel == 'stable' && 'latest' || inputs.release_channel }}
+          PUBLIC_HOST: ${{ inputs.public_host }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## R2 APT publish: $CHANNEL ($JOB_STATUS)"
+            echo
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| GitHub Release | [$RELEASE_TAG](https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG) |"
+            echo "| APT version | \`${VERSION:-n/a}\` |"
+            echo "| APT codename | \`$CHANNEL\` |"
+            echo "| npm version | \`${NPM_VERSION:-n/a}\` |"
+            echo "| npm dist-tag | \`$NPM_TAG\` |"
+            echo "| Versions kept | $KEEP_VERSIONS per package and architecture |"
+            echo "| Bucket size | ${R2_SIZE_GB:-unknown} GB of 10 GB free tier |"
+            echo "| Repository | https://$PUBLIC_HOST |"
+            echo
+            echo "### Packages uploaded"
+            echo
+            echo "| File | Size |"
+            echo "|---|---|"
+            for f in repo/*.deb; do
+              [ -e "$f" ] && echo "| \`$(basename "$f")\` | $(du -h "$f" | cut -f1) |"
+            done
+            if [ -s "$RETENTION_REPORT" ]; then
+              echo
+              echo "### In R2 after cleanup ($CHANNEL)"
+              echo
+              echo "| Package | Arch | Version | Status |"
+              echo "|---|---|---|---|"
+              awk '{s=$1; p=$2; a=$3; $1=$2=$3=""; sub(/^ +/, ""); print "| " p " | " a " | `" $0 "` | " s " |"}' "$RETENTION_REPORT"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

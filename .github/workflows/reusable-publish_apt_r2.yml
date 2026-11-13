@@ -1,0 +1,111 @@
+name: "Publish to R2 APT Repository"
+
+# Publishes a release to the Cloudflare R2 APT repository, alongside the S3 publish.
+# Fully independent of S3: when S3 is retired, only the S3 jobs are removed.
+# Failures here never fail the release (continue-on-error).
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "GitHub Release tag to publish"
+        required: true
+        type: string
+      release_channel:
+        description: "APT codename (stable, beta, alpha, legacy, test)"
+        required: true
+        type: string
+      public_host:
+        description: "Hostname serving the R2 bucket, used for the cache purge"
+        required: false
+        type: string
+        default: apt-test.homebridge.io
+
+jobs:
+  publish_apt_r2:
+    name: Publish to R2 APT Repository
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      # aws CLI talks to R2, not AWS
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      CHANNEL: ${{ inputs.release_channel }}
+      KEEP_VERSIONS: ${{ inputs.release_channel == 'stable' && '3' || '2' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download from GitHub Release
+        uses: robinraju/release-downloader@v1.13
+        with:
+          tag: ${{ inputs.release_tag }}
+          fileName: 'homebridge*.deb'
+          out-file-path: 'repo/'
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install deb-s3
+        run: |
+          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
+          sudo gem install deb-s3-0.11.8.gem
+
+      - name: Upload to R2 APT Repository
+        run: |
+          sudo chown -R $USER: repo/
+          # R2 has no object ACLs: send "private"; public access comes from the custom domain.
+          deb-s3 upload \
+            --codename="$CHANNEL" \
+            --suite="$CHANNEL" \
+            --preserve-versions \
+            --bucket="$R2_BUCKET" \
+            --endpoint="$R2_ENDPOINT" \
+            --s3-region=auto \
+            --force-path-style \
+            --visibility=private \
+            --access-key-id="$R2_ACCESS_KEY_ID" \
+            --secret-access-key="$R2_SECRET_ACCESS_KEY" \
+            --sign="$GPG_KEY_ID" \
+            repo/homebridge_v*.deb repo/*.deb
+
+      - name: Upload Public GPG Key
+        run: |
+          aws s3 cp repo/KEY.gpg "s3://$R2_BUCKET/KEY.gpg" \
+            --endpoint-url "$R2_ENDPOINT" --content-type application/pgp-keys
+
+      - name: Remove Old Versions (keep ${{ env.KEEP_VERSIONS }})
+        run: ./r2-apt-retention.sh "$CHANNEL" "$KEEP_VERSIONS"
+
+      - name: Check Bucket Size
+        run: |
+          total=$(aws s3 ls "s3://$R2_BUCKET" --recursive --summarize --endpoint-url "$R2_ENDPOINT" \
+            | awk '/Total Size/ {print $3}')
+          gb=$(awk -v b="$total" 'BEGIN {printf "%.2f", b / 1024^3}')
+          echo "R2 bucket size: ${gb} GB" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$total" -gt 10200547328 ]; then      # 9.5 GB
+            echo "::error::R2 bucket is ${gb} GB, close to the 10 GB free tier. Lower KEEP_VERSIONS."
+            exit 1
+          elif [ "$total" -gt 8589934592 ]; then     # 8 GB
+            echo "::warning::R2 bucket is ${gb} GB (free tier is 10 GB)."
+          fi
+
+      - name: Purge Cloudflare Cache (${{ inputs.public_host }})
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          sed 's#://repo.homebridge.io/#://${{ inputs.public_host }}/#' repo/cf-cache-purge-urls.json \
+            > repo/cf-cache-purge-urls-r2.json
+          ./purge-cf-cache.sh repo/cf-cache-purge-urls-r2.json

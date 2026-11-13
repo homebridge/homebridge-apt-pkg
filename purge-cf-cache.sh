@@ -30,7 +30,8 @@ if [ "$?" != "0" ]; then
 fi
 
 # get list of files to purge
-PURGE_URLS_PAYLOAD=$(cat ./repo/cf-cache-purge-urls.json)
+# Optional first argument: a different URL list (used for the R2 hostname)
+PURGE_URLS_PAYLOAD=$(cat "${1:-./repo/cf-cache-purge-urls.json}")
 
 # purge cache
 curl -sSf -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \

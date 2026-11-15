@@ -231,31 +231,26 @@ jobs:
 
       - name: Create GitHub Prerelease
         id: create_release
-        uses: docker://ghcr.io/mini-bomba/create-github-release:v1.2.0
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          tag: ${{ steps.release_details.outputs.tag_name }}
-          prerelease: true
-          draft: false
-          name: ${{ steps.release_details.outputs.release_title }}
-          files: |
-            *.deb
-            *.manifest
-          body: ${{ steps.release_body.outputs.BODY_FILE }}
-          clear_attachments: true
-          fail_on_no_files: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ steps.release_details.outputs.tag_name }}
+          TITLE: ${{ steps.release_details.outputs.release_title }}
+          BODY_FILE: ${{ steps.release_body.outputs.BODY_FILE }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, clearing attachments and updating"
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r asset; do
+              gh release delete-asset "$TAG" "$asset" --yes
+            done
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$BODY_FILE" --prerelease --draft=false
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes-file "$BODY_FILE" --prerelease
+          fi
+          gh release upload "$TAG" *.deb *.manifest --clobber
 
       - name: Set release tag output
         run: |
           echo "release_tag=${{ steps.release_details.outputs.tag_name }}" >> $GITHUB_OUTPUT
-
-      - name: Update release body
-        uses: tubone24/update_release@v1.3.1
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          TAG_NAME: ${{ steps.release_details.outputs.tag_name }}
-        with:
-          body_path: ${{ steps.release_body.outputs.BODY_FILE }}
 
   prelease_created_notice:
     name: Prerelease Created Notice

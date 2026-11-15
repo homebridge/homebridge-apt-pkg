@@ -83,7 +83,7 @@ jobs:
 
       - name: Download prerelease assets
         id: download_assets
-        uses: robinraju/release-downloader@v1.13
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1.13
         with:
           tag: ${{ inputs.release_tag }}
           preRelease: ${{ inputs.prerelease }}
@@ -104,7 +104,7 @@ jobs:
           fi
 
       - name: Download and install AMD64 package
-        uses: robinraju/release-downloader@v1.13
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1.13
         with:
           tag: ${{ inputs.release_tag }}
           preRelease: ${{ inputs.prerelease }}
@@ -168,7 +168,7 @@ jobs:
 
       - name: Configure AWS Credentials
         if: failure()
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

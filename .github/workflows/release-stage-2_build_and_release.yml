@@ -180,6 +180,15 @@ jobs:
     outputs:
       release_tag: ${{ steps.release_details.outputs.tag_name  }}
     steps:
+      - name: Create GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
+          private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
+          owner: homebridge
+          repositories: homebridge-apt-pkg
+          permission-contents: write
       - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v8
@@ -224,7 +233,7 @@ jobs:
         id: create_release
         uses: docker://ghcr.io/mini-bomba/create-github-release:v1.2.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           tag: ${{ steps.release_details.outputs.tag_name }}
           prerelease: true
           draft: false
@@ -243,7 +252,7 @@ jobs:
       - name: Update release body
         uses: tubone24/update_release@v1.3.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG_NAME: ${{ steps.release_details.outputs.tag_name }}
         with:
           body_path: ${{ steps.release_body.outputs.BODY_FILE }}
@@ -279,9 +288,19 @@ jobs:
     if: always() && needs.validate_prerelease.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
+          private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
+          owner: homebridge
+          repositories: homebridge-apt-pkg
+          permission-contents: write
       - name: Promote prerelease to full release
         uses: actions/github-script@v9
         with:
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const { data: release } = await github.rest.repos.getReleaseByTag({
               owner: context.repo.owner,
@@ -433,13 +452,22 @@ jobs:
     if: ${{ inputs.release_type == 'stable' }}
     runs-on: ubuntu-latest
     steps:
+    - name: Create GitHub App Token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
+        private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
+        owner: homebridge
+        repositories: homebridge-apt-pkg
+        permission-contents: write
     - name: Checkout repository
       uses: actions/checkout@v7
 
     # Mark stable release as non-prerelease and latest
     - name: Mark Stable Release as Non-Prerelease and Latest
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         gh release edit ${{ needs.create_prerelease.outputs.release_tag }} \
           --prerelease=false \

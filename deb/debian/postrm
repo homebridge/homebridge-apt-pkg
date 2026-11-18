@@ -25,6 +25,7 @@ if [ "$1" = "purge" ]; then
   echo "Running post-purge steps..."
   rm -rf /var/lib/homebridge
   echo "Removed /var/lib/homebridge"
+  rm -rf /var/lib/homebridge-apt-pkg
 fi
 
 exit 0

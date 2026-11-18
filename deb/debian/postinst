@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# These scripts never make dpkg fail half-way (they always end with "exit 0"). So when a step
+# does not work, say it clearly: the admin must be able to see it in the apt output.
+warn() { echo "WARNING: $*" >&2; }
+
 # Files that must survive from one of these scripts to the next are kept here.
 # Only root may write to this folder. Never use a folder in /tmp for this: any user can create
 # it first, and /tmp is emptied on a reboot.
@@ -50,19 +54,20 @@ fi
 # post-install and post-upgrade: the service user must exist before npm runs as that user
 if [ "$1" = "configure" ]; then
   # create user
-  adduser --system --group homebridge --home /home/homebridge 2> /dev/null
+  if ! getent passwd homebridge > /dev/null; then
+    adduser --system --group homebridge --home /home/homebridge > /dev/null \
+      || warn "could not create the 'homebridge' user. The Homebridge service can not start without it."
+  fi
 
   # some old versions didn't create the homebridge group
   if ! getent group homebridge > /dev/null; then
-    addgroup --system homebridge 2> /dev/null
-    usermod -g homebridge homebridge 2> /dev/null
+    { addgroup --system homebridge > /dev/null && usermod -g homebridge homebridge; } \
+      || warn "could not create the 'homebridge' group."
   fi
 
-  # copy .bashrc to service user home
-  cp /opt/homebridge/bashrc /home/homebridge/.bashrc
-
-  # fix permissions on homebridge user home
-  chown -R homebridge: /home/homebridge/.bashrc
+  # copy .bashrc to service user home, and give it to that user
+  { cp /opt/homebridge/bashrc /home/homebridge/.bashrc && chown homebridge: /home/homebridge/.bashrc; } \
+    || warn "could not write /home/homebridge/.bashrc."
 fi
 
 # The user the service runs as: "homebridge", or the User= of a systemd override.
@@ -124,7 +129,8 @@ if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] &&
     SERVICE_HOME=$(getent passwd "$SERVICE_USER" | cut -d: -f6)
     chown -R "$SERVICE_USER": /var/lib/homebridge
     runuser -u "$SERVICE_USER" -- env "HOME=${SERVICE_HOME:-/var/lib/homebridge}" "USER=$SERVICE_USER" "LOGNAME=$SERVICE_USER" \
-      sh -c '. /opt/homebridge/source.sh && cd /var/lib/homebridge && npm --prefix /var/lib/homebridge install && npm --prefix /var/lib/homebridge rebuild'
+      sh -c '. /opt/homebridge/source.sh && cd /var/lib/homebridge && npm --prefix /var/lib/homebridge install && npm --prefix /var/lib/homebridge rebuild' \
+      || warn "npm could not refresh the plugins (is the network up?). Some plugins may not start. To try again: run 'sudo hb-shell', then 'npm --prefix /var/lib/homebridge install'."
     echo ""
   fi
 
@@ -139,13 +145,13 @@ if [ "$1" = "configure" ]; then
   # add user to default groups if running on raspbian
   if [ -f /usr/bin/raspi-config ]; then
     for groupName in udio bluetooth dialout gpio video input i2c spi audio render; do
-      usermod -a -G $groupName homebridge 2> /dev/null
+      usermod -a -G "$groupName" homebridge 2> /dev/null
     done
   fi
 
   # on install only
   # if running on Offical Homebridge Raspberry Pi, run as the "pi" user (uid 1000) instead
-  if [ -z $2 ] && [ -f /usr/bin/raspi-config ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
+  if [ -z "$2" ] && [ -f /usr/bin/raspi-config ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
     getent passwd 1000 > /dev/null
     if [ "$?" -eq 0 ]; then
       mkdir -p /etc/systemd/system/homebridge.service.d
@@ -168,13 +174,15 @@ if [ "$1" = "configure" ]; then
     [ "$SYSTEMD_RUNNING" = "1" ] && systemctl daemon-reload
 
     if [ "$FRESH_INSTALL" = "1" ]; then
-      systemctl enable homebridge.service
+      systemctl enable homebridge.service \
+        || warn "could not enable the Homebridge service. It will not start when the machine boots."
     fi
 
     if [ "$SYSTEMD_RUNNING" = "1" ]; then
       if [ "$FRESH_INSTALL" = "1" ] || [ "$WAS_RUNNING" = "1" ]; then
         echo "Starting Homebridge service...."
-        systemctl restart homebridge.service
+        systemctl restart homebridge.service \
+          || warn "the Homebridge service did not start. To see why: journalctl -u homebridge -n 50"
       else
         echo "The Homebridge service was not running before the upgrade, so it is not started."
         echo "Start it with: systemctl start homebridge"
@@ -182,11 +190,9 @@ if [ "$1" = "configure" ]; then
     fi
   fi
 
-  # create symlink to hb-shell
-  ln -fs /opt/homebridge/hb-shell /usr/local/bin/hb-shell
-
-  # create symlink to hb-service-shim
-  ln -fs /opt/homebridge/hb-service-shim /usr/local/bin/hb-service
+  # create symlinks to hb-shell and to hb-service-shim
+  { ln -fs /opt/homebridge/hb-shell /usr/local/bin/hb-shell && ln -fs /opt/homebridge/hb-service-shim /usr/local/bin/hb-service; } \
+    || warn "could not create the hb-shell and hb-service commands in /usr/local/bin."
 
   # remove symlinks create by npm for global hb-service installs
   rm -rf /usr/bin/hb-service

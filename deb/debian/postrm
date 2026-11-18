@@ -2,6 +2,10 @@
 
 STATE_DIR=/var/lib/homebridge-apt-pkg
 
+# These scripts never make dpkg fail half-way (they always end with "exit 0"). So when a step
+# does not work, say it clearly: the admin must be able to see it in the apt output.
+warn() { echo "WARNING: $*" >&2; }
+
 # Folders that "preinst upgrade" moves aside (to "<name>.apt-old"). See the note there.
 MOVED_ASIDE=(
   /var/lib/homebridge/node_modules/homebridge
@@ -16,14 +20,15 @@ if [ "$1" = "abort-upgrade" ]; then
   for dir in "${MOVED_ASIDE[@]}"; do
     if [ -d "$dir.apt-old" ]; then
       rm -rf "$dir"
-      mv "$dir.apt-old" "$dir"
+      mv "$dir.apt-old" "$dir" || warn "could not put $dir back. Its old content is in $dir.apt-old."
     fi
   done
   rm -f "$STATE_DIR/package.json.saved"
   if [ -e "$STATE_DIR/was-running" ]; then
     rm -f "$STATE_DIR/was-running"
     echo "Starting Homebridge service...."
-    systemctl start homebridge.service
+    systemctl start homebridge.service \
+      || warn "the Homebridge service did not start. To see why: journalctl -u homebridge -n 50"
   fi
 fi
 

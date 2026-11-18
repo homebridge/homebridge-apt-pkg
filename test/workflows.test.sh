@@ -32,4 +32,20 @@ assert_contains "$(stage2 '.jobs.mark_latest.if')" "inputs.release_type == 'stab
 assert_contains "$(stage2 '.jobs.mark_latest.needs | join(" ")')" "validate_apt" "it waits for the check of the APT repository"
 assert_contains "$(stage2 '.jobs.mark_latest.if')" "needs.validate_apt.result == 'success'" "and only runs when that check passed"
 
+section "before publishing: the package is installed and started on every CPU type"
+VALIDATE="$WORK/validate.json"
+yaml_json "$WORKFLOWS/reusable-validate-homebridge.yml" > "$VALIDATE"
+validate() { jq -r "$1" "$VALIDATE"; }
+assert_eq '["amd64","arm64"]' "$(validate '.jobs.validate_prerelease_homebridge.strategy.matrix.include | map(.arch) | tojson')" \
+  "the prerelease check runs on Intel and on 64-bit ARM runners"
+# shellcheck disable=SC2016 # the text is a line of the workflow, not a variable to expand here
+assert_contains "$(validate '.jobs.validate_prerelease_homebridge.steps | map(.run // "") | join("\n")')" \
+  'validate-deb.sh --upgrade-from-apt "$CHANNEL" --lifecycle' "it upgrades from the published package, then removes, installs again and purges"
+assert_contains "$(validate '.jobs.validate_prerelease_armhf.steps | map(.run // "") | join("\n")')" \
+  "--platform linux/arm/v7" "the 32-bit ARM package is installed and started in a 32-bit container"
+assert_eq "validate_prerelease" "$(stage2 '.jobs.promote_to_release.needs | map(select(. == "validate_prerelease")) | .[0]')" \
+  "Stage 2 only promotes and publishes after that check"
+assert_contains "$(stage2 '.jobs.promote_to_release.if')" "needs.validate_prerelease.result == 'success'" "and only when it passed"
+assert_eq "null" "$(validate '.true.workflow_call.secrets | tojson')" "the check needs no secret"
+
 finish

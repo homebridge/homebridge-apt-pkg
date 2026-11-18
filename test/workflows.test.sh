@@ -32,6 +32,11 @@ assert_contains "$(stage2 '.jobs.mark_latest.if')" "inputs.release_type == 'stab
 assert_contains "$(stage2 '.jobs.mark_latest.needs | join(" ")')" "validate_apt" "it waits for the check of the APT repository"
 assert_contains "$(stage2 '.jobs.mark_latest.if')" "needs.validate_apt.result == 'success'" "and only runs when that check passed"
 
+section "Stage 2: alpha, beta and legacy releases can never become the latest release"
+promote=$(stage2 '.jobs.promote_to_release.steps | map(.run // "") | join("\n")')
+assert_contains "$promote" "--prerelease=false --latest=false" "the promote step says 'not latest' in so many words"
+assert_eq "mark_latest" "$latest_job" "and only the mark_latest job (stable only) sets latest"
+
 section "before publishing: the package is installed and started on every CPU type"
 VALIDATE="$WORK/validate.json"
 yaml_json "$WORKFLOWS/reusable-validate-homebridge.yml" > "$VALIDATE"

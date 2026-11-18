@@ -172,6 +172,45 @@ assert_eq "8581" "$(status_port '{"bridge":{}}')" "a config without platforms: 8
 assert_eq "8581" "$(status_port 'not json')" "a config.json that is not valid JSON: 8581"
 fake runuser
 
+section "the service user comes from systemd, the home folder from the user database"
+fake_systemctl
+fake_script id << 'EOF'
+#!/bin/sh
+if [ "$1" = "-u" ] && [ "$#" -eq 1 ]; then echo 0; exit 0; fi
+if [ "$1" = "-nu" ]; then
+  case "$2" in pi | 1000) echo pi; exit 0 ;; homebridge) echo homebridge; exit 0 ;; *) exit 1 ;; esac
+fi
+PATH="$REAL_PATH" exec id "$@"
+EOF
+fake_script getent << 'EOF'
+#!/bin/sh
+[ "$1 $2" = "passwd pi" ] && echo "pi:x:1000:1000:,,,:/home/pi:/bin/bash"
+exit 0
+EOF
+sandbox_new unit-user
+FAKE_SERVICE_USER=1000 run_in "$ROOT/cwd" "$BASH" "$SHIM" status
+assert_contains "$(stublog)" "[runuser] -u pi -- env -i HOME=/home/pi USER=pi LOGNAME=pi" "hb-service: the user of the unit (User=1000) and that user's real home folder"
+: > "$STUBLOG"
+FAKE_SERVICE_USER=1000 run_in "$ROOT/cwd" sh "$(sandbox_script deb/opt/homebridge/hb-shell)"
+assert_contains "$(stublog)" "[runuser] -u pi -- env -i HOME=/home/pi USER=pi LOGNAME=pi" "hb-shell: the same"
+: > "$STUBLOG"
+FAKE_SERVICE_USER=ghost run_in "$ROOT/cwd" "$BASH" "$SHIM" status
+assert_contains "$OUT" "ERROR: User 'ghost'" "a user that does not exist is reported"
+assert_contains "$(stublog)" "[runuser] -u homebridge -- env -i HOME=/home/homebridge" "and the default user is used"
+: > "$STUBLOG"
+run_in "$ROOT/cwd" "$BASH" "$SHIM" status
+assert_contains "$(stublog)" "[runuser] -u homebridge -- env -i HOME=/home/homebridge" "no systemd answer (a container): the default user"
+fake systemctl getent
+fake_root_id
+
+section "commands that do not exist"
+sandbox_new unknown
+run_in "$ROOT/cwd" "$BASH" "$SHIM" no-such-command
+assert_eq 1 "$STATUS" "an unknown command ends with exit code 1"
+assert_contains "$OUT" "rebuild " "the command list names rebuild"
+run_in "$ROOT/cwd" "$BASH" "$SHIM"
+assert_eq 0 "$STATUS" "no command at all shows the list, with exit code 0"
+
 section "-V prints the Homebridge version, for Homebridge 1 and 2"
 sandbox_new version
 run_in "$ROOT/cwd" "$BASH" "$SHIM" -V

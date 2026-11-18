@@ -25,6 +25,21 @@ MOVED_ASIDE=(
   /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
 )
 
+# old_plugin_list: print a plugin list (package.json content) for an old "hb-service install"
+# set-up. The plugins are the "homebridge-*" packages in npm's global folder. That folder is the
+# one the old systemd unit starts the UI from, or one of the two usual places.
+old_plugin_list() {
+  local from_unit dir manifest
+  from_unit=$(grep -oE '/[^ "]*/node_modules/homebridge-config-ui-x/' /etc/systemd/system/homebridge.service 2> /dev/null | head -n 1)
+  for dir in "${from_unit%/homebridge-config-ui-x/}" /usr/local/lib/node_modules /usr/lib/node_modules; do
+    [ -n "$dir" ] && [ -d "$dir" ] || continue
+    for manifest in "$dir"/homebridge-*/package.json "$dir"/@*/homebridge-*/package.json; do
+      [ -f "$manifest" ] || continue
+      jq -c 'select((.name | type) == "string" and (.version | type) == "string") | {(.name): .version}' "$manifest" 2> /dev/null
+    done
+  done | jq -s '{dependencies: ((add // {}) | del(.["homebridge-config-ui-x"]) | del(.homebridge))}'
+}
+
 # before install
 if [ "$1" = "install" ]; then
   echo "Running pre-install steps..."
@@ -47,41 +62,15 @@ if [ "$1" = "install" ]; then
 
   # check for existing homebridge.service 
   if [ -f /etc/systemd/system/homebridge.service ]; then
-    # try and get a list of the installed plugins and create a temporary package.json that will be used to install them again in the new location
-    if [ ! -f /var/lib/homebridge/package.json ] && [ -f /var/lib/homebridge/config.json ] && [ -f /var/lib/homebridge/.uix-secrets ]; then
-      if systemctl is-active --quiet homebridge.service; then
-        # get the ui port
-        ui_port=$(cat /var/lib/homebridge/config.json | jq -rM '.platforms[] | select(.platform == "config") | .port' 2> /dev/null)
-        # generate a jwt for the http request
-        secret=$(cat /var/lib/homebridge/.uix-secrets | jq '.secretKey' | tr -d '"')
-        header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
-        payload=$(echo -n '{"username":"homebridge-apt-pkg","name":"homebridge-apt-pkg","admin":true,"instanceId":"xxxxxxxx"}' | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
-        signature=$(echo -n "${header}.${payload}"| openssl dgst -sha256 -hmac $secret -binary | openssl base64 -e -A | sed s/\+/-/g | sed -E s/=+$// | sed 's/\//_/g')
-        token="${header}.${payload}.${signature}"
-        
-        # get the list of installed plugins from the running instance of the Homebridge UI
-        output=""
-        getPluginStatus="fail"
-        for protocol in "http" "https"; do
-          output=$(curl -sfk -H "Authorization: bearer ${token}" $protocol://localhost:${ui_port}/api/plugins 2> /dev/null)
-          if [ "$?" = "0" ]; then
-            getPluginStatus="success"
-            break
-          fi
-        done
-
-        if [ "$getPluginStatus" = "success" ]; then
-          # build a package.json like format containing the list of plugins the user has installed
-          dependencies=$(echo $output | jq -rM '. | map({(.name) : .installedVersion }) | add | del(."homebridge-config-ui-x") | del(."homebridge")')
-          packageJson=$(jq ".dependencies += $dependencies" <<< '{ "dependencies": {} }')
-          if [ "$?" = "0" ]; then
-            pluginCount=$(echo $dependencies | jq length)
-            if [ $pluginCount -gt 0 ]; then
-              # save the package.json file where the postinst script will pick it up
-              ensure_state_dir && echo $packageJson > "$SAVED_PACKAGE_JSON"
-            fi
-          fi
-        fi
+    # An old "hb-service install" set-up keeps Homebridge and its plugins in npm's global folder.
+    # Make a list of those plugins, so that postinst installs them again in the new place.
+    # The list is read from the files on disk. (It used to be asked from the running UI with a
+    # home-made login token. The UI has refused such tokens since v5.24.0, so no plugin came over.)
+    if [ ! -f /var/lib/homebridge/package.json ] && [ -f /var/lib/homebridge/config.json ]; then
+      packageJson=$(old_plugin_list)
+      if [ "$(jq '.dependencies | length' <<< "$packageJson" 2> /dev/null)" -gt 0 ] 2> /dev/null; then
+        echo "Found plugins of the old install. They will be installed again in /var/lib/homebridge."
+        ensure_state_dir && printf '%s\n' "$packageJson" > "$SAVED_PACKAGE_JSON"
       fi
     fi
 

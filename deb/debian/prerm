@@ -13,8 +13,16 @@ ensure_state_dir() {
   mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
 }
 
+# On a remove, the lines that debhelper adds here stop the service (while its files still exist).
+#DEBHELPER#
+
 # before remove (not before an upgrade)
 if [ "$1" = "remove" ]; then
+  # turn the service off while its unit file is still there
+  if command -v systemctl > /dev/null 2>&1; then
+    systemctl disable homebridge.service 2> /dev/null
+  fi
+
   # "apt remove" keeps the user's data, but package.json is a file of the package, so dpkg deletes
   # it. Keep a copy of the plugin list: the next install merges it back and installs the plugins.
   if [ -f /var/lib/homebridge/package.json ] && [ ! -L /var/lib/homebridge/package.json ]; then
@@ -24,7 +32,5 @@ if [ "$1" = "remove" ]; then
   # tells the next postinst that this is an install after a remove, not an upgrade
   ensure_state_dir && touch "$STATE_DIR/removed"
 fi
-
-#DEBHELPER#
 
 exit 0

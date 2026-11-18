@@ -34,10 +34,33 @@ if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] &&
   # enter homebridge env
   . "/opt/homebridge/source.sh"
 
-  # merge the new package.json into the old one, and save
-  PACKAGE_JSON=$(jq -M -s '.[0] * .[1]' "$SAVED_PACKAGE_JSON" /var/lib/homebridge/package.json) > /var/lib/homebridge/package.json
-  if [ "$?" = "0" ]; then
-    echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
+  # The user's plugin list and the list this package ships become one file. The UI is never part
+  # of it. The result is written to a new file and checked before it replaces package.json, so a
+  # problem can never leave an empty or half-written plugin list behind.
+  MERGED_PACKAGE_JSON="$STATE_DIR/package.json.merged"
+  merge_plugin_list() {
+    jq -M -s '(.[0] * .[1]) | del(.dependencies["homebridge-config-ui-x"])' "$1" /var/lib/homebridge/package.json > "$MERGED_PACKAGE_JSON" 2> /dev/null \
+      && jq -e '(.dependencies | type) == "object"' "$MERGED_PACKAGE_JSON" > /dev/null 2>&1
+  }
+
+  PLUGIN_LIST_MERGED=1
+  if ! merge_plugin_list "$SAVED_PACKAGE_JSON"; then
+    echo "WARNING: the saved plugin list is not valid JSON. It is kept as $STATE_DIR/package.json.not-merged."
+    echo "Building the plugin list from the plugins found in node_modules instead."
+    cp "$SAVED_PACKAGE_JSON" "$STATE_DIR/package.json.not-merged"
+    if ! /opt/homebridge/rebuild-package-json.sh /var/lib/homebridge > "$STATE_DIR/package.json.rebuilt" \
+      || ! merge_plugin_list "$STATE_DIR/package.json.rebuilt"; then
+      PLUGIN_LIST_MERGED=0
+    fi
+    rm -f "$STATE_DIR/package.json.rebuilt"
+  fi
+
+  if [ "$PLUGIN_LIST_MERGED" = "1" ]; then
+    chmod 644 "$MERGED_PACKAGE_JSON"
+    mv -f "$MERGED_PACKAGE_JSON" /var/lib/homebridge/package.json
+  else
+    rm -f "$MERGED_PACKAGE_JSON"
+    echo "WARNING: could not merge the plugin list. Your plugins are not removed, but they are missing from /var/lib/homebridge/package.json."
   fi
 
   # remove the package-lock.json
@@ -45,23 +68,15 @@ if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] &&
     rm -rf /var/lib/homebridge/package-lock.json
   fi
 
-  # remove homebridge-config-ui-x from the package.json
-  if [ -e /var/lib/homebridge/package.json ]; then
-    if [ "$(cat /var/lib/homebridge/package.json | jq -r '.dependencies."homebridge-config-ui-x"')" != "null" ]; then
-      packageJson="$(cat /var/lib/homebridge/package.json | jq -rM 'del(."dependencies"."homebridge-config-ui-x")')"
-      if [ "$?" = "0" ]; then
-        printf "$packageJson" > /var/lib/homebridge/package.json
-        echo "Removed homebridge-config-ui-x from package.json"
-      fi
-    fi
+  # Re-install user plugins. Not when the merge failed: "npm install" removes every plugin
+  # that is not in package.json.
+  if [ "$PLUGIN_LIST_MERGED" = "1" ]; then
+    echo "Refreshing user plugins, this may take a few minutes, please wait..."
+    echo ""
+    npm --prefix /var/lib/homebridge install
+    npm --prefix /var/lib/homebridge rebuild
+    echo ""
   fi
-
-  # Re-install user plugins
-  echo "Refreshing user plugins, this may take a few minutes, please wait..."
-  echo ""
-  npm --prefix /var/lib/homebridge install
-  npm --prefix /var/lib/homebridge rebuild
-  echo ""
 
   # the saved copy has been used
   rm -f "$SAVED_PACKAGE_JSON"

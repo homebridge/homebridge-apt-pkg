@@ -13,22 +13,16 @@ cd $HB_SERVICE_STORAGE_PATH
 # another name, and write a new list from what is installed in node_modules.
 PACKAGE_JSON="$HB_SERVICE_STORAGE_PATH/package.json"
 
-rebuild_package_json() {
-  for manifest in "$HB_SERVICE_STORAGE_PATH"/node_modules/*/package.json "$HB_SERVICE_STORAGE_PATH"/node_modules/@*/*/package.json; do
-    [ -f "$manifest" ] || continue
-    # a plugin added with "hb-service link" is a link to a source folder, not an npm install
-    [ -L "$(dirname "$manifest")" ] && continue
-    jq -c 'select((.name | type) == "string" and (.version | type) == "string") | {(.name): .version}' "$manifest" 2> /dev/null
-  done | jq -s '{dependencies: ((add // {}) | del(.["homebridge-config-ui-x"]))}' > "$PACKAGE_JSON.new" \
-    && mv -f "$PACKAGE_JSON.new" "$PACKAGE_JSON"
-}
-
 if [ -e "$PACKAGE_JSON" ] && ! jq -e 'type == "object"' "$PACKAGE_JSON" > /dev/null 2>&1; then
   BROKEN_COPY="$PACKAGE_JSON.broken-$(date +%Y%m%d-%H%M%S)"
   echo "ERROR: $PACKAGE_JSON is not a valid JSON file. It is kept as $BROKEN_COPY."
   echo "Writing a new plugin list from the plugins found in node_modules. No plugin is removed."
   mv -f "$PACKAGE_JSON" "$BROKEN_COPY"
-  rebuild_package_json || echo "ERROR: could not write a new $PACKAGE_JSON."
+  if /opt/homebridge/rebuild-package-json.sh "$HB_SERVICE_STORAGE_PATH" > "$PACKAGE_JSON.new"; then
+    mv -f "$PACKAGE_JSON.new" "$PACKAGE_JSON"
+  else
+    echo "ERROR: could not write a new $PACKAGE_JSON."
+  fi
 fi
 
 # remove the package-lock.json

@@ -58,6 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # R2 is still a test copy of the repository, so a failure here must not fail the release.
+    # REMOVE this line on the day R2 becomes the live repository: from then on a failed
+    # publish must be seen.
     continue-on-error: true
     env:
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -120,18 +123,7 @@ jobs:
         run: ./r2-apt-retention.sh "$CHANNEL" "$KEEP_VERSIONS"
 
       - name: Check Bucket Size
-        run: |
-          total=$(aws s3 ls "s3://$R2_BUCKET" --recursive --summarize --endpoint-url "$R2_ENDPOINT" \
-            | awk '/Total Size/ {print $3}')
-          gb=$(awk -v b="$total" 'BEGIN {printf "%.2f", b / 1024^3}')
-          echo "R2 bucket size: ${gb} GB"
-          echo "R2_SIZE_GB=$gb" >> "$GITHUB_ENV"
-          if [ "$total" -gt 10200547328 ]; then      # 9.5 GB
-            echo "::error::R2 bucket is ${gb} GB, close to the 10 GB free tier. Lower KEEP_VERSIONS."
-            exit 1
-          elif [ "$total" -gt 8589934592 ]; then     # 8 GB
-            echo "::warning::R2 bucket is ${gb} GB (free tier is 10 GB)."
-          fi
+        run: ./scripts/check-bucket-size.sh
 
       - name: Purge Cloudflare Cache (${{ inputs.public_host }})
         env:

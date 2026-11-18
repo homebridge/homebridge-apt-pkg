@@ -282,7 +282,9 @@ jobs:
       - name: Output Success Notice
         run: echo "::notice::📦 Created prerelease ${{ needs.create_prerelease.outputs.release_tag }} with ${{ inputs.release_type}} changes"
 
-  # Step 2: Validate prerelease artifacts
+  # Step 2: Validate the prerelease packages BEFORE anything is published:
+  # install (as an upgrade from the published package), start, versions, remove, purge.
+  # Intel and 64-bit ARM on real runners, 32-bit ARM in a container.
   validate_prerelease:
     name: Validate GitHub Prerelease Artifacts
     needs: [create_prerelease, prelease_created_notice]
@@ -291,11 +293,7 @@ jobs:
     with:
       validation_type: "prerelease"
       release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
-      prerelease: true
-      latest: false
-    secrets:
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      release_channel: ${{ inputs.release_type }}
 
   # Step 3: Promote prerelease to full release after validation passes
   promote_to_release:
@@ -405,15 +403,13 @@ jobs:
   # Step 6: Validate APT installation after publishing
   validate_apt:
     name: Validate APT Installation
-    needs: [purge_cloudflare_cache, publish_apt]
+    needs: [purge_cloudflare_cache, publish_apt, generate_version, generate_stable_version]
     if: always() && needs.publish_apt.result == 'success'
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "apt"
-      release_channel: ${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}}
-    secrets:
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      release_channel: ${{ inputs.release_type }}
+      expected_version: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
 
   # Step 7: Publish to NPM
   publish_to_npm:

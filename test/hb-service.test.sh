@@ -69,6 +69,26 @@ assert_contains "$OUT" "Success: @scope/homebridge-dev unlinked" "unlink reports
 assert_missing "$(MODULES)/@scope/homebridge-dev" "the link is gone"
 assert_exists "$DEV/package.json" "the source folder is untouched"
 
+section "link: the plugin is already installed as a normal plugin"
+sandbox_new link-installed
+dev_folder '{"name":"homebridge-foo"}'
+run_in "$DEV" "$BASH" "$SHIM" link
+assert_eq 1 "$STATUS" "exit code 1 (the old code said Success and linked nothing)"
+assert_contains "$OUT" "Remove the installed plugin first: hb-service remove homebridge-foo" "it says what to do"
+assert_missing "$(MODULES)/homebridge-foo/plugin" "no link is put inside the installed folder"
+assert_exists "$(MODULES)/homebridge-foo/package.json" "the installed plugin is untouched"
+
+section "link: the plugin is linked to another folder"
+sandbox_new link-replace
+dev_folder '{"name":"homebridge-dev"}'
+mkdir -p "$ROOT/dev/old-copy"
+ln -s "$ROOT/dev/old-copy" "$(MODULES)/homebridge-dev"
+run_in "$DEV" "$BASH" "$SHIM" link
+assert_eq "$(realpath "$DEV")" "$(realpath "$(MODULES)/homebridge-dev")" "the link now points at the current folder"
+assert_missing "$ROOT/dev/old-copy/plugin" "no link is put inside the old folder"
+run_in "$DEV" "$BASH" "$SHIM" link
+assert_contains "$OUT" "is already linked" "linking the same folder twice is reported"
+
 section "link: a name with ../ in it"
 sandbox_new link-dotdot
 dev_folder '{"name":"../../escape"}'

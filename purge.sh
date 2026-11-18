@@ -1,62 +1,81 @@
 #!/bin/bash
-
 #
-# This script is to purge s3 of older package versions
+# Removes old package versions from the S3 apt repository.
+# Every package file with a version LOWER than MIN_VERSION is deleted from the pool of one channel.
 #
+# Env (all required):
+#   MIN_VERSION    the oldest version to keep, for example 2.0.20
+#   RELEASE_TYPE   the channel: stable, beta, alpha, legacy or test
+#   S3_BUCKET      for example repo.homebridge.io
+#   S3_REGION      for example us-west-2
+# Env (optional):
+#   DRY_RUN=1      only print what would be deleted
+#
+# After a real run the apt index must be rebuilt ("deb-s3 verify --fix-manifests", see purge.yml).
 
-# minimum version to keep
-# MIN_VERSION=1.0.2
+set -euo pipefail
 
-# stable | test
-# RELEASE_TYPE=stable
+cd "$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck source=scripts/lib/versions.sh
+. scripts/lib/versions.sh
 
-# bucket name
-# S3_BUCKET=repo.homebridge.io
+: "${MIN_VERSION:?MIN_VERSION is required, for example 2.0.20}"
+: "${RELEASE_TYPE:?RELEASE_TYPE is required: stable, beta, alpha, legacy or test}"
+: "${S3_BUCKET:?S3_BUCKET is required}"
+: "${S3_REGION:?S3_REGION is required}"
+DRY_RUN="${DRY_RUN:-0}"
 
-# region
-# S3_REGION=us-west-2
+if [[ ! "$MIN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "MIN_VERSION must look like 2.0.20 (got: $MIN_VERSION)" >&2
+  exit 2
+fi
+case "$RELEASE_TYPE" in
+  stable | beta | alpha | legacy | test) ;;
+  *)
+    echo "Unknown RELEASE_TYPE: $RELEASE_TYPE" >&2
+    exit 2
+    ;;
+esac
 
-# from https://stackoverflow.com/a/4025065
-vercomp () {
-    if [[ $1 == $2 ]]
-    then
-        return 0
-    fi
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    # fill empty fields in ver1 with zeros
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
-    do
-        ver1[i]=0
-    done
-    for ((i=0; i<${#ver1[@]}; i++))
-    do
-        if [[ -z ${ver2[i]} ]]
-        then
-            # fill empty fields in ver2 with zeros
-            ver2[i]=0
-        fi
-        if ((10#${ver1[i]} > 10#${ver2[i]}))
-        then
-            return 1
-        fi
-        if ((10#${ver1[i]} < 10#${ver2[i]}))
-        then
-            return 2
-        fi
-    done
-    return 0
-}
+# file names look like homebridge_v2.0.26_amd64.deb (older ones have no "v")
+keys=$(aws s3api list-objects --region "$S3_REGION" --bucket "$S3_BUCKET" --prefix "pool/$RELEASE_TYPE/h/ho/" --output json \
+  | jq -r '.Contents // [] | .[].Key')
 
-# loop over the objects in the bucket and find packages to remove
-for i in $(aws s3api list-objects --region $S3_REGION --bucket "$S3_BUCKET" --prefix pool/$RELEASE_TYPE/h/ho/ | jq ".Contents[] | .Key"); do
-  version=${i#*_}
-  version=${version%_*}
-  vercomp $MIN_VERSION $version
-  result=$?
-  if [ $result -eq 1 ]; then
-    key=$(echo "$i" | tr -d '"')
-    echo "Removing ($version) from s3 at $key"
-    aws s3api delete-object --region $S3_REGION --bucket "$S3_BUCKET" --key="$key"  --output=json
+to_delete=()
+kept=0
+while IFS= read -r key; do
+  [ -n "$key" ] || continue
+  file="${key##*/}"
+  version="${file#*_}"
+  version="${version%_*}"
+  version="${version#v}"
+  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    echo "Skipping $key (no version found in the name)"
+    continue
+  fi
+  # compare the x.y.z part only: 2.0.27.beta.20261118 counts as 2.0.27
+  if version_lt "${BASH_REMATCH[0]}" "$MIN_VERSION"; then
+    to_delete+=("$key")
+  else
+    kept=$((kept + 1))
+  fi
+done <<< "$keys"
+
+if [ "${#to_delete[@]}" -eq 0 ]; then
+  echo "Nothing in pool/$RELEASE_TYPE is older than $MIN_VERSION."
+  exit 0
+fi
+if [ "$kept" -eq 0 ]; then
+  echo "Stopped: every package in pool/$RELEASE_TYPE is older than $MIN_VERSION, so this would delete all of them." >&2
+  exit 1
+fi
+
+for key in "${to_delete[@]}"; do
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "Would remove s3://$S3_BUCKET/$key"
+  else
+    echo "Removing s3://$S3_BUCKET/$key"
+    aws s3api delete-object --region "$S3_REGION" --bucket "$S3_BUCKET" --key "$key" --output json
   fi
 done
+echo "${#to_delete[@]} file(s) $([ "$DRY_RUN" = "1" ] && echo "would be removed" || echo "removed"), $kept kept."

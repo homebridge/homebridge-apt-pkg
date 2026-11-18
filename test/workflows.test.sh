@@ -66,6 +66,11 @@ assert_contains "$(clean '.jobs.display_or_clean_apt_r2.steps | map(.run // "") 
 assert_eq '["beta","alpha","legacy"]' "$(clean '.true.workflow_dispatch.inputs.stream.options | tojson')" "legacy can be chosen; stable can not be erased here"
 assert_not_contains "$(cat "$WORKFLOWS/display_or_clean_apt.yml")" "::Group::" "log groups use the right spelling"
 
+section "nothing runs with a stranger's pull request in a trusted context, except the labeler"
+assert_eq "pr-labeler.yml" "$(grep -l 'pull_request_target' "$WORKFLOWS"/*.yml | xargs -n 1 basename | tr '\n' ' ' | sed 's/ $//')" \
+  "only the labeler uses pull_request_target (the debug logger that printed every event is gone)"
+assert_eq "" "$(grep -l 'toJson(github)' "$WORKFLOWS"/*.yml)" "no workflow prints the whole event to the log"
+
 section "rights and secrets: every job gets only what it needs"
 for file in "$WORKFLOWS"/*.yml; do
   name=$(basename "$file")

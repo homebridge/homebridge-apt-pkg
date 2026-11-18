@@ -1,8 +1,31 @@
 #!/bin/sh
 
-# Ensure the storage path permissions are correct
+# Runs as root before every start of the service. $USER is the user the service runs as.
+#
+# The service user gets:
+# - the storage folder (config and plugins);
+# - the Node.js runtime and the UI in /opt/homebridge: bin, lib, include, share, and Node's own
+#   CHANGELOG.md, LICENSE and README.md. "hb-service update-node" and UI updates replace these
+#   as the service user.
+#
+# The service user does NOT get the scripts in /opt/homebridge (hb-service-shim, hb-shell,
+# source.sh ...). root runs those ("sudo hb-service", "sudo hb-shell"), so a plugin must not be
+# able to change them. The folder itself belongs to root, with the "sticky" mode: the service
+# user can add files to it, but can only replace or delete files of its own.
 if [ -n "$USER" ] && [ "$USER" != "root" ]; then
-  echo "Ensuring /var/lib/homebridge and /opt/homebridge are owned by $USER"
+  echo "Ensuring /var/lib/homebridge and the Node.js runtime in /opt/homebridge are owned by $USER"
   [ -d /var/lib/homebridge ] || mkdir -p /var/lib/homebridge
-  chown -R $USER: /var/lib/homebridge /opt/homebridge
+  chown -R "$USER": /var/lib/homebridge
+
+  if [ -d /opt/homebridge ]; then
+    chown root:"$(id -gn "$USER")" /opt/homebridge
+    chmod 1775 /opt/homebridge
+    for entry in /opt/homebridge/* /opt/homebridge/.[!.]*; do
+      [ -e "$entry" ] || [ -L "$entry" ] || continue
+      case "${entry##*/}" in
+        bin | lib | include | share | CHANGELOG.md | LICENSE | README.md) chown -R "$USER": "$entry" ;;
+        *) chown -h root:root "$entry" ;;
+      esac
+    done
+  fi
 fi

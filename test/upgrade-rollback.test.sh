@@ -11,6 +11,7 @@
 fake pstree chown adduser addgroup usermod ufw hostname npm getent
 fake_systemctl
 PREINST=$(sandbox_script deb/debian/preinst)
+fake_runuser
 POSTINST=$(sandbox_script deb/debian/postinst)
 POSTRM=$(sandbox_script deb/debian/postrm)
 STORAGE() { printf '%s\n' "$ROOT/var/lib/homebridge"; }

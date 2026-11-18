@@ -12,6 +12,7 @@ fake pstree chown adduser addgroup usermod ufw hostname npm getent
 fake_systemctl
 PRERM=$(sandbox_script deb/debian/prerm)
 POSTRM=$(sandbox_script deb/debian/postrm)
+fake_runuser
 POSTINST=$(sandbox_script deb/debian/postinst)
 STORAGE() { printf '%s\n' "$ROOT/var/lib/homebridge"; }
 STATE() { printf '%s\n' "$ROOT/var/lib/homebridge-apt-pkg"; }
@@ -28,7 +29,9 @@ assert_exists "$(STORAGE)/config.json" "config.json is kept"
 assert_exists "$(STATE)/package.json.saved" "the saved list is still there after the remove"
 
 section "install again: the saved list is merged back and the plugins are installed"
-echo '{"dependencies":{"homebridge":"2.5.1"}}' > "$(STORAGE)/package.json" # dpkg unpacks the new files
+assert_missing "$ROOT/opt/homebridge" "/opt/homebridge is removed"
+sandbox_unpack_opt # dpkg unpacks the new files
+echo '{"dependencies":{"homebridge":"2.5.1"}}' > "$(STORAGE)/package.json"
 : > "$STUBLOG"
 run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.26
 assert_json "$(STORAGE)/package.json" '.dependencies == {"homebridge":"2.5.1","homebridge-foo":"^1.2.3","homebridge-bar":"4.5.6"}' \

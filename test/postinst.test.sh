@@ -6,6 +6,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 fake systemctl adduser addgroup usermod ufw chown hostname npm getent
+fake_runuser
 POSTINST=$(sandbox_script deb/debian/postinst)
 NEW='{"dependencies":{"homebridge":"2.5.0"}}' # the plugin list the new package ships
 STATE() { printf '%s\n' "$ROOT/var/lib/homebridge-apt-pkg"; }
@@ -64,5 +65,18 @@ upgrade_from '{"dependencies":{"homebridge-foo":"1.0.0"},"description":"a * b   
 run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.25
 assert_json "$(LIST)" '.description == "a * b   c"' "the text is unchanged"
 assert_contains "$(stublog)" "[npm] --prefix /var/lib/homebridge install" "the plugins are refreshed"
+
+section "upgrade: npm runs as the service user, and root never loads files from /opt/homebridge"
+sandbox_new as-user
+# a hook file that a plugin could have planted; it notes who loads it
+# shellcheck disable=SC2016 # the text is the content of the hook file
+echo 'echo "hook loaded, as the service user: ${INSIDE_RUNUSER:-0}" >> "$ROOT/hook.log"' > "$ROOT/opt/homebridge/source-vm.sh"
+upgrade_from '{"dependencies":{"homebridge":"2.4.0","homebridge-foo":"^1.2.3"}}'
+run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.25
+assert_contains "$(stublog)" "[runuser] -u homebridge -- env HOME=" "npm is started through runuser, as the service user"
+assert_contains "$(stublog)" "[npm] --prefix /var/lib/homebridge install" "npm install runs"
+assert_contains "$(stublog)" "[npm] --prefix /var/lib/homebridge rebuild" "npm rebuild runs"
+assert_contains "$(stublog)" "[chown] -R homebridge: /var/lib/homebridge" "the storage folder is given to the service user first"
+assert_eq "hook loaded, as the service user: 1" "$(sort -u "$ROOT/hook.log")" "the hook file is only ever loaded as the service user"
 
 finish

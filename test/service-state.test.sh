@@ -27,6 +27,29 @@ assert_contains "$log" "[systemctl] restart homebridge.service" "start"
 assert_not_contains "$log" "unmask" "a mask is never removed"
 assert_contains "$OUT" "Homebridge Installation Complete!" "the welcome text is shown"
 
+section "first install with a config.json whose UI block has no port"
+sandbox_new first-no-port
+systemd_is_running
+unpacked
+echo '{"platforms":[{"platform":"config"}]}' > "$ROOT/var/lib/homebridge/config.json"
+mkdir -p "$ROOT/usr/sbin"
+touch "$ROOT/usr/sbin/ufw"
+fake_script ufw << 'EOF'
+#!/bin/sh
+echo "[ufw] $*" >> "$STUBLOG"
+[ "$1" = "status" ] && echo "Status: active"
+exit 0
+EOF
+fake_script hostname << 'EOF'
+#!/bin/sh
+echo "192.0.2.10"
+EOF
+FAKE_ACTIVE=0 run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure
+assert_contains "$(stublog)" "[ufw] allow 8581/tcp" "the firewall rule is for port 8581 (the old code tried 'null/tcp')"
+assert_contains "$OUT" "* http://192.0.2.10:8581" "the printed address uses port 8581"
+assert_not_contains "$OUT" "null" "the word null is not printed"
+fake ufw hostname
+
 section "upgrade, the service was running: it is started again, nothing else changes"
 sandbox_new upgrade-running
 systemd_is_running

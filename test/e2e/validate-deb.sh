@@ -203,7 +203,10 @@ check_versions() {
 
   # the shipped npm settings must not use options that npm warns about (they stop working later)
   local npm_warnings
-  npm_warnings=$(cd "$STORAGE" && runuser -u homebridge -- env HOME=/home/homebridge sh -c '. /opt/homebridge/source.sh && npm config ls --loglevel=warn' 2>&1 | grep -i "warn" || true)
+  npm_warnings=$(
+    cd "$STORAGE" || exit
+    runuser -u homebridge -- env HOME=/home/homebridge sh -c '. /opt/homebridge/source.sh && npm config ls --loglevel=warn' 2>&1 | grep -i "warn"
+  ) || true
   [ -z "$npm_warnings" ] || die "npm warns about its settings: $npm_warnings"
   pass "npm has no complaint about the shipped settings"
 
@@ -250,7 +253,9 @@ install_deb() {
 
 # install_from_apt <channel>: install the package that repo.homebridge.io serves for a channel
 install_from_apt() {
-  command -v curl > /dev/null && command -v gpg > /dev/null || apt-get install -y curl gpg > /dev/null 2>&1 || die "could not install curl and gpg"
+  if ! command -v curl > /dev/null || ! command -v gpg > /dev/null; then
+    apt-get install -y curl gpg > /dev/null 2>&1 || die "could not install curl and gpg"
+  fi
   curl -sSfL https://repo.homebridge.io/KEY.gpg | gpg --dearmor --yes -o /usr/share/keyrings/homebridge-validate.gpg || die "could not fetch the repository key"
   echo "deb [signed-by=/usr/share/keyrings/homebridge-validate.gpg] https://repo.homebridge.io $1 main" > /etc/apt/sources.list.d/homebridge-validate.list
   apt-get update > /dev/null 2>&1 || die "apt-get update with the homebridge repository failed"

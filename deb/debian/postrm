@@ -27,14 +27,12 @@ if [ "$1" = "abort-upgrade" ]; then
   fi
 fi
 
-# if removing - ensure app data is gone, but keep user data unless purgin
+# if removing - ensure app data is gone, but keep user data unless purging
 if [ "$1" = "remove" ]; then
   echo "Running post-remove steps..."
-  # stop service
+  # prerm has already stopped and disabled the service, while its files were still there.
+  # This stop is only for the rare case where that did not work.
   systemctl stop homebridge.service 2> /dev/null
-
-  # disable systemctl service
-  systemctl disable homebridge.service 2> /dev/null
 
   # remove symlink to hb-shell
   rm -rf /usr/local/bin/hb-shell
@@ -45,6 +43,11 @@ if [ "$1" = "remove" ]; then
   # ensure package is completely gone
   rm -rf /var/lib/homebridge/node_modules /var/lib/homebridge/package-lock.json /var/lib/homebridge/pnpm-lock.yaml
   rm -rf /opt/homebridge
+
+  # the unit file is gone now: tell systemd
+  if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+  fi
 fi
 
 # if purging - delete the /var/lib/homebridge folder entirely

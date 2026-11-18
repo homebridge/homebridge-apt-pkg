@@ -21,10 +21,15 @@ section "remove: the plugin list is saved before dpkg deletes package.json"
 sandbox_new remove
 echo '{"dependencies":{"homebridge":"2.5.0","homebridge-foo":"^1.2.3","homebridge-bar":"4.5.6"}}' > "$(STORAGE)/package.json"
 echo '{"bridge":{}}' > "$(STORAGE)/config.json"
+mkdir -p "$ROOT/run/systemd/system" # systemd is running
 run_in "$ROOT/cwd" "$BASH" "$PRERM" remove
+assert_contains "$(stublog)" "[systemctl] disable homebridge.service" "prerm turns the service off while its unit file still exists"
 assert_json "$(STATE)/package.json.saved" '.dependencies | keys == ["homebridge","homebridge-bar","homebridge-foo"]' "a copy of the list is kept"
 rm -f "$(STORAGE)/package.json" # dpkg deletes the package's files
+: > "$STUBLOG"
 run_in "$ROOT/cwd" "$BASH" "$POSTRM" remove
+assert_not_contains "$(stublog)" "disable" "postrm does not try to disable a unit whose file is gone"
+assert_contains "$(stublog)" "[systemctl] daemon-reload" "postrm tells systemd that the unit file is gone"
 assert_exists "$(STORAGE)/config.json" "config.json is kept"
 assert_exists "$(STATE)/package.json.saved" "the saved list is still there after the remove"
 

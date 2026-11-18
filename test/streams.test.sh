@@ -68,6 +68,20 @@ assert_contains "$control" "Section: net" "the section is a real Debian section"
 assert_contains "$control" "Homepage: https://homebridge.io" "the homepage uses https"
 assert_eq "3" "$(grep -c '^ [A-Za-z]' "$REPO/deb/debian/control")" "the description has a few lines of text under its first line"
 
+section "the cache purge list names every index file of every channel that is built, and nothing else"
+expected=$(
+  echo "https://repo.homebridge.io/KEY.gpg"
+  for channel in stable beta alpha legacy; do
+    for file in InRelease Release Release.gpg; do echo "https://repo.homebridge.io/dists/$channel/$file"; done
+    for arch in amd64 arm64 armhf; do
+      echo "https://repo.homebridge.io/dists/$channel/main/binary-$arch/Packages"
+      echo "https://repo.homebridge.io/dists/$channel/main/binary-$arch/Packages.gz"
+    done
+  done
+)
+assert_eq "$(printf '%s\n' "$expected" | sort)" "$(jq -r '.files[]' "$REPO/repo/cf-cache-purge-urls.json" | sort)" \
+  "stable, beta, alpha and legacy; amd64, arm64 and armhf (no 'test' channel, no i386)"
+
 section "what the stream files list, the bots track, and build.sh installs is the same set"
 for stream in stable beta alpha legacy; do
   for arch in 32bit 64bit; do

@@ -4,14 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       min_version:
-        description: 'Enter minimum version to keep (x.x.x):'     
+        description: 'Oldest version to keep (x.x.x). Everything lower is removed.'
         required: true
       release_type:
         type: choice
         description: Release Type
-        options: 
+        options:
         - stable
+        - beta
+        - alpha
+        - legacy
         - test
+      dry_run:
+        type: boolean
+        description: 'Dry run: only list what would be removed'
+        default: true
 
 jobs:
   purge_old_releases:
@@ -39,11 +46,13 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         MIN_VERSION: ${{ github.event.inputs.min_version }}
         RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+        DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         S3_BUCKET: repo.homebridge.io
         S3_REGION: us-west-2
       run: ./purge.sh
 
     - name: Update Repo
+      if: ${{ !inputs.dry_run }}
       run: |
         deb-s3 verify \
           --codename=${{ github.event.inputs.release_type }} \
@@ -57,6 +66,7 @@ jobs:
   purge_cloudflare_cache:
     name: Clear Cache
     needs: purge_old_releases
+    if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/reusable-purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

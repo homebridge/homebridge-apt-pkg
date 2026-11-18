@@ -147,51 +147,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [
-          debian-x86_64,
-          debian-arm32v6,
-          debian-arm64v8,
-        ]
-        include: 
+        # Each architecture builds on a runner that can run its programs directly (no emulation).
+        # The build image for each one is set in scripts/build-local.sh.
+        include:
           - name: debian-x86_64
             os: ubuntu-latest
-            BASE_IMAGE: library/debian:bookworm
             QEMU_ARCH: x86_64
 
-          - name: debian-arm32v6
+          - name: debian-arm32v7
             os: ubuntu-24.04-arm
-            # the official 32-bit ARM (armhf) Debian image
-            BASE_IMAGE: arm32v7/debian:bookworm
             QEMU_ARCH: arm
 
           - name: debian-arm64v8
             os: ubuntu-24.04-arm
-            BASE_IMAGE: arm64v8/debian:bookworm
             QEMU_ARCH: aarch64
 
-    steps: 
+    steps:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
-    - name: Build Docker image
-      run: |
-        docker build -f build/Dockerfile \
-          --build-arg BASE_IMAGE=${{ matrix.BASE_IMAGE }} \
-          --build-arg QEMU_ARCH=${{ matrix.QEMU_ARCH }} \
-          -t ${{ inputs.release_type}}-package-build \
-          --platform=linux/${{ matrix.QEMU_ARCH }} \
-          --cache-from=${{ inputs.release_type}}-package-build:latest \
-          --build-arg BUILDKIT_INLINE_CACHE=1 .
-      continue-on-error: false
-
     - name: Build package
-      run: |
-        docker run --rm -v $(pwd):/repo \
-          -e PKG_RELEASE_TYPE="${{ inputs.release_type}}" \
-          -e PKG_RELEASE_VERSION="${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}" \
-          ${{ inputs.release_type}}-package-build
-      continue-on-error: false
+      env:
+        RELEASE_TYPE: ${{ inputs.release_type }}
+        QEMU_ARCH: ${{ matrix.QEMU_ARCH }}
+        PKG_RELEASE_VERSION: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
+      run: ./scripts/build-local.sh "$RELEASE_TYPE" "$QEMU_ARCH" "$PKG_RELEASE_VERSION"
 
     - name: Rename package to include v
       run: |

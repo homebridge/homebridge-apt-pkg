@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs every "*.test.sh" file in this folder. Exits 1 if any check failed.
-# Needs: bash 4 or newer, jq, git. No root rights, no network.
+# Needs: Linux (GNU tools), bash 4 or newer, jq, git, python3 with PyYAML. No root rights, no network.
 #
 # Usage: test/run.sh [name ...]      for example: test/run.sh postinst start
 

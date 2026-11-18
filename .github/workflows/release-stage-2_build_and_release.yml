@@ -493,29 +493,28 @@ jobs:
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_LATEST }}
 
-# stable release should be marked as non-prerelease, and latest
-  stable-release-is-latest:
-    needs: [create_prerelease,promote_to_release]
-    if: ${{ inputs.release_type == 'stable' }}
+  # Step 9: Mark a stable release as "latest" on GitHub, once it can be installed from the APT repository.
+  # README.md sends manual installers to the "latest" release page.
+  # The "always()" matters: the alpha/beta version job is skipped on a stable run, and without
+  # "always()" GitHub then skips this job too (that is how "latest" got stuck on v1.7.12).
+  mark_latest:
+    name: Mark Stable Release as Latest
+    needs: [create_prerelease, validate_apt]
+    if: always() && needs.validate_apt.result == 'success' && inputs.release_type == 'stable'
     runs-on: ubuntu-latest
     steps:
-    - name: Create GitHub App Token
-      id: app-token
-      uses: actions/create-github-app-token@v3
-      with:
-        app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
-        private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
-        owner: homebridge
-        repositories: homebridge-apt-pkg
-        permission-contents: write
-    - name: Checkout repository
-      uses: actions/checkout@v7
+      - name: Create GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.DEPENDENCY_BOT_APP_ID }}
+          private-key: ${{ secrets.DEPENDENCY_BOT_PRIVATE_KEY }}
+          owner: homebridge
+          repositories: homebridge-apt-pkg
+          permission-contents: write
 
-    # Mark stable release as non-prerelease and latest
-    - name: Mark Stable Release as Non-Prerelease and Latest
-      env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
-      run: |
-        gh release edit ${{ needs.create_prerelease.outputs.release_tag }} \
-          --prerelease=false \
-          --latest
+      - name: Mark Stable Release as Non-Prerelease and Latest
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAG: ${{ needs.create_prerelease.outputs.release_tag }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest

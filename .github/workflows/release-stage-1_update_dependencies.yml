@@ -89,8 +89,8 @@ jobs:
           release-type: ${{ matrix.release_type }}
           scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
           github-token: ${{ secrets.GH_TOKEN }}
-          timeout-minutes: '30'
-          run-name: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
+          # a stable release took 88 minutes on 14 Nov 2026
+          timeout-minutes: '150'
 
       - name: Cleanup older beta and alpha release and tags
         if: ${{ matrix.release_type != 'stable' }}

@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# This file is loaded by bash (the Homebridge Terminal in the UI, and "hb-shell"). It is not run.
 
 GREEN='\033[1;32m'
 BOLD='\e[1m'
@@ -7,20 +8,21 @@ NC='\033[0m'
 
 PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w \$\[\033[00m\] "
 
+# "%b" prints the colour codes; the text itself is never used as the printf format
 if id -nG "$USER" | grep -qw "sudo"; then
-  printf "${CYAN}Note: This is a restricted shell.${NC}\n\n"
+  printf '%b\n\n' "${CYAN}Note: This is a restricted shell.${NC}"
 else
-  printf "${CYAN}Note: This is a restricted shell, sudo cannot be used here.${NC}\n\n"
+  printf '%b\n\n' "${CYAN}Note: This is a restricted shell, sudo cannot be used here.${NC}"
   alias sudo='echo "ERROR: sudo / root access is not allowed by the homebridge service account. You can use \"su <username>\" to swap to your local user account. " # '
 fi
 
-printf "${GREEN}Homebridge Terminal${NC}\n\n"
+printf '%b\n\n' "${GREEN}Homebridge Terminal${NC}"
 
-printf "${BOLD}Node.js Version:${NC} ${GREEN}$(node -v)${NC}\n"
-printf "${BOLD}Node.js Path:${NC} ${GREEN}$(which node)${NC}\n"
-printf "${BOLD}Plugin Path:${NC} ${GREEN}/var/lib/homebridge/node_modules${NC}\n\n"
+printf '%b %b\n' "${BOLD}Node.js Version:${NC}" "${GREEN}$(node -v)${NC}"
+printf '%b %b\n' "${BOLD}Node.js Path:${NC}" "${GREEN}$(which node)${NC}"
+printf '%b %b\n\n' "${BOLD}Plugin Path:${NC}" "${GREEN}/var/lib/homebridge/node_modules${NC}"
 
-printf "${BOLD}Update Node.js:${NC} ${GREEN}hb-service update-node${NC}\n\n"
+printf '%b %b\n\n' "${BOLD}Update Node.js:${NC}" "${GREEN}hb-service update-node${NC}"
 
-printf "${BOLD}Install Plugin:${NC} ${GREEN}hb-service add homebridge-plugin-name${NC}\n"
-printf "${BOLD}Remove Plugin:${NC} ${GREEN}hb-service remove homebridge-plugin-name${NC}\n\n"
+printf '%b %b\n' "${BOLD}Install Plugin:${NC}" "${GREEN}hb-service add homebridge-plugin-name${NC}"
+printf '%b %b\n\n' "${BOLD}Remove Plugin:${NC}" "${GREEN}hb-service remove homebridge-plugin-name${NC}"

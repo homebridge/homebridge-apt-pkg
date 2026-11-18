@@ -37,8 +37,9 @@ for key in $(echo "$LIST" | awk 'NF==3 {print $1 "|" $3}' | sort -u); do
     | awk -v k="$KEEP" '{v[NR]=$0} END {for (i = 1; i <= NR - k; i++) print v[i]}')
   # Never call delete with an empty list: deb-s3 would delete ALL versions.
   if [ -n "$old" ]; then
-    echo "Removing $pkg ($arch): $(echo $old)"
-    [ -n "${RETENTION_REPORT:-}" ] && echo "removed $pkg $arch $(echo $old)" >> "$RETENTION_REPORT"
+    old_on_one_line="${old//$'\n'/ }"
+    echo "Removing $pkg ($arch): $old_on_one_line"
+    [ -n "${RETENTION_REPORT:-}" ] && echo "removed $pkg $arch $old_on_one_line" >> "$RETENTION_REPORT"
     # shellcheck disable=SC2086 # versions are passed as separate arguments
     deb-s3 delete "$pkg" "${DEB_S3_ARGS[@]}" --arch="$arch" --sign="$GPG_KEY_ID" --versions $old
   fi

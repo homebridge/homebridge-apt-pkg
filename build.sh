@@ -94,14 +94,16 @@ case "$BUILD_ARCH" in
 esac
 
 MANIFEST="homebridge_apt_pkg_$NODE_ARCH.manifest"
-echo "Homebridge Apt Package Manifest" > "$MANIFEST"
-echo >> "$MANIFEST"
-echo "**Release Version**: ${PKG_RELEASE_VERSION:-unknown}" >> "$MANIFEST"
-echo "**Release Type**: ${PKG_RELEASE_TYPE:-stable}" >> "$MANIFEST"
-echo >> "$MANIFEST"
-echo "| Package | Version |" >> "$MANIFEST"
-echo "|:-------:|:-------:|" >> "$MANIFEST"
-echo "| NodeJS | $NODE_VERSION |" >> "$MANIFEST"
+{
+  echo "Homebridge Apt Package Manifest"
+  echo
+  echo "**Release Version**: ${PKG_RELEASE_VERSION:-unknown}"
+  echo "**Release Type**: ${PKG_RELEASE_TYPE:-stable}"
+  echo
+  echo "| Package | Version |"
+  echo "|:-------:|:-------:|"
+  echo "| NodeJS | $NODE_VERSION |"
+} > "$MANIFEST"
 
 # Download the NodeJS binary and check it against Node's published checksums, then unpack it
 ./scripts/fetch-node.sh "$NODE_VERSION" "$NODE_ARCH"
@@ -109,7 +111,8 @@ tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ 
 
 PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
 
-export npm_config_prefix=$(pwd)/staging/opt/homebridge
+npm_config_prefix="$(pwd)/staging/opt/homebridge"
+export npm_config_prefix
 export npm_config_install_strategy=shallow
 export npm_config_package_lock=false
 export npm_config_audit=false
@@ -122,7 +125,7 @@ export npm_config_loglevel=error
 echo "Using npm $(npm -v)"
 
 # Install packages
-npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION
+npm install --location=global "homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION"
 echo "| Homebridge UI | $HOMEBRIDGE_UIX_VERSION |" >> "$MANIFEST"
 
 # Only install the Homebridge Updater plugin if the stream lists it (alpha and beta do)
@@ -131,7 +134,7 @@ if [ "$HOMEBRIDGE_UPDATER_VERSION" != "null" ]; then
   echo "| Homebridge Updater | $HOMEBRIDGE_UPDATER_VERSION |" >> "$MANIFEST"
 fi
 
-npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
+npm install --prefix "$(pwd)/staging/var/lib/homebridge" "homebridge@$HOMEBRIDGE_VERSION"
 echo "| Homebridge | $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
 
 # The 64-bit and 32-bit packages can ship different Node.js versions (Node.js 23 and newer have
@@ -154,6 +157,8 @@ cd staging
 dpkg-buildpackage -us -uc -b
 cd ..
 
-# Finalize manifest name
-FINAL_MANIFEST=$(ls homebridge*.deb | sed -e 's/.deb/.manifest/')
-mv "$MANIFEST" "$FINAL_MANIFEST"
+# Give the manifest the name of the package: homebridge_<version>_<arch>.manifest
+for DEB_FILE in homebridge_"${PKG_RELEASE_VERSION:-}"*.deb; do
+  mv "$MANIFEST" "${DEB_FILE%.deb}.manifest"
+  break
+done

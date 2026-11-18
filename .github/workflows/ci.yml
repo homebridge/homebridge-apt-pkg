@@ -64,6 +64,11 @@ jobs:
             ci-package-build
           ls -l homebridge_*.deb
 
+      - name: The build must not change a file that git tracks
+        run: |
+          git status --short --untracked-files=no
+          test -z "$(git status --porcelain --untracked-files=no)"
+
       - name: Upgrade from the published package, then check, remove, install again and purge
         run: sudo ./test/e2e/validate-deb.sh --upgrade-from-apt stable --lifecycle homebridge_*_amd64.deb
 

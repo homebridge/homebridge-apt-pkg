@@ -149,7 +149,11 @@ sandbox_new() {
   echo '{"name":"homebridge-foo","version":"1.2.3"}' > "$ROOT/var/lib/homebridge/node_modules/homebridge-foo/package.json"
   echo '{"name":"homebridge-bar","version":"4.5.6"}' > "$ROOT/var/lib/homebridge/node_modules/homebridge-bar/package.json"
   # what the package ships in /opt/homebridge
-  rewrite "$REPO/deb/opt/homebridge/source.sh" > "$ROOT/opt/homebridge/source.sh"
+  local shipped
+  for shipped in "$REPO"/deb/opt/homebridge/*; do
+    rewrite "$shipped" > "$ROOT/opt/homebridge/$(basename "$shipped")"
+    chmod +x "$ROOT/opt/homebridge/$(basename "$shipped")"
+  done
   echo '{"dependencies":{"homebridge":"2.5.0","homebridge-config-ui-x":"5.30.1","node":"26.13.1"}}' > "$ROOT/opt/homebridge/package.json"
   printf '#!/bin/sh\necho "[node] $*" >> "$STUBLOG"\n' > "$ROOT/opt/homebridge/bin/node"
   printf '#!/bin/sh\necho "[npm] $*" >> "$STUBLOG"\n' > "$ROOT/opt/homebridge/bin/npm"

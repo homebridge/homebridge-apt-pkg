@@ -1,7 +1,8 @@
 name: CI
 
 # Runs on every pull request. No secret is used, so it is safe for pull requests from forks.
-# - "Script tests": the tests in test/ (the package scripts run in a sandbox with fake commands).
+# - "Script tests": shellcheck, hadolint and actionlint, then the tests in test/ (the package
+#   scripts run in a sandbox with fake commands).
 # - "Build and install": builds the stable package from the pull request, then installs it on the
 #   runner as an upgrade from the published package, starts it, removes it and purges it.
 
@@ -29,7 +30,20 @@ jobs:
       - name: Install the tools the tests need
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends jq python3-yaml
+          sudo apt-get install -y --no-install-recommends jq python3-yaml shellcheck
+
+      - name: Lint the shell scripts (shellcheck)
+        run: ./test/lint.sh
+
+      - name: Lint the build image (hadolint)
+        # hadolint 2.15.1, pinned by digest
+        run: docker run --rm -i hadolint/hadolint@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d < build/Dockerfile
+
+      - name: Lint the workflows (actionlint)
+        # actionlint 1.7.12, pinned by digest
+        run: |
+          docker run --rm -v "$PWD":/repo -w /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
 
       - name: Run the tests
         run: ./test/run.sh

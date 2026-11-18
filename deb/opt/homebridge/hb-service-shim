@@ -66,6 +66,9 @@ function check_port_override {
   fi
 }
 
+# SC2016: in the commands that run as the service user, "$@" must reach the inner bash as text.
+# It is expanded there, not here.
+# shellcheck disable=SC2016
 case "$1" in
   "start")
     echo "Starting Homebridge..."
@@ -117,11 +120,11 @@ case "$1" in
     read_plugin_name "$target_dir"
 
     target_link="/var/lib/homebridge/node_modules/$package_name"
-    target_dirname="$(dirname $target_link)"
+    target_dirname="$(dirname "$target_link")"
 
     if [ ! -d "$target_dirname" ]; then
-      mkdir -p $target_dirname
-      chown -h $SHELL_USER: $target_dirname
+      mkdir -p "$target_dirname"
+      chown -h "$SHELL_USER": "$target_dirname"
     fi
 
     if [ -L "$target_link" ]; then

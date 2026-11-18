@@ -1,69 +1,51 @@
-# Consolidated GitHub Actions Workflows
+# GitHub Actions workflows
 
-This directory contains the GitHub Actions workflows for the Homebridge APT package repository. As of the consolidation effort (Issue #190), the workflows have been reorganized to reduce duplication and improve maintainability.
+How a release is made, step by step, is in [`BUILD.md`](../../BUILD.md). This file only lists what is here.
 
-## Workflow Directory Structure
+## Release workflows
 
-This directory contains GitHub Actions workflows organized by functionality:
+| File | What it does |
+|------|--------------|
+| `release-stage-1_update_dependencies.yml` | Daily at 08:00 UTC (or by hand): runs the dependency bot for each stream (stable, beta, alpha, legacy). When a version changed, it starts Stage 2 for that stream and waits for it. |
+| `release-stage-2_build_and_release.yml` | Builds the packages, checks them, and only then publishes them (GitHub release, apt repository, npm). Started by Stage 1, or by hand. |
 
-### Core Release Workflows (2 files)
-- `release-stage-1_update_dependencies.yml` - Bot-managed dependency updates for all release types (stable, beta, alpha)
-- `release-stage-2_build_and_release.yml` - Unified build, validation and publishing pipeline for all releases
+## Workflows that the others call
 
-### Reusable Workflows (1 file)
-- `reusable-validate-homebridge.yml` - Package installation validation (used 2+ times)
+| File | What it does |
+|------|--------------|
+| `reusable-validate-homebridge.yml` | Installs a package and checks that it works (`test/e2e/validate-deb.sh`): before publishing from the GitHub prerelease, and after publishing from the apt repository. Uses no secret. |
+| `reusable-publish_apt_r2.yml` | Uploads a release to the R2 copy of the apt repository and removes old versions there. |
+| `reusable-purge_cloudflare_cache.yml` | Purges the cached apt index files at Cloudflare. |
 
-### Utility Workflows (7 files)
-- `beta-backup_and_clean.yml` - Beta repository cleanup
-- `pr-labeler.yml` - PR labeling automation
-- `purge.yml` - CloudFlare cache purging
-- `release_trigger_logger.yml` - Release event logging
-- `stage-3_5_purge_cloudflare_cache.yml` - Post-release cache purging
-- `stale.yml` - Stale issue management
-- `README.md` - This documentation
+## Other workflows
 
-## Release Pipeline Architecture
+| File | What it does |
+|------|--------------|
+| `ci.yml` | On every pull request: lint, the script tests in `test/`, and a real build and install of the stable package. Uses no secret. |
+| `purge.yml` | By hand: deletes old package files of one channel from S3. Starts as a dry run. |
+| `display_or_clean_apt.yml` | By hand: shows the content of the apt repository, or erases the beta, alpha or legacy channel. |
+| `pr-labeler.yml` | Labels a pull request by its base branch (`.github/labeler.yml`). |
+| `stale.yml` | Marks old issues as stale. |
 
-### Unified Process (All Release Types)
-All release streams (stable, beta, alpha) follow the same 8-step pipeline:
+## Local actions (`.github/actions/`)
 
-1. **Bot Updates Dependencies** - `homebridge-beta-bot` updates package.json files daily
-2. **Build Packages** - Cross-platform package builds for all architectures  
-3. **Create GitHub Prerelease** - Upload artifacts and create prerelease
-4. **Validate Prerelease** - Download and test .deb packages from GitHub
-5. **Promote to Release** - Convert prerelease to full release after validation
-6. **Publish to APT** - Upload packages to repository
-7. **Validate APT Installation** - Test installation from repository
-8. **Publish to NPM** - Publish package with appropriate tags
+| Folder | What it does |
+|--------|--------------|
+| `trigger-and-wait-workflow` | Starts a workflow, finds the run it created and waits for it. Fails when that run fails. |
+| `cleanup-old-releases-and-tags` | Deletes old alpha, beta or legacy releases and tags, keeping the newest N. |
+| `install-deb-s3` | Installs the `deb-s3` tool after checking its SHA-256. |
 
-### Configuration Files
-- `.github/homebridge-stable-bot.json` - Bot configuration for stable releases
-- `.github/homebridge-beta-bot.json` - Bot configuration for beta/alpha releases
+## Bot configuration
 
-### Workflow Triggers
-- **Scheduled**: Daily at 8 AM UTC for dependency updates
-- **Push**: Triggered by bot commits to package.json files
-- **Manual**: workflow_dispatch for testing and manual releases
+One file per stream: `.github/homebridge-stable-bot.json`, `-beta-`, `-alpha-` and `-legacy-`. Each lists,
+for the 32-bit and the 64-bit stream file, which npm tag or version range to follow for each package.
 
-## Development and Maintenance
+## Rules for changes
 
-### Modifying Release Logic
-Since all release types use unified workflows, changes only need to be made in 2 places:
-1. **Dependency Updates**: Edit `release-stage-1_update_dependencies.yml`
-2. **Build/Release Pipeline**: Edit `release-stage-2_build_and_release.yml`
-
-### Adding Validation Steps
-Edit the validation logic in `reusable-validate-homebridge.yml` which is used by both prerelease and APT validation steps.
-
-### Managing Bot Configuration
-- **Stable releases**: Update `.github/homebridge-stable-bot.json`
-- **Beta/Alpha releases**: Update `.github/homebridge-beta-bot.json`
-
-## Benefits of Consolidation
-
-1. **Maximum Workflow Reduction**: 25 → 10 workflows (60% reduction)
-2. **Unified Release Management**: All release streams use identical infrastructure
-3. **Enhanced Quality Assurance**: Double validation (GitHub + APT) for every release
-4. **Simplified Operations**: Single workflow to maintain instead of separate logic
-5. **Automated Process**: Eliminates manual promotion steps with automatic validation gates
-6. **Future-Proof Architecture**: Easy to add validation steps or extend to new release streams
+- Every workflow starts with `permissions: {}`, and each job names the rights it needs.
+- A secret reaches a step through `env:`, never as text inside a `run:` line. The same goes for inputs.
+- A job in Stage 2 that waits for other jobs needs `always() && needs.<job>.result == 'success'` in its
+  `if:`. One of the two "version" jobs is skipped on every run, and without `always()` GitHub skips
+  every job after it.
+- New actions are pinned to a commit, with the version as a comment.
+- `test/workflows.test.sh` checks these rules. `actionlint` runs in CI.

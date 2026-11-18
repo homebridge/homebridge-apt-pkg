@@ -205,7 +205,7 @@ check_versions() {
   local npm_warnings
   npm_warnings=$(
     cd "$STORAGE" || exit
-    runuser -u homebridge -- env HOME=/home/homebridge sh -c '. /opt/homebridge/source.sh && npm config ls --loglevel=warn' 2>&1 | grep -i "warn"
+    runuser -u homebridge -- env HOME=/home/homebridge sh -c '. /opt/homebridge/source.sh && npm config ls --loglevel=warn' 2>&1 | grep -i "^npm warn"
   ) || true
   [ -z "$npm_warnings" ] || die "npm warns about its settings: $npm_warnings"
   pass "npm has no complaint about the shipped settings"
@@ -284,6 +284,12 @@ if [ -n "$NEW_CHANNEL" ]; then
   NEW_NAME="the $NEW_CHANNEL package from repo.homebridge.io"
 else
   NEW_NAME=$(basename "$NEW_DEB")
+fi
+
+# The checks look at a first start, so the machine must not have the package yet.
+if dpkg-query -W -f '${db:Status-Abbrev}' homebridge 2> /dev/null | grep -q '^.i'; then
+  echo "The homebridge package is already installed on this machine. Use a fresh machine or container." >&2
+  exit 2
 fi
 
 step "Preparing"

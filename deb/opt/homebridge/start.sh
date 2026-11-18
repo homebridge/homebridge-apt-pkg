@@ -33,8 +33,21 @@ fi
 # check for missing homebridge
 if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; then
   cd $HB_SERVICE_STORAGE_PATH
-  echo "Re-installing homebridge..."
-  npm --prefix $HB_SERVICE_STORAGE_PATH install --save homebridge@latest
+  # Install the version this package was built with, not "latest". "latest" would move a legacy
+  # (Homebridge 1.x) install to Homebridge 2, and a beta install off the beta line.
+  HOMEBRIDGE_VERSION=$(jq -er '.dependencies.homebridge | strings' /opt/homebridge/package.json 2> /dev/null)
+  if [ -z "$HOMEBRIDGE_VERSION" ]; then
+    echo "WARNING: could not read the packaged Homebridge version from /opt/homebridge/package.json, using 'latest'."
+    HOMEBRIDGE_VERSION=latest
+  fi
+  echo "Re-installing homebridge@$HOMEBRIDGE_VERSION..."
+  if ! npm --prefix $HB_SERVICE_STORAGE_PATH install --save "homebridge@$HOMEBRIDGE_VERSION"; then
+    # the service manager starts this script again at once: wait, so a machine with no network
+    # does not try every few seconds
+    echo "ERROR: could not install homebridge@$HOMEBRIDGE_VERSION. Is the network up? Trying again in 30 seconds."
+    sleep 30
+    exit 1
+  fi
 fi
 
 # remove homebridge-config-ui-x package from the plugins store

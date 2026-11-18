@@ -324,24 +324,16 @@ jobs:
           repositories: homebridge-apt-pkg
           permission-contents: write
       - name: Promote prerelease to full release
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: '${{ needs.create_prerelease.outputs.release_tag }}'
-            });
-
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.id,
-              prerelease: false
-            });
-
-            console.log('Successfully promoted prerelease to full release: ${{ needs.create_prerelease.outputs.release_tag }}');
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RELEASE_TAG: ${{ needs.create_prerelease.outputs.release_tag }}
+        run: |
+          # Every stream becomes a full release here (docker-homebridge downloads the .deb from it).
+          # "--latest=false" says in so many words that this step never makes a release the
+          # "latest" one: an alpha, beta or legacy release must never become "latest". A stable
+          # release is marked as latest by the "mark_latest" job, after the APT repository check.
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest=false
+          echo "Promoted prerelease to full release: $RELEASE_TAG"
 
   # Step 4: Publish to APT repository
   publish_apt:

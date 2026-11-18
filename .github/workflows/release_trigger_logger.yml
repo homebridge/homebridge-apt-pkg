@@ -30,10 +30,13 @@ on:
       - unpublished
       - prereleased
 
+permissions: {}
+
 jobs:
   release_logger:
     # allows for both the workflow_dispatch and push events to trigger this job
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
     - name: Dump GitHub context
       env:

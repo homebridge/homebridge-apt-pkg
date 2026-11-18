@@ -14,16 +14,25 @@
 # user can add files to it, but can only replace or delete files of its own.
 if [ -n "$USER" ] && [ "$USER" != "root" ]; then
   echo "Ensuring /var/lib/homebridge and the Node.js runtime in /opt/homebridge are owned by $USER"
+  GROUP=$(id -gn "$USER")
+
+  # give <path>...: hand the paths (and all that is in them) to the service user.
+  # Only files that have another owner or group are changed. On most starts that is none, so an
+  # SD card with thousands of plugin files is not written to on every restart.
+  give() {
+    find "$@" \( ! -user "$USER" -o ! -group "$GROUP" \) -exec chown -h "$USER:$GROUP" {} +
+  }
+
   [ -d /var/lib/homebridge ] || mkdir -p /var/lib/homebridge
-  chown -R "$USER": /var/lib/homebridge
+  give /var/lib/homebridge
 
   if [ -d /opt/homebridge ]; then
-    chown root:"$(id -gn "$USER")" /opt/homebridge
+    chown root:"$GROUP" /opt/homebridge
     chmod 1775 /opt/homebridge
     for entry in /opt/homebridge/* /opt/homebridge/.[!.]*; do
       [ -e "$entry" ] || [ -L "$entry" ] || continue
       case "${entry##*/}" in
-        bin | lib | include | share | CHANGELOG.md | LICENSE | README.md) chown -R "$USER": "$entry" ;;
+        bin | lib | include | share | CHANGELOG.md | LICENSE | README.md) give "$entry" ;;
         *) chown -h root:root "$entry" ;;
       esac
     done

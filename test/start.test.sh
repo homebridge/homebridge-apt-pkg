@@ -5,7 +5,7 @@
 # shellcheck source=test/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-fake npm
+fake sleep
 START=$(sandbox_script deb/opt/homebridge/start.sh)
 LIST() { printf '%s\n' "$ROOT/var/lib/homebridge/package.json"; }
 
@@ -47,5 +47,24 @@ sandbox_new array
 echo '[]' > "$(LIST)"
 run_in "$ROOT/cwd" sh "$START"
 assert_json "$(LIST)" '.dependencies | keys == ["homebridge","homebridge-bar","homebridge-foo"]' "a new list is written"
+
+section "Homebridge is missing on a legacy (Homebridge 1.x) install"
+sandbox_new legacy
+echo '{"dependencies":{"homebridge":"1.11.4","homebridge-config-ui-x":"5.30.1","node":"24.22.3"}}' > "$ROOT/opt/homebridge/package.json"
+echo '{"dependencies":{"homebridge":"1.11.4"}}' > "$(LIST)"
+rm -rf "$ROOT/var/lib/homebridge/node_modules/homebridge"
+run_in "$ROOT/cwd" sh "$START"
+assert_contains "$(stublog)" "[npm] --prefix /var/lib/homebridge install --save homebridge@1.11.4" "the packaged version is installed, not latest"
+assert_not_contains "$(stublog)" "homebridge@latest" "homebridge@latest is not installed"
+
+section "Homebridge is missing and npm fails (no network)"
+sandbox_new offline
+rm -rf "$ROOT/var/lib/homebridge/node_modules/homebridge"
+# shellcheck disable=SC2016 # the text is the content of the fake npm
+printf '#!/bin/sh\necho "[npm] $*" >> "$STUBLOG"\nexit 1\n' > "$ROOT/opt/homebridge/bin/npm"
+run_in "$ROOT/cwd" sh "$START"
+assert_eq 1 "$STATUS" "exit code 1"
+assert_contains "$(stublog)" "[sleep] 30" "it waits before the next try"
+assert_not_contains "$(stublog)" "[node]" "the service is not started without Homebridge"
 
 finish

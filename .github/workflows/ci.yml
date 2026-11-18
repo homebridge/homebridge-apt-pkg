@@ -1,0 +1,79 @@
+name: CI
+
+# Runs on every pull request. No secret is used, so it is safe for pull requests from forks.
+# - "Script tests": the tests in test/ (the package scripts run in a sandbox with fake commands).
+# - "Build and install": builds the stable package from the pull request, then installs it on the
+#   runner as an upgrade from the published package, starts it, removes it and purges it.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Script tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the tools the tests need
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends jq python3-yaml
+
+      - name: Run the tests
+        run: ./test/run.sh
+
+  package:
+    name: Build and install the package (amd64)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # build.sh reads the tags for the "What's Changed" notes
+          fetch-depth: 0
+
+      - name: Build the build image
+        run: |
+          docker build -f build/Dockerfile \
+            --build-arg BASE_IMAGE=library/debian:bookworm \
+            --build-arg QEMU_ARCH=x86_64 \
+            -t ci-package-build .
+
+      - name: Build the stable package
+        env:
+          # higher than any published version, so installing it over the published package is an upgrade
+          PKG_RELEASE_VERSION: 9999.0.${{ github.run_number }}
+        run: |
+          docker run --rm -v "$PWD":/repo \
+            -e PKG_RELEASE_TYPE=stable \
+            -e PKG_RELEASE_VERSION \
+            ci-package-build
+          ls -l homebridge_*.deb
+
+      - name: Upgrade from the published package, then check, remove, install again and purge
+        run: sudo ./test/e2e/validate-deb.sh --upgrade-from-apt stable --lifecycle homebridge_*_amd64.deb
+
+      - name: Keep the package for a few days
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: homebridge-ci-package
+          retention-days: 3
+          if-no-files-found: ignore
+          path: |
+            homebridge_*.deb
+            homebridge_*.manifest

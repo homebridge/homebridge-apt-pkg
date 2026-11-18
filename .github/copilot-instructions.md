@@ -287,51 +287,27 @@ The `homebridge-beta-bot` automatically manages beta dependency updates via `.gi
 4. **UI Test:** Web interface accessible on port 8581 (default)
 5. **Plugin Test:** Basic plugin installation works via UI
 
-## Testing Changelog Generation
-
-You can test the changelog generation feature outside of the full release process:
+## Tests
 
 ```bash
-# Test stable changelog generation
-./test/test-changelog.sh
-
-# Test beta changelog generation  
-PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
-
-# Test with custom parameters
-PKG_RELEASE_TYPE=beta PKG_RELEASE_VERSION=1.2.3-beta.1 OUTPUT_FILE=my-test.md ./test/test-changelog.sh
+# The script tests: no root rights, no network (< 1 minute)
+./test/run.sh
 ```
 
-The test script:
-- Replicates the exact changelog logic from `build.sh`
-- Allows testing different release types (stable/beta) 
-- Shows which tags and commits would be included
-- Generates a sample manifest file for review
-- Provides helpful output about available tags and commit counts
-
-This is useful for:
-- Validating changelog logic changes before releases
-- Understanding what commits will be included in upcoming releases
-- Testing edge cases (no tags, no commits, etc.)
+- `test/*.test.sh` run the package scripts in a sandbox with fake commands.
+- `test/e2e/validate-deb.sh` installs a built package for real. Only for throw-away machines.
+- The `CI` workflow runs both on every pull request.
 
 ## Manual Validation Scenarios
 
 After making any changes to package scripts or configuration, always run through these validation scenarios:
 
-1. **Changelog Generation Test** (< 10 seconds):
+1. **Script Tests** (< 1 minute):
    ```bash
-   ./test/test-changelog.sh
-   PKG_RELEASE_TYPE=beta ./test/test-changelog.sh
-   PKG_RELEASE_TYPE=alpha ./test/test-changelog.sh
+   ./test/run.sh
    ```
 
-2. **Build Scripts Test** (< 30 seconds):
-   ```bash
-   # Test all build script validation (no actual Docker builds)
-   ./test/test-build-scripts.sh
-   ```
-
-3. **Build Script Analysis** (< 30 seconds):
+2. **Build Script Analysis** (< 30 seconds):
    ```bash
    # Verify build script syntax
    bash -n build.sh

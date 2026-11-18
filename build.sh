@@ -150,141 +150,18 @@ fi
 npm install --prefix "$(pwd)/staging/var/lib/homebridge" homebridge@$HOMEBRIDGE_VERSION
 echo "| Homebridge | $HOMEBRIDGE_VERSION |" >> "$MANIFEST"
 
-# Add changelog section to manifest
-echo >> "$MANIFEST"
-echo "## What's Changed" >> "$MANIFEST"
-echo >> "$MANIFEST"
-
-# Configure git for Docker containers to avoid "dubious ownership" errors
-git config --global --add safe.directory /repo 2>/dev/null || true
-
-# Get the latest tag to compare against, filtered by release type
-if [[ "${PKG_RELEASE_TYPE:-stable}" == "beta" ]]; then
-  # For beta releases, only look at beta tags
-  LATEST_TAG=$(git tag -l | grep -E "beta\." | sort -V | tail -1 2>/dev/null || echo "")
-elif [[ "${PKG_RELEASE_TYPE:-stable}" == "alpha" ]]; then
-  # For alpha releases, only look at alpha tags
-  LATEST_TAG=$(git tag -l | grep -E "alpha\." | sort -V | tail -1 2>/dev/null || echo "")
-else
-  # For stable releases, only look at stable tags (no beta or alpha in name)
-  LATEST_TAG=$(git tag -l | grep -v -E "(beta|alpha)\." | sort -V | tail -1 2>/dev/null || echo "")
-fi
-
-# Check for package manifest changes if we have a previous tag
-HAS_PACKAGE_CHANGES=false
-if [ -n "$LATEST_TAG" ]; then
-  # Get the previous package.json for comparison
-  PREV_PACKAGE_JSON=""
-  case "${PKG_RELEASE_TYPE:-stable}" in
-    beta)
-      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
-        PREV_PACKAGE_JSON="beta/64bit/package.json"
-      else
-        PREV_PACKAGE_JSON="beta/32bit/package.json"
-      fi
-      ;;
-    alpha)
-      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
-        PREV_PACKAGE_JSON="alpha/64bit/package.json"
-      else
-        PREV_PACKAGE_JSON="alpha/32bit/package.json"
-      fi
-      ;;
-    *)
-      if [[ "$BUILD_ARCH" == "aarch64" || "$BUILD_ARCH" == "x86_64" ]]; then
-        PREV_PACKAGE_JSON="stable/64bit/package.json"
-      else
-        PREV_PACKAGE_JSON="stable/32bit/package.json"
-      fi
-      ;;
-  esac
-  
-  # Compare package versions with previous tag
-  if [ -n "$PREV_PACKAGE_JSON" ] && git show "$LATEST_TAG:$PREV_PACKAGE_JSON" >/dev/null 2>&1; then
-    PREV_NODE=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies.node // "unknown"')
-    PREV_HOMEBRIDGE=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies.homebridge // "unknown"')
-    PREV_HOMEBRIDGE_UI=$(git show "$LATEST_TAG:$PREV_PACKAGE_JSON" 2>/dev/null | jq -r '.dependencies["homebridge-config-ui-x"] // "unknown"')
-    
-    CURR_NODE=$(jq -r '.dependencies.node // "unknown"' "$PACKAGE_JSON_PATH")
-    CURR_HOMEBRIDGE=$(jq -r '.dependencies.homebridge // "unknown"' "$PACKAGE_JSON_PATH")
-    CURR_HOMEBRIDGE_UI=$(jq -r '.dependencies["homebridge-config-ui-x"] // "unknown"' "$PACKAGE_JSON_PATH")
-    
-    # Check for version changes and add them to changelog
-    if [[ "$PREV_NODE" != "$CURR_NODE" && "$CURR_NODE" != "unknown" ]]; then
-      echo "### Package Manifest Changes" >> "$MANIFEST"
-      echo >> "$MANIFEST"
-      HAS_PACKAGE_CHANGES=true
-    fi
-    
-    if [[ "$PREV_NODE" != "$CURR_NODE" && "$CURR_NODE" != "unknown" ]]; then
-      echo "* **Node.js**: Updated from $PREV_NODE to $CURR_NODE" >> "$MANIFEST"
-    fi
-    if [[ "$PREV_HOMEBRIDGE" != "$CURR_HOMEBRIDGE" && "$CURR_HOMEBRIDGE" != "unknown" ]]; then
-      if [ "$HAS_PACKAGE_CHANGES" = false ]; then
-        echo "### Package Manifest Changes" >> "$MANIFEST"
-        echo >> "$MANIFEST"
-        HAS_PACKAGE_CHANGES=true
-      fi
-      echo "* **Homebridge**: Updated from $PREV_HOMEBRIDGE to $CURR_HOMEBRIDGE" >> "$MANIFEST"
-    fi
-    if [[ "$PREV_HOMEBRIDGE_UI" != "$CURR_HOMEBRIDGE_UI" && "$CURR_HOMEBRIDGE_UI" != "unknown" ]]; then
-      if [ "$HAS_PACKAGE_CHANGES" = false ]; then
-        echo "### Package Manifest Changes" >> "$MANIFEST"
-        echo >> "$MANIFEST"
-        HAS_PACKAGE_CHANGES=true
-      fi
-      echo "* **Homebridge Config UI X**: Updated from $PREV_HOMEBRIDGE_UI to $CURR_HOMEBRIDGE_UI" >> "$MANIFEST"
-    fi
-    
-    if [ "$HAS_PACKAGE_CHANGES" = true ]; then
-      echo >> "$MANIFEST"
-    fi
-  fi
-fi
-
-if [ -n "$LATEST_TAG" ]; then
-  # Get commits since the latest tag of the same type
-  CHANGELOG_COMMITS=$(git log --oneline --no-merges "$LATEST_TAG"..HEAD 2>/dev/null)
-  
-  if [ -n "$CHANGELOG_COMMITS" ]; then
-    # Add code changes section header
-    if [ "$HAS_PACKAGE_CHANGES" = true ]; then
-      echo "### Code Changes" >> "$MANIFEST"
-      echo >> "$MANIFEST"
-    fi
-    # Format commits as changelog entries
-    while IFS= read -r commit; do
-      if [ -n "$commit" ]; then
-        # Extract commit hash and message
-        COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
-        COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-        echo "* $COMMIT_MSG (\`$COMMIT_HASH\`)" >> "$MANIFEST"
-      fi
-    done <<< "$CHANGELOG_COMMITS"
-  else
-    if [ "$HAS_PACKAGE_CHANGES" = false ]; then
-      echo "* No new commits since last ${PKG_RELEASE_TYPE:-stable} release" >> "$MANIFEST"
-    fi
-  fi
-else
-  # If no tags of this type exist, show recent commits
-  RECENT_COMMITS=$(git log --oneline --no-merges -5 2>/dev/null)
-  if [ -n "$RECENT_COMMITS" ]; then
-    echo "### Recent Changes" >> "$MANIFEST"
+# The 64-bit and 32-bit packages can ship different Node.js versions (Node.js 23 and newer have
+# no 32-bit build). The release notes are taken from a 64-bit build, so say it there.
+if [ "$ARCH_DIR" = "64bit" ]; then
+  NODE_VERSION_32BIT=$(jq -r '.dependencies.node // empty' "$RELEASE_DIR/32bit/package.json")
+  if [ -n "$NODE_VERSION_32BIT" ] && [ "v$NODE_VERSION_32BIT" != "$NODE_VERSION" ]; then
     echo >> "$MANIFEST"
-    while IFS= read -r commit; do
-      if [ -n "$commit" ]; then
-        COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
-        COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-        echo "* $COMMIT_MSG (\`$COMMIT_HASH\`)" >> "$MANIFEST"
-      fi
-    done <<< "$RECENT_COMMITS"
-  else
-    echo "* No commit history available" >> "$MANIFEST"
+    echo "The 32-bit ARM (armhf) package ships NodeJS v$NODE_VERSION_32BIT." >> "$MANIFEST"
   fi
 fi
 
-echo >> "$MANIFEST"
+# Add the "What's Changed" section to the manifest
+./scripts/write-changelog.sh "$PKG_RELEASE_TYPE" "$ARCH_DIR" "$MANIFEST"
 
 cp "$MANIFEST" staging/opt/homebridge
 # Build .deb

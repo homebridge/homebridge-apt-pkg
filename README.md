@@ -5,7 +5,7 @@
 
 This project builds and publishes a debian-based package that can be installed using `apt` on Ubuntu / Debian / Raspberry Pi OS based Linux systems.
 
-The project aims to deploy Homebridge and the Homebridge UI in a secure and stable way, with no dependencies outside those available in the standard distribution repos. It comes bundled with it's own Node.js runtime and runs Homebridge in an isolated environment as a service user with no sudo / admin priviledges.
+The project aims to deploy Homebridge and the Homebridge UI in a secure and stable way, with no dependencies outside those available in the standard distribution repos. It comes bundled with its own Node.js runtime and runs Homebridge in an isolated environment as a service user with no sudo / admin privileges.
 
 Supported architectures:
 
@@ -13,7 +13,7 @@ Supported architectures:
 * armhf (armv7) - 32-bit ARM (⚠️ **Node.js version limited to ≤22**)
 * aarch64 (arm64) - 64-bit ARM
 
-**Important:** Node.js dropped 32-bit support starting with version 23. The 32-bit ARM (armhf) packages are limited to Node.js 22.x and earlier. Support for 32-bit OS's will end in Spring of 2027.
+**Important:** Node.js dropped 32-bit support starting with version 23. The 32-bit ARM (armhf) packages are limited to Node.js 22.x and earlier. Support for 32-bit operating systems will end in Spring of 2027, when Node.js 22 reaches its end of life.
 
 ## Using APT
 
@@ -120,23 +120,26 @@ To assist in debugging, a shell command `hb-shell` is added to the default PATH 
 /opt/homebridge # This directory is managed by the homebridge apt package and the contents are overwritten during updates
   |-- bin
   |   |-- node
-  |   |-- npm 
+  |   |-- npm
   |   |-- npx
   |-- lib
   |   |-- node_modules
   |       |-- npm
   |       |-- homebridge-config-ui-x
-  |-- bashrc
-  |-- bashrc-hb-shell
-  |-- CHANGELOG.md
-  |-- hb-shell
-  |-- homebridge_apt_pkg_....manifest
+  |-- CHANGELOG.md     # these three files are the ones of Node.js itself
   |-- LICENSE
   |-- README.md
+  |-- bashrc
+  |-- bashrc-hb-shell
+  |-- hb-service-shim
+  |-- hb-shell
+  |-- homebridge_apt_pkg_....manifest
+  |-- package.json     # the Node.js, Homebridge and UI versions this package was built with
+  |-- rebuild-package-json.sh
   |-- source.sh
   |-- start.sh
 
-# "hb-shell" command to allow user access to the Homebridge env from the cli
+# the "hb-service" and "hb-shell" commands
 /usr/local/bin # These links are managed by the homebridge apt package and the contents are overwritten during updates
   |-- hb-service -> /opt/homebridge/hb-service-shim
   |-- hb-shell -> /opt/homebridge/hb-shell
@@ -283,7 +286,19 @@ sudo apt-get update
 sudo apt-get install homebridge
 ```
 
+## Legacy Builds
+
+The `legacy` channel is for systems that must stay on Homebridge 1.x. It ships the last Homebridge 1.x release with the current Homebridge UI, on a Node.js version that Homebridge 1.x supports.
+
+To use it, add the package source as shown under "Using APT", with `legacy` in place of `stable`:
+
+```bash
+echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io legacy main" | sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
+```
+
 ## Packaging Notes
+
+How this package is built, tested and released: [BUILD.md](./BUILD.md)
 
 Package scripts workflow (preinst, postinst, postrm etc.):
 
@@ -291,7 +306,7 @@ https://wiki.debian.org/MaintainerScripts
 
 ## License
 
-Copyright (C) 2025 homebridge
+Copyright (C) 2022-2026 homebridge
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

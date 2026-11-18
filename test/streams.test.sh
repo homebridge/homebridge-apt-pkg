@@ -50,6 +50,18 @@ assert_json "$REPO/.github/homebridge-legacy-bot.json" \
   '[.directories[].packages[] | select(.name == "node") | .tag] == ["^22.x.x", "^24.x.x"]' \
   "the legacy bot keeps Node.js on 22 (32-bit) and 24 (64-bit)"
 
+section "the stream files hold nothing that is never used"
+for stream in stable beta alpha legacy; do
+  for arch in 32bit 64bit; do
+    assert_json "$REPO/$stream/$arch/package.json" '.name == "@homebridge/homebridge-apt-pkg" and (has("scripts") | not)' \
+      "$stream/$arch: the published name, and no scripts (the publish job sets its own)"
+  done
+done
+for unused in .github/release-drafter.yml .github/release.yml .npmignore; do
+  assert_missing "$REPO/$unused" "$unused (no workflow used it) is gone"
+done
+assert_contains "$(cat "$REPO/.github/workflows/pr-labeler.yml")" "workflows/labeler.yml@latest" "the labeler workflow is the one that reads .github/labeler.yml"
+
 section "what the stream files list, the bots track, and build.sh installs is the same set"
 for stream in stable beta alpha legacy; do
   for arch in 32bit 64bit; do

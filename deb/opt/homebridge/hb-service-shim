@@ -10,22 +10,21 @@ SHELL_USER=homebridge
 SHELL_USER_HOME=/home/homebridge
 
 function check_shell_user_override {
-  # if a systemd override is in place, check which user the shell should run as
-  if [ -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
-    OVERRIDE_USER=$(cat /etc/systemd/system/homebridge.service.d/override.conf | grep '^[[:blank:]]*[^[:blank:]#;]' | awk /User=/ | awk -F "=" '{print $2}' | xargs)
-    if [ ${#OVERRIDE_USER} -gt 0 ]; then
-      # check if user exists
-      getent passwd $OVERRIDE_USER > /dev/null
-      if [ "$?" -eq 0 ]; then
-        SHELL_USER=$(id -nu $OVERRIDE_USER)
-      else
-        echo "ERROR: User '$OVERRIDE_USER' as defined in /etc/systemd/system/homebridge.service.d/override.conf does not exist on the system!"
-      fi
+  # The user the service runs as: "homebridge", or the User= of a systemd override.
+  # systemd is asked, because it knows every override file and which line wins.
+  local unit_user
+  unit_user=$(systemctl show -p User --value homebridge.service 2> /dev/null)
+  if [ -n "$unit_user" ]; then
+    if id -nu "$unit_user" > /dev/null 2>&1; then
+      SHELL_USER=$(id -nu "$unit_user")
+    else
+      echo "ERROR: User '$unit_user', which the homebridge service is set to run as, does not exist on the system!"
     fi
   fi
 
-  # set the shell user's home directory
-  SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
+  # the home folder comes from the user database
+  SHELL_USER_HOME=$(getent passwd "$SHELL_USER" | cut -d: -f6)
+  [ -n "$SHELL_USER_HOME" ] || SHELL_USER_HOME=/home/homebridge
 }
 
 # exec_as_service_user <command> [arguments]: replace this process with the command, run as the
@@ -218,7 +217,7 @@ case "$1" in
 
   *)
     printf '%s\n' \
-      "Usage: hb-service [start|stop|restart|logs|status|update-node]"   \
+      "Usage: hb-service [start|stop|restart|add|remove|link|unlink|update-node|rebuild|logs|view|status|shell|-V]" \
       ""   \
       "This hb-service command is provided by Homebridge APT Package" \
       "" \
@@ -231,6 +230,7 @@ case "$1" in
       "    link                             adds the current directory to Homebridge for plugin development" \
       "    unlink                           reverses the link operation for the current directory" \
       "    update-node [version]            update Node.js" \
+      "    rebuild                          rebuild the native modules of the UI and of the plugins" \
       "    logs                             tails the homebridge service logs" \
       "    view                             view the homebridge service logs" \
       "    status                           check if the Homebridge UI web server is running" \
@@ -238,5 +238,10 @@ case "$1" in
       "    -V                               print the Homebridge version" \
       "" \
       "See the wiki for help with hb-service: https://homebridge.io/w/JTtHK"
+    # a command that does not exist is an error; no command at all (or "help") just shows the list
+    case "$1" in
+      "" | "help" | "-h" | "--help") ;;
+      *) exit 1 ;;
+    esac
     ;;
 esac

@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload to R2 APT Repository
         run: |
-          sudo chown -R $USER: repo/
+          sudo chown -R "$USER": repo/
           # R2 has no object ACLs: send "private"; public access comes from the custom domain.
           deb-s3 upload \
             --codename="$CHANNEL" \
@@ -112,7 +112,7 @@ jobs:
             --access-key-id="$R2_ACCESS_KEY_ID" \
             --secret-access-key="$R2_SECRET_ACCESS_KEY" \
             --sign="$GPG_KEY_ID" \
-            repo/homebridge_v*.deb repo/*.deb
+            repo/*.deb
 
       - name: Upload Public GPG Key
         run: |

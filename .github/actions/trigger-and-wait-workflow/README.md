@@ -1,15 +1,8 @@
 # Trigger and Wait for Workflow Action
 
-A reusable GitHub Action that triggers a workflow and waits for its completion with timeout protection and proper error handling.
+Starts a workflow, finds the run that the trigger created, and waits until that run has finished.
 
-## Features
-
-- **Sequential Execution**: Prevents workflow collision by waiting for completion before proceeding
-- **Timeout Protection**: Configurable timeout (default 30 minutes) to prevent infinite waiting
-- **Error Handling**: Handles all workflow states including failure and cancellation
-- **Clear Logging**: Provides detailed progress information with status updates and elapsed time tracking
-- **Modular Design**: Single responsibility with clean input/output interface
-- **Conditional Execution**: Only runs when changes are detected and auto-merge is enabled
+Stage 1 uses it to start Stage 2 for one stream at a time, so two releases never run together.
 
 ## Usage
 
@@ -22,47 +15,47 @@ A reusable GitHub Action that triggers a workflow and waits for its completion w
     release-type: ${{ matrix.release_type }}
     scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
     github-token: ${{ secrets.GH_TOKEN }}
-    changes-detected: ${{ steps.homebridge-bot.outputs.changes_detected }}
-    auto-merge: ${{ steps.homebridge-bot.outputs.auto_merge }}
-    timeout-minutes: '30'
+    timeout-minutes: '150'
 ```
 
 ## Inputs
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `workflow-file` | Yes | - | The workflow file to trigger (e.g., `release-stage-2_build_and_release.yml`) |
+| `workflow-file` | Yes | - | The workflow file to trigger |
 | `ref` | Yes | `latest` | The git ref to run the workflow on |
-| `release-type` | Yes | - | The release type parameter to pass to the workflow |
-| `scheduled` | No | `Manual` | The scheduled parameter to pass to the workflow |
-| `github-token` | Yes | - | GitHub token for authentication |
-| `timeout-minutes` | No | `30` | Maximum wait time in minutes |
+| `release-type` | Yes | - | Passed to the workflow as `release_type` |
+| `scheduled` | No | `Manual` | Passed to the workflow as `Scheduled` (`Scheduled` or `Manual`) |
+| `github-token` | Yes | - | A token that may start workflows and read runs |
+| `timeout-minutes` | No | `150` | How long to wait for the run to finish |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `workflow-conclusion` | The conclusion of the triggered workflow (`success`, `failure`, `cancelled`, etc.) |
-| `run-id` | The run ID of the triggered workflow |
+| `workflow-conclusion` | How the run ended (`success`, `failure`, `cancelled` ...) |
+| `run-id` | The id of the run that was started |
 
 ## How It Works
 
-The action performs these steps sequentially:
+1. It saves the list of runs that exist **before** the trigger.
+2. It starts the workflow with `gh workflow run`.
+3. It asks for the list again every 5 seconds (for up to 2 minutes). The new run is the one that is
+   not in the first list and has `- <scheduled> - <release-type> Run` in its title
+   (`select-new-run.sh`).
+4. It asks for the status of that run every 30 seconds until it has finished (`wait-for-run.sh`).
 
-1. **Trigger Workflow**: Uses `gh workflow run` to trigger the specified workflow
-2. **Find Workflow Run**: Uses `gh run list` to locate the most recently triggered workflow
-3. **Extract Run ID**: Extracts the run ID from the workflow URL using regex pattern matching
-4. **Wait for Completion**: Polls workflow status using `gh run view` until completion with timeout protection
+## When it fails
 
-## Error Handling
+The step fails (exit code 1) when:
 
-- **Timeout**: If the workflow doesn't complete within the specified timeout, the action will exit with code 0 (non-failing timeout)
-- **Workflow Failure**: If the triggered workflow fails, the action will exit with code 1
-- **API Errors**: If GitHub CLI commands fail, the action will exit with code 1
-- **Invalid URLs**: If the workflow URL cannot be parsed, the action will exit with code 1
+- the workflow could not be started;
+- the new run did not show up within 2 minutes;
+- the run ended with anything other than `success`;
+- the run did not finish within `timeout-minutes`.
 
-## Implementation Details
+A failed step stops the steps after it, so old releases are not cleaned up after a failed release.
 
-Based on the GitHub CLI polling pattern recommended in [cli/cli#4001](https://github.com/cli/cli/issues/4001#issuecomment-2742170405), this action ensures sequential workflow execution to prevent collision during the publishing phase.
+## Tests
 
-The action only executes when both `changes-detected` and `auto-merge` are `true`, making it safe to use in conditional scenarios where no action should be taken.
+`test/trigger-and-wait.test.sh` tests both scripts with saved run lists and a fake `gh` command.

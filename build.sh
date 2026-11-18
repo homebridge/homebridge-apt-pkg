@@ -57,19 +57,18 @@ echo "📦 Package configuration: $PACKAGE_JSON_PATH"
 echo "🟢 Node.js version: $NODE_VERSION_RAW"
 echo "🏗️  Target architecture: $BUILD_ARCH"
 
-# Update changelog if version info is present
+# Work on a copy, so that a build never changes a file that git tracks
+rm -rf staging
+cp -R deb staging
+
+# Write the version into the copy of debian/changelog
 if [[ -n "${PKG_RELEASE_TYPE}" && -n "${PKG_RELEASE_VERSION}" ]]; then
-  cd deb
   DISTRO="$PKG_RELEASE_TYPE"
   if [ "$PKG_RELEASE_TYPE" != "stable" ]; then
     DISTRO="UNRELEASED"
   fi
-  dch -b -v "$PKG_RELEASE_VERSION" --controlmaint "Automated Release" --distribution "$DISTRO" "Automated release for $PKG_RELEASE_VERSION"
-  cd ..
+  (cd staging && dch -b -v "$PKG_RELEASE_VERSION" --controlmaint "Automated Release" --distribution "$DISTRO" "Automated release for $PKG_RELEASE_VERSION")
 fi
-
-rm -rf staging
-cp -R deb staging
 
 cp "$PACKAGE_JSON_PATH" staging/opt/homebridge/package.json
 
@@ -160,9 +159,10 @@ fi
 ./scripts/write-changelog.sh "$PKG_RELEASE_TYPE" "$ARCH_DIR" "$MANIFEST"
 
 cp "$MANIFEST" staging/opt/homebridge
-# Build .deb
+# Build the .deb only ("-b"). Without "-b" a source archive with Node.js and every module in it
+# is built too, and nothing uses it.
 cd staging
-dpkg-buildpackage -us -uc
+dpkg-buildpackage -us -uc -b
 cd ..
 
 # Finalize manifest name

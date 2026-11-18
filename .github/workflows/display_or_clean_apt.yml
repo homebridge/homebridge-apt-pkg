@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v7
+
       - name: Install deb-s3
-        run: |
-          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
-          sudo gem install deb-s3-0.11.8.gem
+        uses: ./.github/actions/install-deb-s3
 
       - name: Import GPG Key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0

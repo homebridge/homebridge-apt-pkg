@@ -115,24 +115,8 @@ echo "| Package | Version |" >> "$MANIFEST"
 echo "|:-------:|:-------:|" >> "$MANIFEST"
 echo "| NodeJS | $NODE_VERSION |" >> "$MANIFEST"
 
-# Download and unpack NodeJS binary
-if [ ! -f "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" ]; then
-  # Additional safety check: Ensure we're not trying to download Node.js >22 for 32-bit architectures
-  if [[ ("$NODE_ARCH" == "armv7l" || "$NODE_ARCH" == "x86") && "$MAJOR_NODE" -gt 22 ]]; then
-    echo "ERROR: Cannot download Node.js $NODE_VERSION for 32-bit architecture $NODE_ARCH"
-    echo "Node.js versions greater than 22 do not support 32-bit architectures"
-    echo "Please use Node.js 22.x or earlier for ARM32/i386 builds"
-    exit 1
-  fi
-  
-  if [[ "$NODE_ARCH" == "armv6l" || "$NODE_ARCH" == "x86" ]]; then
-    echo "Downloading Node.js $NODE_VERSION for 32-bit architecture $NODE_ARCH from unofficial builds..."
-    curl -fSLO "https://unofficial-builds.nodejs.org/download/release/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
-  else
-    echo "Downloading Node.js $NODE_VERSION for architecture $NODE_ARCH from official builds..."
-    curl -fSLO "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz"
-  fi
-fi
+# Download the NodeJS binary and check it against Node's published checksums, then unpack it
+./scripts/fetch-node.sh "$NODE_VERSION" "$NODE_ARCH"
 tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ --strip-components=1 --no-same-owner
 
 PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"

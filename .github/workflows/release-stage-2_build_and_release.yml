@@ -155,7 +155,8 @@ jobs:
 
           - name: debian-arm32v6
             os: ubuntu-24.04-arm
-            BASE_IMAGE: balenalib/raspberrypi3-debian:bookworm
+            # the official 32-bit ARM (armhf) Debian image
+            BASE_IMAGE: arm32v7/debian:bookworm
             QEMU_ARCH: arm
 
           - name: debian-arm64v8
@@ -387,9 +388,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Install deb-s3
-        run: |
-          curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.8/deb-s3-0.11.8.gem
-          sudo gem install deb-s3-0.11.8.gem
+        uses: ./.github/actions/install-deb-s3
 
       - name: Upload to APT Repository
         run: |

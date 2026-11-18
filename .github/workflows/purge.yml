@@ -36,9 +36,7 @@ jobs:
         passphrase: ${{ secrets.GPG_PASSPHRASE }}
       
     - name: Install deb-s3
-      run: |
-        curl -sLO https://github.com/deb-s3/deb-s3/releases/download/0.11.3/deb-s3-0.11.3.gem
-        sudo gem install deb-s3-0.11.3.gem
+      uses: ./.github/actions/install-deb-s3
 
     - name: Purge from S3
       env:

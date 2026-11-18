@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Files that must survive from one of these scripts to the next are kept here.
+# Only root may write to this folder (see the note in preinst).
+STATE_DIR=/var/lib/homebridge-apt-pkg
+SAVED_PACKAGE_JSON="$STATE_DIR/package.json.saved"
+
+ensure_state_dir() {
+  if [ -L "$STATE_DIR" ] || { [ -e "$STATE_DIR" ] && [ ! -d "$STATE_DIR" ]; }; then
+    echo "WARNING: $STATE_DIR is not a normal folder. It will not be used, so the plugin list can not be carried over." >&2
+    return 1
+  fi
+  mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
+}
+
+# before remove (not before an upgrade)
+if [ "$1" = "remove" ]; then
+  # "apt remove" keeps the user's data, but package.json is a file of the package, so dpkg deletes
+  # it. Keep a copy of the plugin list: the next install merges it back and installs the plugins.
+  if [ -f /var/lib/homebridge/package.json ] && [ ! -L /var/lib/homebridge/package.json ]; then
+    ensure_state_dir && cp /var/lib/homebridge/package.json "$SAVED_PACKAGE_JSON" \
+      && echo "Saved the list of installed plugins. They are installed again if you install homebridge again."
+  fi
+fi
+
+#DEBHELPER#
+
+exit 0

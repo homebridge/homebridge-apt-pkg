@@ -104,6 +104,15 @@ fake() {
   done
 }
 
+# fake_failing <name>...: a command that writes "[name] args" to $STUBLOG and exits 1
+fake_failing() {
+  local c
+  for c in "$@"; do
+    printf '#!/bin/sh\necho "[%s] $*" >> "$STUBLOG"\nexit 1\n' "$c" > "$FAKEBIN/$c"
+    chmod +x "$FAKEBIN/$c"
+  done
+}
+
 # fake_script <name>: a fake command with its own body, read from standard input
 fake_script() {
   cat > "$FAKEBIN/$1"
@@ -113,6 +122,7 @@ fake_script() {
 # fake_systemctl: logs like the others, and answers the questions the scripts ask.
 #   FAKE_ACTIVE=0   "is-active" says the service is not running   (default: running)
 #   FAKE_ENABLED=0  "is-enabled" says no                           (default: yes)
+#   FAKE_SYSTEMCTL_FAILS="restart enable"   these commands fail   (default: none)
 fake_systemctl() {
   fake_script systemctl << 'EOF'
 #!/bin/sh
@@ -120,7 +130,12 @@ echo "[systemctl] $*" >> "$STUBLOG"
 case "$1" in
   is-active) [ "${FAKE_ACTIVE:-1}" = "1" ] ;;
   is-enabled) [ "${FAKE_ENABLED:-1}" = "1" ] ;;
-  *) exit 0 ;;
+  *)
+    for failing in ${FAKE_SYSTEMCTL_FAILS:-}; do
+      [ "$1" = "$failing" ] && exit 1
+    done
+    exit 0
+    ;;
 esac
 EOF
 }

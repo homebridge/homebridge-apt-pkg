@@ -1,6 +1,13 @@
 name: Display or Clean APT Repository
 run-name: APT Repository ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
 
+# Shows what the apt repository holds for one channel. With "Erase stream" ticked, it deletes that
+# channel (index and packages) from S3 and from R2, and then purges the Cloudflare cache.
+# Without the purge, Cloudflare keeps serving the old index, which points at files that are gone,
+# and "apt update" fails for users of that channel until the next release.
+#
+# Order of the jobs: verify -> display or delete -> purge the cache.
+
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +18,7 @@ on:
         options:
           - beta
           - alpha
+          - legacy
         default: beta
       cleanup:
         description: 'Erase stream'
@@ -57,8 +65,13 @@ jobs:
 
   display_or_clean_apt:
     name: Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
+    # after the verify job, never at the same time; still runs when verify found a problem
+    needs: verify_apt
+    if: always()
     runs-on: ubuntu-latest
     permissions: {}
+    env:
+      STREAM: ${{ inputs.stream }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -69,50 +82,54 @@ jobs:
 
       - name: Display Current ${{ inputs.stream }} Codename
         run: |
-          aws s3 ls --recursive s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
-          aws s3 ls --recursive s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "No ${{ inputs.stream }} codename found"
+          aws s3 ls --recursive "s3://repo.homebridge.io/dists/$STREAM/" || echo "No $STREAM codename found"
+          aws s3 ls --recursive "s3://repo.homebridge.io/pool/$STREAM/" || echo "No $STREAM codename found"
 
       - name: Delete ${{ inputs.stream }} Metadata
         if: ${{ inputs.cleanup == true }}
         run: |
-          aws s3 rm s3://repo.homebridge.io/dists/${{ inputs.stream }}/ --recursive
-          echo "Deleted dists/${{ inputs.stream }}/"
+          aws s3 rm "s3://repo.homebridge.io/dists/$STREAM/" --recursive
+          echo "Deleted dists/$STREAM/"
 
       - name: Delete ${{ inputs.stream }} Packages
         if: ${{ inputs.cleanup == true }}
         run: |
-          aws s3 rm s3://repo.homebridge.io/pool/${{ inputs.stream }}/ --recursive
-          echo "Deleted pool/${{ inputs.stream }}/"
+          aws s3 rm "s3://repo.homebridge.io/pool/$STREAM/" --recursive
+          echo "Deleted pool/$STREAM/"
 
       - name: Verify Deletion
         if: ${{ inputs.cleanup == true }}
         run: |
-          aws s3 ls s3://repo.homebridge.io/dists/${{ inputs.stream }}/ || echo "dists/${{ inputs.stream }}/ is empty"
-          aws s3 ls s3://repo.homebridge.io/pool/${{ inputs.stream }}/ || echo "pool/${{ inputs.stream }}/ is empty"
+          aws s3 ls "s3://repo.homebridge.io/dists/$STREAM/" || echo "dists/$STREAM/ is empty"
+          aws s3 ls "s3://repo.homebridge.io/pool/$STREAM/" || echo "pool/$STREAM/ is empty"
 
-      - name: Verify Stable Codename
+      - name: Display Every Codename
         run: |
-          echo "::Group::Display Stable Codename"
-          aws s3 ls --recursive s3://repo.homebridge.io/dists/stable/ || echo "No stable codename found"
-          echo "::endgroup::"
+          for ch in stable beta alpha legacy; do
+            echo "::group::Display $ch Codename"
+            aws s3 ls --recursive "s3://repo.homebridge.io/dists/$ch/" || echo "No $ch codename found"
+            echo "::endgroup::"
+          done
 
-      - name: Verify Alpha Codename
-        run: |
-          echo "::Group::Display Alpha Codename"
-          aws s3 ls --recursive s3://repo.homebridge.io/dists/alpha/ || echo "No alpha codename found"
-
-
-      - name: Verify Beta Codename
-        run: |
-          echo "::Group::Display Beta Codename"
-          aws s3 ls --recursive s3://repo.homebridge.io/dists/beta/ || echo "No beta codename found"
-          echo "::endgroup::"
+  # After a delete: purge the cached index files of repo.homebridge.io
+  purge_cloudflare_cache:
+    name: Purge Cloudflare Cache
+    needs: display_or_clean_apt
+    if: ${{ always() && inputs.cleanup == true && needs.display_or_clean_apt.result == 'success' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/reusable-purge_cloudflare_cache.yml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # R2 copy of the display/clean steps above. Runs alongside S3; remove the S3 jobs at cutover.
   display_or_clean_apt_r2:
     name: R2 - Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -122,7 +139,11 @@ jobs:
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
       R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
       STREAM: ${{ inputs.stream }}
+      # the host that serves the R2 bucket (the same default as reusable-publish_apt_r2.yml)
+      PUBLIC_HOST: apt-test.homebridge.io
     steps:
+      - uses: actions/checkout@v7
+
       - name: Delete ${{ inputs.stream }} Metadata and Packages
         if: ${{ inputs.cleanup == true }}
         run: |
@@ -130,9 +151,20 @@ jobs:
           aws s3 rm "s3://$R2_BUCKET/pool/$STREAM/" --recursive --endpoint-url "$R2_ENDPOINT"
           echo "Deleted dists/$STREAM/ and pool/$STREAM/ from R2"
 
+      - name: Purge Cloudflare Cache (R2 host)
+        if: ${{ inputs.cleanup == true }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          sed "s#://repo.homebridge.io/#://${PUBLIC_HOST}/#" repo/cf-cache-purge-urls.json \
+            > repo/cf-cache-purge-urls-r2.json
+          ./purge-cf-cache.sh repo/cf-cache-purge-urls-r2.json
+
       - name: Display Codenames
         run: |
-          for ch in stable alpha beta; do
+          for ch in stable beta alpha legacy; do
             echo "::group::R2 $ch codename"
             aws s3 ls --recursive "s3://$R2_BUCKET/dists/$ch/" --endpoint-url "$R2_ENDPOINT" || echo "No $ch codename found"
             echo "::endgroup::"

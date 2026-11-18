@@ -136,17 +136,24 @@ case "$1" in
       chown -h $SHELL_USER: $target_dirname
     fi
 
-    if [ -e "$target_link" ]; then
-      if [ "$(realpath $target_link)" = "$target_dir" ]; then
-         echo "Error: $package_name is already linked."
-         exit 1
+    if [ -L "$target_link" ]; then
+      if [ "$(realpath "$target_link")" = "$(realpath "$target_dir")" ]; then
+        echo "Error: $package_name is already linked."
+        exit 1
       fi
+      # a link to another source folder is replaced below
+    elif [ -e "$target_link" ]; then
+      # "ln" would put the link INSIDE the installed folder, and the installed copy would stay in use
+      echo "Error: $package_name is installed as a normal plugin, so it can not be linked."
+      echo "Remove the installed plugin first: hb-service remove $package_name"
+      exit 1
     fi
 
-    ln -sf "$target_dir" "$target_link"
-    chown -h $SHELL_USER: "$target_link"
-    if [ "$?" = "0" ]; then
+    if ln -sfn "$target_dir" "$target_link" && chown -h "$SHELL_USER": "$target_link"; then
       echo "Success: $package_name linked"
+    else
+      echo "Error: could not link $package_name"
+      exit 1
     fi
     ;;
 

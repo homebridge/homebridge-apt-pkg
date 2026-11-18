@@ -173,6 +173,16 @@ if [ "$1" = "configure" ]; then
     [ -d /run/systemd/system ] && SYSTEMD_RUNNING=1
     [ "$SYSTEMD_RUNNING" = "1" ] && systemctl daemon-reload
 
+    # The mDNS permission rule (polkit, see /usr/share/polkit-1/rules.d/homebridge.rules) is for
+    # members of the group "homebridge". When the service runs as another user (a systemd
+    # override, or user 1000 on older Raspberry Pi images), add that user to the group: polkit
+    # looks at the groups of the user, not at the extra groups of the service process.
+    SERVICE_USER=$(service_user)
+    if [ "$SERVICE_USER" != "homebridge" ] && [ "$SERVICE_USER" != "root" ]; then
+      usermod -a -G homebridge "$SERVICE_USER" \
+        || warn "could not add the user '$SERVICE_USER' to the group 'homebridge'."
+    fi
+
     if [ "$FRESH_INSTALL" = "1" ]; then
       systemctl enable homebridge.service \
         || warn "could not enable the Homebridge service. It will not start when the machine boots."

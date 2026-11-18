@@ -123,6 +123,7 @@ fake_script() {
 #   FAKE_ACTIVE=0   "is-active" says the service is not running   (default: running)
 #   FAKE_ENABLED=0  "is-enabled" says no                           (default: yes)
 #   FAKE_SYSTEMCTL_FAILS="restart enable"   these commands fail   (default: none)
+#   FAKE_SERVICE_USER=pi   "show -p User" prints this user        (default: prints nothing)
 fake_systemctl() {
   fake_script systemctl << 'EOF'
 #!/bin/sh
@@ -130,6 +131,7 @@ echo "[systemctl] $*" >> "$STUBLOG"
 case "$1" in
   is-active) [ "${FAKE_ACTIVE:-1}" = "1" ] ;;
   is-enabled) [ "${FAKE_ENABLED:-1}" = "1" ] ;;
+  show) echo "${FAKE_SERVICE_USER:-}" ;;
   *)
     for failing in ${FAKE_SYSTEMCTL_FAILS:-}; do
       [ "$1" = "$failing" ] && exit 1

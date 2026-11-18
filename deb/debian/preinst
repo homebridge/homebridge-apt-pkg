@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Files that must survive from one of these scripts to the next are kept here.
+# Only root may write to this folder. Never use a folder in /tmp for this: any user can create
+# it first, and /tmp is emptied on a reboot.
+STATE_DIR=/var/lib/homebridge-apt-pkg
+SAVED_PACKAGE_JSON="$STATE_DIR/package.json.saved"
+
+ensure_state_dir() {
+  if [ -L "$STATE_DIR" ] || { [ -e "$STATE_DIR" ] && [ ! -d "$STATE_DIR" ]; }; then
+    echo "WARNING: $STATE_DIR is not a normal folder. It will not be used, so the plugin list can not be carried over." >&2
+    return 1
+  fi
+  mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
+}
+
 # before install
 if [ "$1" = "install" ]; then
   echo "Running pre-install steps..."
@@ -53,9 +67,8 @@ if [ "$1" = "install" ]; then
           if [ "$?" = "0" ]; then
             pluginCount=$(echo $dependencies | jq length)
             if [ $pluginCount -gt 0 ]; then
-              # save the package.json file to a temp file which will be picked up in the postinst script
-              mkdir -p /tmp/homebridge-tmp
-              echo $packageJson > /tmp/homebridge-tmp/package.json
+              # save the package.json file where the postinst script will pick it up
+              ensure_state_dir && echo $packageJson > "$SAVED_PACKAGE_JSON"
             fi
           fi
         fi
@@ -99,9 +112,10 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
     systemctl stop homebridge.service 2> /dev/null
   fi
 
-  # take a copy of the existing "package.json"
-  mkdir -p /tmp/homebridge-tmp
-  [ -f /var/lib/homebridge/package.json ] && cp /var/lib/homebridge/package.json /tmp/homebridge-tmp/package.json
+  # take a copy of the existing "package.json" (a real file only: the folder belongs to the service user)
+  if [ -f /var/lib/homebridge/package.json ] && [ ! -L /var/lib/homebridge/package.json ]; then
+    ensure_state_dir && cp /var/lib/homebridge/package.json "$SAVED_PACKAGE_JSON"
+  fi
 
   # remove existing node_modules/homebridge and lock files
   # the postinst upgrade step will merge the new package.json with the existing one

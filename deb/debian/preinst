@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# These scripts never make dpkg fail half-way (they always end with "exit 0"). So when a step
+# does not work, say it clearly: the admin must be able to see it in the apt output.
+warn() { echo "WARNING: $*" >&2; }
+
 # Files that must survive from one of these scripts to the next are kept here.
 # Only root may write to this folder. Never use a folder in /tmp for this: any user can create
 # it first, and /tmp is emptied on a reboot.
@@ -28,8 +32,7 @@ if [ "$1" = "install" ]; then
   # make sure the package is not being installed using the Homebridge UI integrated terminal
   # unless UPDATE_HOMEBRIDGE_FORCE=1 is set
   if [ "$UPDATE_HOMEBRIDGE_FORCE" != "1" ]; then
-    pstree -s $$ | grep "hb-service" > /dev/null
-    if [ "$?" -eq 0 ]; then
+    if pstree -s $$ | grep -q "hb-service"; then
       echo
       >&2 echo "ERROR: The homebridge package must not be installed from the Homebridge UI Terminal."
       echo
@@ -38,7 +41,7 @@ if [ "$1" = "install" ]; then
   fi
 
   # remove the hb-service generated fix-permission pre-start script (fresh install only!)
-  if [ -z $2 ] && [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
+  if [ -z "$2" ] && [ -f /etc/hb-service/homebridge/prestart.d/10-fix-permissions ]; then
     rm -rf /etc/hb-service/homebridge/prestart.d/10-fix-permissions
   fi
 
@@ -98,14 +101,13 @@ if [ "$1" = "install" ]; then
 fi
 
 # before an upgrade
-if [ "$1" = "upgrade" ] && [ $2 ]; then
+if [ "$1" = "upgrade" ] && [ -n "$2" ]; then
   echo "Running pre-upgrade steps..."
 
   # make sure the package is not being upgraded using the Homebridge UI integrated terminal
   # unless UPDATE_HOMEBRIDGE_FORCE=1 is set
   if [ "$UPDATE_HOMEBRIDGE_FORCE" != "1" ]; then
-    pstree -s $$ | grep "hb-service" > /dev/null
-    if [ "$?" -eq 0 ]; then
+    if pstree -s $$ | grep -q "hb-service"; then
       echo
       >&2 echo "ERROR: The homebridge package must not be upgraded from the Homebridge UI Terminal."
       echo
@@ -134,7 +136,7 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
   for dir in "${MOVED_ASIDE[@]}"; do
     rm -rf "$dir.apt-old"
     if [ -d "$dir" ] && [ ! -L "$dir" ]; then
-      mv "$dir" "$dir.apt-old"
+      mv "$dir" "$dir.apt-old" || warn "could not move $dir aside. Old files may be left in it."
     fi
   done
 fi

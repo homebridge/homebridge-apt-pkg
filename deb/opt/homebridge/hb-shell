@@ -11,23 +11,21 @@ cd "/var/lib/homebridge"
 # default shell user
 SHELL_USER=homebridge
 
-# if a systemd override is in place, check which user the shell should run as
-if [ -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
-  OVERRIDE_USER=$(cat /etc/systemd/system/homebridge.service.d/override.conf | grep '^[[:blank:]]*[^[:blank:]#;]' | awk /User=/ | awk -F "=" '{print $2}' | xargs)
-  if [ ${#OVERRIDE_USER} -gt 0 ]; then
-    # check if user exists
-    getent passwd $OVERRIDE_USER > /dev/null
-    if [ "$?" -eq 0 ]; then
-      SHELL_USER=$(id -nu $OVERRIDE_USER)
-      echo "User: $SHELL_USER (/etc/systemd/system/homebridge.service.d/override.conf)"
-    else
-      echo "ERROR: User '$OVERRIDE_USER' as defined in /etc/systemd/system/homebridge.service.d/override.conf does not exist on the system!"
-    fi
+# The user the service runs as: "homebridge", or the User= of a systemd override.
+# systemd is asked, because it knows every override file and which line wins.
+UNIT_USER=$(systemctl show -p User --value homebridge.service 2> /dev/null)
+if [ -n "$UNIT_USER" ]; then
+  if id -nu "$UNIT_USER" > /dev/null 2>&1; then
+    SHELL_USER=$(id -nu "$UNIT_USER")
+    [ "$SHELL_USER" = "homebridge" ] || echo "User: $SHELL_USER (set for the homebridge service)"
+  else
+    echo "ERROR: User '$UNIT_USER', which the homebridge service is set to run as, does not exist on the system!"
   fi
 fi
 
-# get the shell user's home directory
-SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
+# the home folder comes from the user database
+SHELL_USER_HOME=$(getent passwd "$SHELL_USER" | cut -d: -f6)
+[ -n "$SHELL_USER_HOME" ] || SHELL_USER_HOME=/home/homebridge
 
 printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
 

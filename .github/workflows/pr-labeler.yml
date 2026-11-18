@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: homebridge/.github/.github/workflows/pr-labeler.yml@latest
+    # the shared workflow that reads .github/labeler.yml (labels a pull request by its base branch),
+    # the same one the other Homebridge repos use
+    uses: homebridge/.github/.github/workflows/labeler.yml@latest
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}

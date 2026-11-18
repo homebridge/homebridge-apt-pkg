@@ -137,8 +137,13 @@ Do not change these without changing the other side too.
 ## Tests
 
 ```bash
-# The script tests: no root rights, no network. Needs bash 4 or newer, jq, git and python3 with PyYAML.
+# The script tests: no root rights, no network.
+# They need Linux (GNU tools), bash 4 or newer, jq, git and python3 with PyYAML.
 ./test/run.sh
+
+# On a Mac, run them in a Debian container:
+docker run --rm -v "$PWD":/repo:ro -w /repo debian:bookworm sh -c \
+  'apt-get update -qq && apt-get install -y -qq jq git python3-yaml > /dev/null && test/run.sh'
 
 # One test file only
 ./test/run.sh postinst

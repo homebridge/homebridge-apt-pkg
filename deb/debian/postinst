@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Files that must survive from one of these scripts to the next are kept here.
+# Only root may write to this folder. Never use a folder in /tmp for this: any user can create
+# it first, and /tmp is emptied on a reboot.
+STATE_DIR=/var/lib/homebridge-apt-pkg
+SAVED_PACKAGE_JSON="$STATE_DIR/package.json.saved"
+
+ensure_state_dir() {
+  if [ -L "$STATE_DIR" ] || { [ -e "$STATE_DIR" ] && [ ! -d "$STATE_DIR" ]; }; then
+    echo "WARNING: $STATE_DIR is not a normal folder. It will not be used, so the plugin list can not be carried over." >&2
+    return 1
+  fi
+  mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
+}
+
 # post-install and post-upgrade
 if [ "$1" = "configure" ]; then
   # stop homebridge.service if it is running
@@ -14,14 +28,14 @@ if [ "$1" = "configure" ] && [ $2 ]; then
   true
 fi
 
-if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /var/lib/homebridge/package.json ]; then
+if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] && [ ! -L "$SAVED_PACKAGE_JSON" ] && [ -f /var/lib/homebridge/package.json ]; then
   echo "Merging package.json file..."
 
   # enter homebridge env
   . "/opt/homebridge/source.sh"
 
   # merge the new package.json into the old one, and save
-  PACKAGE_JSON=$(jq -M -s '.[0] * .[1]' /tmp/homebridge-tmp/package.json /var/lib/homebridge/package.json) > /var/lib/homebridge/package.json
+  PACKAGE_JSON=$(jq -M -s '.[0] * .[1]' "$SAVED_PACKAGE_JSON" /var/lib/homebridge/package.json) > /var/lib/homebridge/package.json
   if [ "$?" = "0" ]; then
     echo $PACKAGE_JSON | jq '.' > /var/lib/homebridge/package.json
   fi
@@ -49,8 +63,8 @@ if [ "$1" = "configure" ] && [ -f /tmp/homebridge-tmp/package.json ] && [ -f /va
   npm --prefix /var/lib/homebridge rebuild
   echo ""
 
-  # remove tmp package.json
-  rm -rf /tmp/homebridge-tmp/package.json
+  # the saved copy has been used
+  rm -f "$SAVED_PACKAGE_JSON"
 fi
 
 # post-install and post-upgrade

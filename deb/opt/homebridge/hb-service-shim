@@ -205,13 +205,19 @@ case "$1" in
     ;;
 
   "-V")
-    echo "Print Version Homebridge."
-    exec /var/lib/homebridge/node_modules/homebridge/bin/homebridge -V
+    # read the version from the installed files (the Homebridge start file has another name in
+    # Homebridge 2, and root has no "node" on its PATH)
+    if ! jq -er '.version | strings' /var/lib/homebridge/node_modules/homebridge/package.json 2> /dev/null; then
+      echo "Error: Homebridge is not installed in /var/lib/homebridge/node_modules."
+      exit 1
+    fi
     ;;
 
   "-D")
-    # Debug
-    exec /var/lib/homebridge/node_modules/homebridge/bin/homebridge -D
+    echo "The 'hb-service -D' command is not available when Homebridge is running as a system package."
+    echo "To see debug messages, turn on 'Homebridge Debug Mode' in the settings of the Homebridge UI,"
+    echo "then watch the log with: hb-service logs"
+    exit 1
     ;;
 
   *)
@@ -233,8 +239,7 @@ case "$1" in
       "    view                             view the homebridge service logs" \
       "    status                           check if the Homebridge UI web server is running" \
       "    shell                            open the Homebridge Terminal" \
-      "    -V                               Print Homebridge Version" \
-      "    -D                               Debug Homebridge " \
+      "    -V                               print the Homebridge version" \
       "" \
       "See the wiki for help with hb-service: https://homebridge.io/w/JTtHK"
     ;;

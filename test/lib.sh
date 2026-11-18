@@ -119,6 +119,18 @@ esac
 EOF
 }
 
+# fake_runuser: logs, then runs the command that follows "--" (as the current user).
+# INSIDE_RUNUSER=1 is set for that command, so a test can tell what ran "as the service user".
+fake_runuser() {
+  fake_script runuser << 'EOF'
+#!/bin/sh
+echo "[runuser] $*" >> "$STUBLOG"
+while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do shift; done
+shift
+INSIDE_RUNUSER=1 exec "$@"
+EOF
+}
+
 # the package scripts refuse to run unless "id -u" prints 0
 fake_root_id() {
   fake_script id << 'EOF'
@@ -157,14 +169,19 @@ sandbox_new() {
     "$ROOT/var/lib/homebridge/node_modules/homebridge" \
     "$ROOT/var/lib/homebridge/node_modules/homebridge-foo" \
     "$ROOT/var/lib/homebridge/node_modules/homebridge-bar" \
-    "$ROOT/opt/homebridge/bin" "$ROOT/etc" "$ROOT/tmp" "$ROOT/run" \
+    "$ROOT/etc" "$ROOT/tmp" "$ROOT/run" \
     "$ROOT/usr/local/bin" "$ROOT/usr/bin" "$ROOT/usr/sbin" "$ROOT/home/homebridge" "$ROOT/cwd"
   : > "$STUBLOG"
   echo '{"name":"homebridge","version":"2.5.0"}' > "$ROOT/var/lib/homebridge/node_modules/homebridge/package.json"
   echo '{"name":"homebridge-foo","version":"1.2.3"}' > "$ROOT/var/lib/homebridge/node_modules/homebridge-foo/package.json"
   echo '{"name":"homebridge-bar","version":"4.5.6"}' > "$ROOT/var/lib/homebridge/node_modules/homebridge-bar/package.json"
-  # what the package ships in /opt/homebridge
+  sandbox_unpack_opt
+}
+
+# sandbox_unpack_opt: put the files the package ships into $ROOT/opt/homebridge
+sandbox_unpack_opt() {
   local shipped
+  mkdir -p "$ROOT/opt/homebridge/bin"
   for shipped in "$REPO"/deb/opt/homebridge/*; do
     rewrite "$shipped" > "$ROOT/opt/homebridge/$(basename "$shipped")"
     chmod +x "$ROOT/opt/homebridge/$(basename "$shipped")"

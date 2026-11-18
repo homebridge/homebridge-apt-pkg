@@ -76,6 +76,13 @@ assert_eq "pr-labeler.yml" "$(grep -l 'pull_request_target' "$WORKFLOWS"/*.yml |
   "only the labeler uses pull_request_target (the debug logger that printed every event is gone)"
 assert_eq "" "$(grep -l 'toJson(github)' "$WORKFLOWS"/*.yml)" "no workflow prints the whole event to the log"
 
+section "no value is pasted into a shell line (it goes through env)"
+for file in "$WORKFLOWS"/*.yml "$REPO"/.github/actions/*/action.yml; do
+  name=${file#"$REPO/.github/"}
+  count=$(yaml_json "$file" | jq '[(.jobs // {action: {steps: .runs.steps}})[] | (.steps // [])[] | .run // "" | select(contains("${{"))] | length')
+  assert_eq 0 "$count" "$name: no \${{ ... }} inside a run step"
+done
+
 section "rights and secrets: every job gets only what it needs"
 for file in "$WORKFLOWS"/*.yml; do
   name=$(basename "$file")

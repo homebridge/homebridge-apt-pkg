@@ -201,6 +201,12 @@ check_versions() {
     pass "$name $have"
   done
 
+  # the shipped npm settings must not use options that npm warns about (they stop working later)
+  local npm_warnings
+  npm_warnings=$(cd "$STORAGE" && runuser -u homebridge -- env HOME=/home/homebridge sh -c '. /opt/homebridge/source.sh && npm config ls --loglevel=warn' 2>&1 | grep -i "warn" || true)
+  [ -z "$npm_warnings" ] || die "npm warns about its settings: $npm_warnings"
+  pass "npm has no complaint about the shipped settings"
+
   # the terminal in the UI needs this native module: it must load on this CPU type
   (cd /opt/homebridge/lib/node_modules/homebridge-config-ui-x && /opt/homebridge/bin/node -e 'require("@homebridge/node-pty-prebuilt-multiarch")') \
     || die "the node-pty module does not load on this machine"

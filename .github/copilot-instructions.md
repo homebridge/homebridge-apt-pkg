@@ -45,7 +45,7 @@ On an installed system:
 ## Commands
 
 ```bash
-./test/run.sh                 # the script tests (< 1 minute, no root, no network)
+./test/run.sh                 # the script tests (< 1 minute, no root, no network; Linux only, see BUILD.md)
 ./test/run.sh postinst        # one test file
 ./test/lint.sh                # shellcheck on every shell script
 scripts/build-local.sh stable # build a package in Docker (a few minutes, needs network)

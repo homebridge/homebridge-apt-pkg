@@ -1,8 +1,12 @@
 # @homebridge/homebridge-apt-pkg
 
-This is a **stub package** used to track versions of the Homebridge APT package via npm and Dependabot.
+This is a **stub package**. It records each release of the Homebridge APT package on npm.
 
 > **Note:** This package does **not** contain any actual code or binaries.
+
+- The version of this package is the version of the APT package release.
+- Its `dependencies` list the Node.js, Homebridge and Homebridge UI versions that release ships.
+- The npm tags are the release streams: `latest` (stable), `beta`, `alpha` and `legacy`.
 
 ## 🔗 Related Projects
 
@@ -13,8 +17,7 @@ This is a **stub package** used to track versions of the Homebridge APT package 
 ## 🛠 Purpose
 
 This package exists solely to:
-- Allow `dependabot` to track version updates via GitHub Releases.
-- Help downstream projects automate version syncing (e.g., Docker builds).
+- Let other Homebridge projects (the Docker image, the Raspberry Pi image) follow new APT package releases through the npm tags.
+- Show which versions an APT package release contains.
 
 ---
-

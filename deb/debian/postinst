@@ -69,8 +69,16 @@ if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] &&
   # of it. The result is written to a new file and checked before it replaces package.json, so a
   # problem can never leave an empty or half-written plugin list behind.
   MERGED_PACKAGE_JSON="$STATE_DIR/package.json.merged"
+  #
+  # Alpha and beta packages used to ship the "homebridge-plugin-update-check" plugin. They now ship
+  # "homebridge-updater", which replaces it and takes over its settings. When this package ships
+  # the updater, the old plugin is taken out of the list (dpkg has already removed its files).
   merge_plugin_list() {
-    jq -M -s '(.[0] * .[1]) | del(.dependencies["homebridge-config-ui-x"])' "$1" /var/lib/homebridge/package.json > "$MERGED_PACKAGE_JSON" 2> /dev/null \
+    jq -M -s '(.[0] * .[1])
+      | del(.dependencies["homebridge-config-ui-x"])
+      | if (.dependencies | has("@homebridge-plugins/homebridge-updater"))
+        then del(.dependencies["@homebridge-plugins/homebridge-plugin-update-check"]) else . end' \
+      "$1" /var/lib/homebridge/package.json > "$MERGED_PACKAGE_JSON" 2> /dev/null \
       && jq -e '(.dependencies | type) == "object"' "$MERGED_PACKAGE_JSON" > /dev/null 2>&1
   }
 

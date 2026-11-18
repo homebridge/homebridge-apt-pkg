@@ -120,6 +120,7 @@ control="$REPO/deb/debian/control"
 depends=$(grep '^Depends:' "$control")
 pre_depends=$(grep '^Pre-Depends:' "$control")
 assert_contains "$depends" "adduser" "adduser (used by postinst) is a dependency"
+assert_contains "$depends" "openssl" "openssl stays a dependency"
 for tool in jq psmisc; do
   assert_contains "$pre_depends" "$tool" "$tool (used by preinst) must be set up before unpacking"
 done

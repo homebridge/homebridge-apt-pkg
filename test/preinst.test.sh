@@ -5,7 +5,8 @@
 # shellcheck source=test/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-fake systemctl pstree chown curl
+fake pstree chown curl
+fake_systemctl
 PREINST=$(sandbox_script deb/debian/preinst)
 STATE() { printf '%s\n' "$ROOT/var/lib/homebridge-apt-pkg"; }
 LIST() { printf '%s\n' "$ROOT/var/lib/homebridge/package.json"; }

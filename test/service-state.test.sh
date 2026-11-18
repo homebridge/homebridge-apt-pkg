@@ -99,4 +99,27 @@ assert_contains "$log" "[systemctl] enable homebridge.service" "enable (works wi
 assert_not_contains "$log" "restart homebridge.service" "nothing is started"
 assert_not_contains "$log" "daemon-reload" "no daemon-reload"
 
+section "the service runs as another user (a systemd override): that user joins the homebridge group"
+# a fake "id" that knows the user "pi" (uid 1000)
+fake_script id << 'EOF'
+#!/bin/sh
+if [ "$1" = "-nu" ]; then
+  case "$2" in pi | 1000) echo pi; exit 0 ;; homebridge) echo homebridge; exit 0 ;; *) exit 1 ;; esac
+fi
+PATH="$REAL_PATH" exec id "$@"
+EOF
+sandbox_new other-user
+systemd_is_running
+unpacked
+FAKE_ACTIVE=0 FAKE_SERVICE_USER=1000 run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.25
+assert_contains "$(stublog)" "[usermod] -a -G homebridge pi" "the user is added to the group (so the polkit rule for mDNS applies to it)"
+
+section "the service runs as homebridge: no group change"
+sandbox_new default-user
+systemd_is_running
+unpacked
+FAKE_ACTIVE=0 run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.25
+assert_not_contains "$(stublog)" "[usermod] -a -G homebridge" "usermod is not called"
+rm -f "$FAKEBIN/id"
+
 finish

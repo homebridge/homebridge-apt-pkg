@@ -14,7 +14,7 @@
 # - Beta builds: Use beta/64bit for x86_64/aarch64, beta/32bit for arm/i386
 # - Stable builds: Use stable/64bit for x86_64/aarch64, stable/32bit for arm/i386
 #
-# Run ./validate-config.sh to verify package configurations before building
+# Run ./test/run.sh streams to verify the package configurations before building
 
 set -e
 set -x

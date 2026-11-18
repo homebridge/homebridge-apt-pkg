@@ -82,6 +82,12 @@ assert_json() {
   fi
 }
 
+# yaml_json <file>: print a YAML file as JSON, for jq. Needs python3 with PyYAML.
+# (The YAML key "on" comes out as "true". That is how YAML 1.1 reads it.)
+yaml_json() {
+  python3 -c 'import sys, json, yaml; json.dump(yaml.safe_load(open(sys.argv[1])), sys.stdout)' "$1"
+}
+
 finish() {
   printf '\n%s: %d checks, %d failed\n' "$(basename "$0")" "$CHECKS" "$FAILS"
   [ "$FAILS" -eq 0 ]

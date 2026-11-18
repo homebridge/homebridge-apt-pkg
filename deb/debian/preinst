@@ -14,6 +14,13 @@ ensure_state_dir() {
   mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
 }
 
+# Folders that "preinst upgrade" moves aside (to "<name>.apt-old"). See the note there.
+MOVED_ASIDE=(
+  /var/lib/homebridge/node_modules/homebridge
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/node-pty-prebuilt-multiarch/build
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
+)
+
 # before install
 if [ "$1" = "install" ]; then
   echo "Running pre-install steps..."
@@ -106,9 +113,10 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
     fi
   fi
  
-  # stop homebridge.service if it is running
+  # stop homebridge.service if it is running, and remember that it was running
   if systemctl is-active --quiet homebridge.service; then
     echo "Stopping Homebridge service..."
+    ensure_state_dir && touch "$STATE_DIR/was-running"
     systemctl stop homebridge.service 2> /dev/null
   fi
 
@@ -117,16 +125,18 @@ if [ "$1" = "upgrade" ] && [ $2 ]; then
     ensure_state_dir && cp /var/lib/homebridge/package.json "$SAVED_PACKAGE_JSON"
   fi
 
-  # remove existing node_modules/homebridge and lock files
-  # the postinst upgrade step will merge the new package.json with the existing one
-  rm -rf /var/lib/homebridge/node_modules/homebridge
-  rm -rf /var/lib/homebridge/package-lock.json
-  rm -rf /var/lib/homebridge/pnpm-lock.yaml
-  rm -rf /var/lib/homebridge/package.json
-  rm -rf /var/lib/homebridge/.npmrc
-  # cleanup node-pty-prebuilt-multiarch
-  rm -rf /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/node-pty-prebuilt-multiarch/build
-  rm -rf /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
+  # Nothing is deleted in this script. If unpacking the new files fails (for example the disk is
+  # full), dpkg puts the old files back, and "postrm abort-upgrade" undoes the steps below.
+  # - package.json and .npmrc belong to the package: dpkg replaces them, and restores them.
+  # - The folders below can hold files dpkg does not know (Homebridge updated from the UI,
+  #   node-pty built on this machine). They are moved aside so the new files land in a clean
+  #   place. postinst deletes the old copies once the upgrade has worked.
+  for dir in "${MOVED_ASIDE[@]}"; do
+    rm -rf "$dir.apt-old"
+    if [ -d "$dir" ] && [ ! -L "$dir" ]; then
+      mv "$dir" "$dir.apt-old"
+    fi
+  done
 fi
 
 echo "Unpacking may take several minutes on low powered devices."

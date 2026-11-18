@@ -104,6 +104,21 @@ fake_script() {
   chmod +x "$FAKEBIN/$1"
 }
 
+# fake_systemctl: logs like the others, and answers the questions the scripts ask.
+#   FAKE_ACTIVE=0   "is-active" says the service is not running   (default: running)
+#   FAKE_ENABLED=0  "is-enabled" says no                           (default: yes)
+fake_systemctl() {
+  fake_script systemctl << 'EOF'
+#!/bin/sh
+echo "[systemctl] $*" >> "$STUBLOG"
+case "$1" in
+  is-active) [ "${FAKE_ACTIVE:-1}" = "1" ] ;;
+  is-enabled) [ "${FAKE_ENABLED:-1}" = "1" ] ;;
+  *) exit 0 ;;
+esac
+EOF
+}
+
 # the package scripts refuse to run unless "id -u" prints 0
 fake_root_id() {
   fake_script id << 'EOF'

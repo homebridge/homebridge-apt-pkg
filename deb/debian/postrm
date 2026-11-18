@@ -1,5 +1,32 @@
 #!/bin/bash
 
+STATE_DIR=/var/lib/homebridge-apt-pkg
+
+# Folders that "preinst upgrade" moves aside (to "<name>.apt-old"). See the note there.
+MOVED_ASIDE=(
+  /var/lib/homebridge/node_modules/homebridge
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/node-pty-prebuilt-multiarch/build
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
+)
+
+# The upgrade failed while the new files were unpacked (for example the disk is full).
+# dpkg has put the old files back. Undo what "preinst upgrade" did, so Homebridge runs as before.
+if [ "$1" = "abort-upgrade" ]; then
+  echo "The Homebridge upgrade did not finish. Putting the previous version back..."
+  for dir in "${MOVED_ASIDE[@]}"; do
+    if [ -d "$dir.apt-old" ]; then
+      rm -rf "$dir"
+      mv "$dir.apt-old" "$dir"
+    fi
+  done
+  rm -f "$STATE_DIR/package.json.saved"
+  if [ -e "$STATE_DIR/was-running" ]; then
+    rm -f "$STATE_DIR/was-running"
+    echo "Starting Homebridge service...."
+    systemctl start homebridge.service
+  fi
+fi
+
 # if removing - ensure app data is gone, but keep user data unless purgin
 if [ "$1" = "remove" ]; then
   echo "Running post-remove steps..."

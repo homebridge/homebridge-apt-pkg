@@ -14,8 +14,21 @@ ensure_state_dir() {
   mkdir -p "$STATE_DIR" && chown root:root "$STATE_DIR" && chmod 700 "$STATE_DIR"
 }
 
+# Folders that "preinst upgrade" moves aside (to "<name>.apt-old"). See the note there.
+MOVED_ASIDE=(
+  /var/lib/homebridge/node_modules/homebridge
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/node-pty-prebuilt-multiarch/build
+  /opt/homebridge/lib/node_modules/homebridge-config-ui-x/node_modules/@homebridge/node-pty-prebuilt-multiarch/build
+)
+
 # post-install and post-upgrade
 if [ "$1" = "configure" ]; then
+  # the upgrade worked: delete what "preinst upgrade" moved aside, and old lock files
+  for dir in "${MOVED_ASIDE[@]}"; do
+    rm -rf "$dir.apt-old"
+  done
+  rm -f /var/lib/homebridge/package-lock.json /var/lib/homebridge/pnpm-lock.yaml
+
   # stop homebridge.service if it is running
   if systemctl is-active --quiet homebridge.service; then
     echo "Stopping Homebridge service..."
@@ -61,11 +74,6 @@ if [ "$1" = "configure" ] && ensure_state_dir && [ -f "$SAVED_PACKAGE_JSON" ] &&
   else
     rm -f "$MERGED_PACKAGE_JSON"
     echo "WARNING: could not merge the plugin list. Your plugins are not removed, but they are missing from /var/lib/homebridge/package.json."
-  fi
-
-  # remove the package-lock.json
-  if [ -e /var/lib/homebridge/package-lock.json ]; then
-    rm -rf /var/lib/homebridge/package-lock.json
   fi
 
   # Re-install user plugins. Not when the merge failed: "npm install" removes every plugin
@@ -142,6 +150,8 @@ if [ "$1" = "configure" ]; then
 
   # remove symlinks create by npm for global hb-service installs
   rm -rf /usr/bin/hb-service
+
+  rm -f "$STATE_DIR/was-running"
 fi
 
 # post-install only

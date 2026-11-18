@@ -1,5 +1,5 @@
 Source: homebridge
-Section: test
+Section: net
 Priority: optional
 Maintainer: NorthernMan54 <northern.man1@gmail.com>
 Build-Depends: debhelper (>= 9.20160709) | dh-systemd
@@ -9,5 +9,8 @@ Package: homebridge
 Pre-Depends: libc6 (>= 2.31), jq (>= 1.4), psmisc
 Depends: adduser, openssl, make, gcc, g++, python3, python3-venv, python3-dev, net-tools, iproute2
 Architecture: any
-Description: HomeKit support for the impatient.
-Homepage: http://homebridge.io
+Description: HomeKit support for the impatient
+ Homebridge lets devices that do not support Apple HomeKit show up in the
+ Home app. This package holds Homebridge, the Homebridge UI and their own
+ Node.js runtime. It runs them as a systemd service under its own user.
+Homepage: https://homebridge.io

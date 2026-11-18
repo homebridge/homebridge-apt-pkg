@@ -32,7 +32,9 @@ old_plugin_list() {
   local from_unit dir manifest
   from_unit=$(grep -oE '/[^ "]*/node_modules/homebridge-config-ui-x/' /etc/systemd/system/homebridge.service 2> /dev/null | head -n 1)
   for dir in "${from_unit%/homebridge-config-ui-x/}" /usr/local/lib/node_modules /usr/lib/node_modules; do
-    [ -n "$dir" ] && [ -d "$dir" ] || continue
+    if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+      continue
+    fi
     for manifest in "$dir"/homebridge-*/package.json "$dir"/@*/homebridge-*/package.json; do
       [ -f "$manifest" ] || continue
       jq -c 'select((.name | type) == "string" and (.version | type) == "string") | {(.name): .version}' "$manifest" 2> /dev/null

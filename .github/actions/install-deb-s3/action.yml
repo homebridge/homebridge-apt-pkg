@@ -1,0 +1,22 @@
+name: 'Install deb-s3'
+description: 'Installs the deb-s3 tool (it writes and signs the apt repository). The file is checked against a fixed SHA-256 before it is installed.'
+
+# Every workflow that touches the apt repository uses this one step, so there is one version and
+# one checksum to keep up to date. These jobs hold the signing key and the storage keys.
+# To update: change both values. Get the checksum with "sha256sum deb-s3-<version>.gem" on the
+# file from https://github.com/deb-s3/deb-s3/releases.
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install deb-s3
+      shell: bash
+      env:
+        DEB_S3_VERSION: '0.11.8'
+        DEB_S3_SHA256: '68d34965772739ce0a0978262a923ced860a41a8840356540ed0c27a30c92a5d'
+      run: |
+        cd "$RUNNER_TEMP"
+        curl -fsSLO "https://github.com/deb-s3/deb-s3/releases/download/${DEB_S3_VERSION}/deb-s3-${DEB_S3_VERSION}.gem"
+        echo "${DEB_S3_SHA256}  deb-s3-${DEB_S3_VERSION}.gem" | sha256sum --check
+        sudo gem install "deb-s3-${DEB_S3_VERSION}.gem"
+        deb-s3 version

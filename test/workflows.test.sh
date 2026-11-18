@@ -48,4 +48,11 @@ assert_eq "validate_prerelease" "$(stage2 '.jobs.promote_to_release.needs | map(
 assert_contains "$(stage2 '.jobs.promote_to_release.if')" "needs.validate_prerelease.result == 'success'" "and only when it passed"
 assert_eq "null" "$(validate '.true.workflow_call.secrets | tojson')" "the check needs no secret"
 
+section "the deb-s3 tool is installed in one place, with a checksum"
+users=$(grep -l "deb-s3 " "$WORKFLOWS"/*.yml | wc -l)
+shared=$(grep -l "uses: ./.github/actions/install-deb-s3" "$WORKFLOWS"/*.yml | wc -l)
+assert_eq "$users" "$shared" "every workflow that runs deb-s3 uses the shared install step"
+assert_eq "" "$(grep -l "gem install" "$WORKFLOWS"/*.yml)" "no workflow installs a gem by itself"
+assert_contains "$(cat "$REPO/.github/actions/install-deb-s3/action.yml")" "sha256sum --check" "the shared step checks the SHA-256 of the file"
+
 finish

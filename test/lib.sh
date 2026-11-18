@@ -9,7 +9,7 @@
 # - Fake commands (systemctl, npm, adduser ...) are put first on the PATH. They only write
 #   the arguments they were given to $STUBLOG.
 #
-# Needs: bash 4 or newer, jq, git. Run everything with: test/run.sh
+# Needs: Linux (GNU tools), bash 4 or newer, jq, git. Run everything with: test/run.sh
 
 # SC2016: the fake commands and the path rewrite hold "$..." text that must not expand here.
 # SC2034: OUT and STATUS are read by the test files.

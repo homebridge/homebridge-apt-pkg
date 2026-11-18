@@ -18,10 +18,14 @@ on:
         required: true
         default: false
 
+permissions: {}
+
 jobs:
   verify_apt:
     name: Verify APT Repository - ${{ inputs.stream }} Codename
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
@@ -36,19 +40,25 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Verify deb-s3 Installation
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          STREAM: ${{ inputs.stream }}
         run: |
           deb-s3 verify \
-              --codename=${{ inputs.stream }} \
-              --suite=${{ inputs.stream }} \
+              --codename="$STREAM" \
+              --suite="$STREAM" \
               --s3-region=us-west-2 \
               --bucket repo.homebridge.io \
-              --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-              --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-              --sign=${{ secrets.GPG_KEY_ID }} 
+              --access-key-id="$AWS_ACCESS_KEY_ID" \
+              --secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+              --sign="$GPG_KEY_ID"
 
   display_or_clean_apt:
     name: Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -102,6 +112,7 @@ jobs:
   display_or_clean_apt_r2:
     name: R2 - Display or Clean ${{ inputs.stream }} Codename - ${{ inputs.cleanup == true && 'Clean' || 'Display' }}
     runs-on: ubuntu-latest
+    permissions: {}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

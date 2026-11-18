@@ -11,11 +11,15 @@ on:
       CLOUDFLARE_ACCOUNT_ID:
         required: true
 
+permissions: {}
+
 jobs:
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - uses: actions/checkout@v7
 

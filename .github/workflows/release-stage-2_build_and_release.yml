@@ -37,10 +37,9 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
-  actions: write
-  id-token: write
+# No rights by default. Each job below names the rights it needs.
+# Releases are made with the GitHub App token, not with the workflow's own token.
+permissions: {}
 
 concurrency:
   group: release-stage-2
@@ -91,6 +90,8 @@ jobs:
     needs: check_branch
     if: ${{ inputs.release_type!= 'stable' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version_output.outputs.version }}
       npm_version: ${{ steps.version_output.outputs.npm_version }}
@@ -120,6 +121,8 @@ jobs:
     needs: check_branch
     if: ${{  inputs.release_type== 'stable' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.release_version.outputs.version }}
       npm_version: ${{ steps.release_version.outputs.version }}
@@ -139,6 +142,8 @@ jobs:
     needs: [preflight, generate_version, generate_stable_version]
     if: always() && needs.preflight.result == 'success' && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success')
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -222,6 +227,8 @@ jobs:
     needs: [generate_version, generate_stable_version, build_packages]
     if: always() && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success') && needs.build_packages.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       release_tag: ${{ steps.release_details.outputs.tag_name  }}
     steps:
@@ -309,6 +316,7 @@ jobs:
     needs: [create_prerelease]
     if: always() && needs.create_prerelease.result == 'success'
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Output Success Notice
         run: echo "::notice::📦 Created prerelease ${{ needs.create_prerelease.outputs.release_tag }} with ${{ inputs.release_type}} changes"
@@ -320,6 +328,8 @@ jobs:
     name: Validate GitHub Prerelease Artifacts
     needs: [create_prerelease, prelease_created_notice]
     if: always() && needs.create_prerelease.result == 'success'
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "prerelease"
@@ -332,6 +342,7 @@ jobs:
     needs: [validate_prerelease, create_prerelease]
     if: always() && needs.validate_prerelease.result == 'success'
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Create GitHub App Token
         id: app-token
@@ -368,6 +379,8 @@ jobs:
     needs: [promote_to_release, create_prerelease, generate_version, generate_stable_version]
     if: always() && needs.promote_to_release.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
@@ -391,17 +404,23 @@ jobs:
         uses: ./.github/actions/install-deb-s3
 
       - name: Upload to APT Repository
+        env:
+          # the keys reach the command through the environment, never as text in this file
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          CHANNEL: ${{ inputs.release_type }}
         run: |
-          sudo chown -R $USER: repo/
+          sudo chown -R "$USER": repo/
           deb-s3 upload \
-            --codename=${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}} \
-            --suite=${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}} \
+            --codename="$CHANNEL" \
+            --suite="$CHANNEL" \
             --preserve-versions \
             --s3-region=us-west-2 \
             --bucket repo.homebridge.io \
-            --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            --sign=${{ secrets.GPG_KEY_ID }} \
+            --access-key-id="$AWS_ACCESS_KEY_ID" \
+            --secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+            --sign="$GPG_KEY_ID" \
             repo/homebridge_v*.deb repo/*.deb
 
   # Step 4b: Publish to the Cloudflare R2 APT repository, in parallel with S3.
@@ -410,19 +429,33 @@ jobs:
     name: Publish to R2 APT Repository
     needs: [promote_to_release, create_prerelease, generate_version, generate_stable_version]
     if: always() && needs.promote_to_release.result == 'success'
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-publish_apt_r2.yml
     with:
       release_tag: ${{ needs.create_prerelease.outputs.release_tag }}
       version: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
       npm_version: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
-      release_channel: ${{ inputs.release_type== 'stable' && 'stable' || inputs.release_type}}
-    secrets: inherit
+      release_channel: ${{ inputs.release_type }}
+    # only the secrets this job uses (not "secrets: inherit", which hands over all of them)
+    secrets:
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Step 5: Purge CloudFlare cache
   purge_cloudflare_cache:
     name: Purge Cloudflare Cache
     needs: [publish_apt]
     if: always() && needs.publish_apt.result == 'success'
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -434,6 +467,8 @@ jobs:
     name: Validate APT Installation
     needs: [purge_cloudflare_cache, publish_apt, generate_version, generate_stable_version]
     if: always() && needs.publish_apt.result == 'success'
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: "apt"
@@ -446,6 +481,10 @@ jobs:
     needs: [validate_apt, create_prerelease, generate_version, generate_stable_version]
     if: always() && needs.validate_apt.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # the right to publish to npm (trusted publishing). Only this job has it.
+      id-token: write
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v7
@@ -453,7 +492,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: latest
+          # Node.js 24 comes with npm 11, the same as the other Homebridge repos publish with
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Create package.json from the ${{ inputs.release_type }} release stream
@@ -479,6 +519,7 @@ jobs:
     name: Notify Discord
     needs: [publish_to_npm, create_prerelease]
     if: always() && needs.publish_to_npm.result == 'success' && inputs.release_type== 'stable'
+    permissions: {}
     uses: homebridge/.github/.github/workflows/discord-webhooks.yml@latest
     with:
       title: "Homebridge APT Package Released"
@@ -496,6 +537,7 @@ jobs:
     needs: [create_prerelease, validate_apt]
     if: always() && needs.validate_apt.result == 'success' && inputs.release_type == 'stable'
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Create GitHub App Token
         id: app-token

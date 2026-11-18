@@ -31,7 +31,12 @@ on:
           - minor
           - major
         default: patch
-      
+      allow_downgrade:
+        description: 'Allow a bundled version (Node.js, Homebridge, UI) to go DOWN compared with the last release of this stream'
+        required: false
+        type: boolean
+        default: false
+
 permissions:
   contents: write
   actions: write
@@ -42,6 +47,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
+  # Stop before anything is built if a bundled version went down (see scripts/check-version-downgrade.sh)
+  preflight:
+    name: Check that no bundled version goes down
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the last ${{ inputs.release_type }} release
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          ALLOW_VERSION_DOWNGRADE: ${{ inputs.allow_downgrade && '1' || '0' }}
+        run: ./scripts/check-version-downgrade.sh "$RELEASE_TYPE"
 
   # For alpha/beta releases, generate version using date-based approach
   generate_version:
@@ -92,8 +114,8 @@ jobs:
 
   build_packages:
     name: Build Packages for (${{ matrix.name }}) v${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
-    needs: [generate_version, generate_stable_version]
-    if: always() && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success')
+    needs: [preflight, generate_version, generate_stable_version]
+    if: always() && needs.preflight.result == 'success' && (needs.generate_version.result == 'success' || needs.generate_stable_version.result == 'success')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

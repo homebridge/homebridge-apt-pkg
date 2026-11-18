@@ -50,4 +50,22 @@ assert_json "$REPO/.github/homebridge-legacy-bot.json" \
   '[.directories[].packages[] | select(.name == "node") | .tag] == ["^22.x.x", "^24.x.x"]' \
   "the legacy bot keeps Node.js on 22 (32-bit) and 24 (64-bit)"
 
+section "what the stream files list, the bots track, and build.sh installs is the same set"
+for stream in stable beta alpha legacy; do
+  for arch in 32bit 64bit; do
+    listed=$(jq -c '.dependencies | keys' "$REPO/$stream/$arch/package.json")
+    tracked=$(jq -c --arg d "$stream/$arch" '[.directories[] | select(.directory == $d) | .packages[].name] | sort' "$REPO/.github/homebridge-$stream-bot.json")
+    assert_eq "$listed" "$tracked" "$stream/$arch: the bot tracks every listed package, and nothing else"
+    for name in $(jq -r '.dependencies | keys[]' "$REPO/$stream/$arch/package.json"); do
+      if grep -q -F -- ".dependencies[\"$name\"]" "$REPO/build.sh" || grep -q -F -- ".dependencies.$name" "$REPO/build.sh"; then
+        ok "$stream/$arch: build.sh reads the version of $name"
+      else
+        fail "$stream/$arch: build.sh reads the version of $name" "build.sh never uses this package, so it is tracked for nothing"
+      fi
+    done
+  done
+done
+assert_eq "" "$(grep -rl 'homebridge-plugin-update-check' "$REPO/alpha" "$REPO/beta" "$REPO/stable" "$REPO/legacy" "$REPO/.github"/homebridge-*-bot.json "$REPO/build.sh")" \
+  "the old update-check plugin is not named in the stream files, bot configs or build.sh"
+
 finish

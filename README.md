@@ -99,7 +99,13 @@ apt list -a homebridge  # Shows available versions
 sudo apt install homebridge=<version>
 ```
 
-NOTE: apt versions do not start with a v, while the verion on GitHub starts with v
+NOTE: apt versions do not start with a v, while the version on GitHub starts with v
+
+#### How many older versions are kept
+
+* The apt repository does not keep every old version. `apt list -a homebridge` shows the versions it offers right now. As a rule you can count on the newest 3 stable versions, and the newest 2 versions of the beta, alpha and legacy channels.
+* Every stable release stays on the [GitHub releases page](https://github.com/homebridge/homebridge-apt-pkg/releases). To go back further than the apt repository allows, download the `.deb` file for your system there and install it with `sudo apt install ./homebridge_<version>_<arch>.deb`.
+* For beta, alpha and legacy only the newest 15 releases are kept on GitHub.
 ## About
 
 This package contains a self-contained Node.js installation and environment for Homebridge to run in.

@@ -80,4 +80,17 @@ assert_contains "$(cat "$REPO/deb/var/lib/homebridge/.npmrc")" 'install-strategy
 assert_contains "$(cat "$REPO/deb/opt/homebridge/source.sh")" "npm_config_install_strategy=shallow" "source.sh uses install-strategy"
 assert_not_contains "$(cat "$REPO/build.sh")" "npm@latest" "build.sh does not replace npm in some streams only"
 
+section "build.sh works on a copy and builds the package only"
+build=$(cat "$REPO/build.sh")
+copy_line=$(grep -n '^cp -R deb staging' "$REPO/build.sh" | cut -d: -f1)
+dch_line=$(grep -n 'dch -b -v' "$REPO/build.sh" | cut -d: -f1)
+if [ -n "$copy_line" ] && [ -n "$dch_line" ] && [ "$copy_line" -lt "$dch_line" ]; then
+  ok "the version is written after the copy is made"
+else
+  fail "the version is written after the copy is made" "copy at line ${copy_line:-none}, dch at line ${dch_line:-none}"
+fi
+assert_contains "$build" "(cd staging && dch " "dch runs inside the copy, not in deb/"
+assert_contains "$build" "dpkg-buildpackage -us -uc -b" "no source archive is built"
+assert_not_contains "$build" "git config --global" "the global git config is not changed"
+
 finish

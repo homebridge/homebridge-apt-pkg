@@ -5,14 +5,13 @@
 # This script builds Debian packages for Homebridge across multiple architectures.
 # 
 # IMPORTANT: Node.js Version Constraints
-# - Node.js 23+ dropped support for 32-bit architectures (ARM32, i386)
-# - This script enforces Node.js ≤22 for 32-bit builds to prevent failures
+# - Node.js 23+ has no 32-bit builds
+# - This script refuses Node.js above 22 for the 32-bit ARM build
 # - 64-bit architectures (x86_64, aarch64) can use any Node.js version
 #
-# Package Configuration:
-# - Alpha builds: Use alpha/64bit for x86_64/aarch64, alpha/32bit for arm/i386
-# - Beta builds: Use beta/64bit for x86_64/aarch64, beta/32bit for arm/i386
-# - Stable builds: Use stable/64bit for x86_64/aarch64, stable/32bit for arm/i386
+# Package Configuration (PKG_RELEASE_TYPE is stable, beta, alpha or legacy):
+# - <type>/64bit/package.json for x86_64 and aarch64
+# - <type>/32bit/package.json for arm
 #
 # Run ./test/run.sh streams to verify the package configurations before building
 
@@ -21,7 +20,7 @@ set -x
 
 #trap 'rm -rf staging *.tar.gz *.manifest /tmp/*' EXIT
 
-# Determine if alpha, beta or stable config should be used
+# The architecture to build for: x86_64, aarch64 or arm
 BUILD_ARCH=${QEMU_ARCH:-aarch64}
 
 # Determine config directory based on release type (default to stable)
@@ -33,7 +32,7 @@ esac
 # Map build architecture to 64bit/32bit subdir
 case "${BUILD_ARCH}" in
   x86_64|aarch64) ARCH_DIR="64bit" ;;
-  arm|i386) ARCH_DIR="32bit" ;;
+  arm) ARCH_DIR="32bit" ;;
   *) echo "unsupported architecture: ${BUILD_ARCH}"; exit 1 ;;
 esac
 
@@ -79,7 +78,6 @@ HOMEBRIDGE_UPDATER_VERSION=$(jq -r '.dependencies["@homebridge-plugins/homebridg
 
 MAJOR_NODE=$(jq -r '.dependencies.node | gsub("^\\^"; "")' "$PACKAGE_JSON_PATH" | cut -d. -f1)
 
-BUILD_ARCH=${QEMU_ARCH:-aarch64}
 case "$BUILD_ARCH" in
   x86_64) NODE_ARCH='x64' ;;
   arm)
@@ -92,15 +90,6 @@ case "$BUILD_ARCH" in
     fi
     NODE_ARCH='armv7l' ;;
   aarch64) NODE_ARCH='arm64' ;;
-  i386)
-    if [ "$MAJOR_NODE" -gt 22 ]; then
-      echo "ERROR: Node.js $MAJOR_NODE is not supported on 32-bit x86 (i386) architecture"
-      echo "Node.js dropped 32-bit support starting with version 23"
-      echo "Please use Node.js 22.x or earlier for i386 builds"
-      echo "Current configuration uses Node.js $NODE_VERSION from $PACKAGE_JSON_PATH"
-      exit 1
-    fi
-    NODE_ARCH='x86' ;;
   *) echo "unsupported architecture"; exit 1 ;;
 esac
 

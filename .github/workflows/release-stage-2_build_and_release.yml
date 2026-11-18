@@ -174,25 +174,19 @@ jobs:
         PKG_RELEASE_VERSION: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
       run: ./scripts/build-local.sh "$RELEASE_TYPE" "$QEMU_ARCH" "$PKG_RELEASE_VERSION"
 
-    - name: Rename package to include v
+    - name: Rename package and manifest to include v
       run: |
-        DEB_FILE=$(ls homebridge*.deb 2>/dev/null || echo "")
-        if [ -z "$DEB_FILE" ]; then
-          echo "No .deb file found. Exiting."
+        # homebridge_2.0.26_amd64.deb -> homebridge_v2.0.26_amd64.deb (the names other repos download by)
+        shopt -s nullglob
+        FILES=(homebridge_*.deb homebridge_*.manifest)
+        if [ "${#FILES[@]}" -ne 2 ]; then
+          echo "::error::Expected one .deb and one .manifest file, found: ${FILES[*]:-none}"
           exit 1
         fi
-        UPDATED=$(echo "$DEB_FILE" | sed -e 's/homebridge_/homebridge_v/g')
-        mv "$DEB_FILE" "$UPDATED"
-
-    - name: Rename manifest to include v
-      run: |
-        MANIFEST_FILE=$(ls homebridge*.manifest 2>/dev/null || echo "")
-        if [ -z "$MANIFEST_FILE" ]; then
-          echo "No .manifest file found. Exiting."
-          exit 1
-        fi
-        UPDATED=$(echo "$MANIFEST_FILE" | sed -e 's/homebridge_/homebridge_v/g')
-        mv "$MANIFEST_FILE" "$UPDATED"
+        for FILE in "${FILES[@]}"; do
+          mv "$FILE" "${FILE/homebridge_/homebridge_v}"
+        done
+        ls -l homebridge_v*
 
     - uses: actions/upload-artifact@v7
       with:
@@ -234,40 +228,31 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
-      - name: Get the date
-        id: date
-        run: |
-          echo "builddate=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
-      - name: Create Release Body
-        id: release_body
-        run: |
-          # The release notes are the package manifest. A build from a pre-release branch
-          # (e.g. beta-2026.11.18) also says which branch it came from and what it adds on
-          # top of latest. The manifest file itself is left as it is: it is a release asset.
-          cp "$(ls *.manifest | head -n 1)" release-body.md
-          ./scripts/prerelease-branch-notes.sh "${GITHUB_REF_NAME}" >> release-body.md
-          echo "BODY_FILE=release-body.md" >> $GITHUB_OUTPUT
-
       - name: Determine release details
         id: release_details
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          VERSION: ${{ needs.generate_version.outputs.version || needs.generate_stable_version.outputs.version }}
+          NPM_VERSION: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
         run: |
-          RELEASE_TYPE="${{ inputs.release_type}}"
           if [[ "$RELEASE_TYPE" == "stable" ]]; then
-            VERSION="${{ needs.generate_stable_version.outputs.version }}"
-            NPM_VERSION="${{ needs.generate_stable_version.outputs.npm_version }}"
-            TITLE="v$VERSION - ${{ steps.date.outputs.builddate }}"
+            TITLE="v$VERSION - $(date +'%Y-%m-%d')"
           else
-            VERSION="${{ needs.generate_version.outputs.version }}"
-            NPM_VERSION="${{ needs.generate_version.outputs.npm_version }}"
-            TITLE_PREFIX=$(echo "$RELEASE_TYPE" | tr '[:lower:]' '[:upper:]')
-            TITLE="$TITLE_PREFIX: Homebridge APT Pkg Release v$NPM_VERSION"
+            TITLE="${RELEASE_TYPE^^}: Homebridge APT Pkg Release v$NPM_VERSION"
           fi
-          
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "npm_version=$NPM_VERSION" >> $GITHUB_OUTPUT
-          echo "release_title=$TITLE" >> $GITHUB_OUTPUT
-          echo "tag_name=v$NPM_VERSION" >> $GITHUB_OUTPUT
+          # the release text is the manifest of the amd64 build (the first one by name). A build
+          # from a pre-release branch (e.g. beta-2026.11.18) also says which branch it came from
+          # and what it adds on top of latest. The manifest itself is left as it is: it is a release asset.
+          cp "$(find . -maxdepth 1 -name '*.manifest' | sort | head -n 1)" release-body.md
+          ./scripts/prerelease-branch-notes.sh "${GITHUB_REF_NAME}" >> release-body.md
+          BODY_FILE=release-body.md
+          {
+            echo "version=$VERSION"
+            echo "npm_version=$NPM_VERSION"
+            echo "release_title=$TITLE"
+            echo "tag_name=v$NPM_VERSION"
+            echo "body_file=$BODY_FILE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Prerelease
         id: create_release
@@ -275,7 +260,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ steps.release_details.outputs.tag_name }}
           TITLE: ${{ steps.release_details.outputs.release_title }}
-          BODY_FILE: ${{ steps.release_body.outputs.BODY_FILE }}
+          BODY_FILE: ${{ steps.release_details.outputs.body_file }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, clearing attachments and updating"
@@ -286,11 +271,7 @@ jobs:
           else
             gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes-file "$BODY_FILE" --prerelease
           fi
-          gh release upload "$TAG" *.deb *.manifest --clobber
-
-      - name: Set release tag output
-        run: |
-          echo "release_tag=${{ steps.release_details.outputs.tag_name }}" >> $GITHUB_OUTPUT
+          gh release upload "$TAG" ./*.deb ./*.manifest --clobber
 
   prelease_created_notice:
     name: Prerelease Created Notice
@@ -300,7 +281,10 @@ jobs:
     permissions: {}
     steps:
       - name: Output Success Notice
-        run: echo "::notice::📦 Created prerelease ${{ needs.create_prerelease.outputs.release_tag }} with ${{ inputs.release_type}} changes"
+        env:
+          RELEASE_TAG: ${{ needs.create_prerelease.outputs.release_tag }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: echo "::notice::📦 Created prerelease $RELEASE_TAG with $RELEASE_TYPE changes"
 
   # Step 2: Validate the prerelease packages BEFORE anything is published:
   # install (as an upgrade from the published package), start, versions, remove, purge.
@@ -394,7 +378,7 @@ jobs:
             --access-key-id="$AWS_ACCESS_KEY_ID" \
             --secret-access-key="$AWS_SECRET_ACCESS_KEY" \
             --sign="$GPG_KEY_ID" \
-            repo/homebridge_v*.deb repo/*.deb
+            repo/*.deb
 
   # Step 4b: Publish to the Cloudflare R2 APT repository, in parallel with S3.
   # Independent of the S3 jobs and never fails the release (continue-on-error inside).
@@ -470,11 +454,13 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Create package.json from the ${{ inputs.release_type }} release stream
+        env:
+          NPM_VERSION: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
         run: |
           # The npm stub is the stream's 64-bit manifest, so its dependencies record exactly
           # what this apt release contains. There is no package.json in the repo root.
-          NPM_VERSION="${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}"
-          STREAM_PACKAGE_JSON="${{ inputs.release_type }}/64bit/package.json"
+          STREAM_PACKAGE_JSON="$RELEASE_TYPE/64bit/package.json"
           echo "Creating package.json from $STREAM_PACKAGE_JSON with version $NPM_VERSION"
           jq --arg version "$NPM_VERSION" \
             '.name = "@homebridge/homebridge-apt-pkg" | .version = $version | .scripts = {"prepublishOnly": "cp README.npm.md README.md"}' \
@@ -482,10 +468,13 @@ jobs:
           cat package.json
 
       - name: Publish to npm
-        run: npm publish --access public --tag ${{ inputs.release_type== 'stable' && 'latest' || inputs.release_type}}
-
-      - name: Output Success Notice
-        run: echo "::notice::Published @homebridge/homebridge-apt-pkg as version ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }} with ${{ inputs.release_type== 'stable' && 'latest' || inputs.release_type}} tag"
+        env:
+          NPM_VERSION: ${{ needs.generate_version.outputs.npm_version || needs.generate_stable_version.outputs.npm_version }}
+          # the npm tag other repos read: stable -> latest, the other streams -> their own name
+          NPM_TAG: ${{ inputs.release_type == 'stable' && 'latest' || inputs.release_type }}
+        run: |
+          npm publish --access public --tag "$NPM_TAG"
+          echo "::notice::Published @homebridge/homebridge-apt-pkg as version $NPM_VERSION with $NPM_TAG tag"
 
   # Step 8: Notify Discord (for stable releases only)
   notify_discord:

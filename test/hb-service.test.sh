@@ -150,6 +150,27 @@ assert_contains "$(stublog)" "
 [argument] 24.22.3; touch /tmp/oops" "update-node: shell characters stay inside the argument"
 fake runuser
 
+section "status: the port of the UI"
+# a runuser that writes every argument it gets on its own line
+fake_script runuser << 'EOF'
+#!/bin/sh
+for argument in "$@"; do echo "[argument] $argument" >> "$STUBLOG"; done
+EOF
+# status_port <config.json content>: the port that "hb-service status" checks
+status_port() {
+  sandbox_new "port-$RANDOM"
+  [ -n "$1" ] && printf '%s\n' "$1" > "$ROOT/var/lib/homebridge/config.json"
+  run_in "$ROOT/cwd" "$BASH" "$SHIM" status
+  tail -n 1 "$STUBLOG" | sed 's/^\[argument\] //'
+}
+assert_eq "8581" "$(status_port '')" "no config.json: 8581"
+assert_eq "8080" "$(status_port '{"platforms":[{"platform":"config","port":8080}]}')" "a port in the UI block is used"
+assert_eq "8581" "$(status_port '{"platforms":[{"platform":"config"}]}')" "a UI block without a port: 8581 (the old code used the word null)"
+assert_eq "8581" "$(status_port '{"platforms":[{"platform":"config","port":"80; reboot"}]}')" "a port that is not a number: 8581"
+assert_eq "8581" "$(status_port '{"bridge":{}}')" "a config without platforms: 8581"
+assert_eq "8581" "$(status_port 'not json')" "a config.json that is not valid JSON: 8581"
+fake runuser
+
 section "-V prints the Homebridge version, for Homebridge 1 and 2"
 sandbox_new version
 run_in "$ROOT/cwd" "$BASH" "$SHIM" -V

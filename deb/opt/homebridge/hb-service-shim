@@ -58,9 +58,10 @@ function read_plugin_name {
 PORT=8581
 
 function check_port_override {
+  # digits only: a UI block without a port must not turn the port into the word "null"
   if [ -f /var/lib/homebridge/config.json ]; then
-    PORT_FROM_CONFIG=$(cat /var/lib/homebridge/config.json | jq '.platforms[] | select(.platform == "config") | .port' 2> /dev/null)
-    if [ ${#PORT_FROM_CONFIG} -gt 0 ]; then
+    PORT_FROM_CONFIG=$(jq -r '.platforms[]? | select(.platform == "config") | .port // empty' /var/lib/homebridge/config.json 2> /dev/null | head -n 1)
+    if [[ "$PORT_FROM_CONFIG" =~ ^[0-9]+$ ]]; then
       PORT=$PORT_FROM_CONFIG
     fi
   fi

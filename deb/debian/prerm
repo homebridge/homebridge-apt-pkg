@@ -21,6 +21,8 @@ if [ "$1" = "remove" ]; then
     ensure_state_dir && cp /var/lib/homebridge/package.json "$SAVED_PACKAGE_JSON" \
       && echo "Saved the list of installed plugins. They are installed again if you install homebridge again."
   fi
+  # tells the next postinst that this is an install after a remove, not an upgrade
+  ensure_state_dir && touch "$STATE_DIR/removed"
 fi
 
 #DEBHELPER#

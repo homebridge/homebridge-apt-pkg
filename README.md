@@ -38,7 +38,7 @@ sudo apt-get update
 sudo apt-get install homebridge
 ```
 
-Remove:
+Remove (keeps `/var/lib/homebridge`: your config and the list of your plugins. The plugins are installed again if you install the package again):
 
 ```
 sudo apt-get remove homebridge
@@ -49,6 +49,8 @@ Purge (this will delete `/var/lib/homebridge`):
 ```
 sudo apt-get purge homebridge
 ```
+
+A purge does not remove the `homebridge` user and group, `/home/homebridge`, `/etc/default/homebridge`, a systemd override in `/etc/systemd/system/homebridge.service.d/`, or a firewall rule that was added for the UI port.
 
 ## Manual Install
 

@@ -1,8 +1,14 @@
 name: "Reusable - Validate Homebridge Package"
-run-name: "Reusable - Validate Homebridge Package - ${{ github.event.inputs.validation_type }} - ${{ github.event.inputs.release_channel || 'N/A' }}"
+run-name: "Reusable - Validate Homebridge Package - ${{ inputs.validation_type }} - ${{ inputs.release_channel || 'N/A' }}"
+
+# Two checks, both done by test/e2e/validate-deb.sh on a fresh runner:
+# - "prerelease": BEFORE a release is published. The package files of a GitHub prerelease are
+#   installed on Intel, on 64-bit ARM and (in a container) on 32-bit ARM. On the first two, the
+#   published package of the same channel is installed first, so the real upgrade is tested.
+# - "apt": AFTER publishing. The package is installed from https://repo.homebridge.io.
+# No secret is used. Everything read here is public.
 
 on:
-
   workflow_dispatch:
     inputs:
       validation_type:
@@ -13,169 +19,159 @@ on:
           - prerelease
           - apt
         default: apt
-        # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
       release_tag:
-        description: "Release tag for GitHub release validation"
+        description: "prerelease: the GitHub release tag to take the package files from"
         required: false
         type: string
       release_channel:
-        description: "APT release channel for APT validation"
+        description: "APT release channel"
         required: false
         type: choice
         options:
           - stable
           - beta
           - alpha
+          - legacy
         default: alpha
-        # Options: "stable", "beta", "alpha"
-      prerelease:
-        description: "Whether to download from prerelease"
+      expected_version:
+        description: "apt: the version that must get installed (empty: any)"
         required: false
-        type: boolean
-        default: false
-      latest:
-        description: "Whether to download latest release"
-        required: false
-        type: boolean
-        default: false
+        type: string
 
   workflow_call:
-    secrets:
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
     inputs:
       validation_type:
-        description: "Type of validation to perform"
+        description: "Type of validation to perform: prerelease or apt"
         required: true
         type: string
-        # Options: "prerelease" (validate GitHub release), "apt" (validate APT installation)
       release_tag:
-        description: "Release tag for GitHub release validation"
+        description: "prerelease: the GitHub release tag to take the package files from"
         required: false
         type: string
       release_channel:
-        description: "APT release channel for APT validation"
+        description: "APT release channel: stable, beta, alpha or legacy"
         required: false
         type: string
-        # Options: "stable", "beta", "alpha"
-      prerelease:
-        description: "Whether to download from prerelease"
+      expected_version:
+        description: "apt: the version that must get installed (empty: any)"
         required: false
-        type: boolean
-        default: false
-      latest:
-        description: "Whether to download latest release"
-        required: false
-        type: boolean
-        default: false
+        type: string
+
+permissions: {}
 
 jobs:
   validate_prerelease_homebridge:
-    name: Validate Homebridge PreRelease Package
+    name: Validate PreRelease Package (${{ matrix.arch }})
     if: inputs.validation_type == 'prerelease'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
-      - name: Validate GitHub Release Package
-        run: |
-          echo "Starting GitHub release package validation..."
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Download prerelease assets
-        id: download_assets
         uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1.13
         with:
           tag: ${{ inputs.release_tag }}
-          preRelease: ${{ inputs.prerelease }}
-          latest: ${{ inputs.latest }}
           fileName: 'homebridge*.deb'
-
-      - name: List the downloaded files
-        run: ls -l
+          out-file-path: 'debs'
 
       - name: Check the number of downloaded files
-        id: check_file_count
         run: |
-          FILE_COUNT=$(ls -1 | wc -l)
-          echo "Number of files downloaded: $FILE_COUNT"
+          ls -l debs
+          FILE_COUNT=$(find debs -maxdepth 1 -name 'homebridge*.deb' | wc -l)
           if [ "$FILE_COUNT" -ne 3 ]; then
-            echo "::error::Expected 3 files, but found $FILE_COUNT"
+            echo "::error::Expected 3 package files (amd64, arm64, armhf), but found $FILE_COUNT"
             exit 1
           fi
 
-      - name: Download and install AMD64 package
+      - name: Upgrade from the published package, then check, remove, install again and purge
+        env:
+          ARCH: ${{ matrix.arch }}
+          CHANNEL: ${{ inputs.release_channel }}
+        run: |
+          DEB=$(find debs -maxdepth 1 -name "homebridge_*_${ARCH}.deb")
+          sudo ./test/e2e/validate-deb.sh --upgrade-from-apt "$CHANNEL" --lifecycle "$DEB"
+
+  # GitHub has no 32-bit ARM runners. The 64-bit ARM runners can run 32-bit ARM programs, so the
+  # package is installed and started in a 32-bit Debian container (no systemd in there).
+  validate_prerelease_armhf:
+    name: Validate PreRelease Package (armhf, in a container)
+    if: inputs.validation_type == 'prerelease'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download prerelease assets
         uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1.13
         with:
           tag: ${{ inputs.release_tag }}
-          preRelease: ${{ inputs.prerelease }}
-          latest: ${{ inputs.latest }}
-          fileName: 'homebridge_*_amd64.deb'
+          fileName: 'homebridge_*_armhf.deb'
+          out-file-path: 'debs'
 
-      - name: List downloaded files
+      - name: Install, start and check in a 32-bit ARM container
         run: |
-          echo "Downloaded files:"
-          ls -l
-
-      - name: Install the downloaded package
-        run: |
-          sudo dpkg -i homebridge_*_amd64.deb || sudo apt-get install -f -y
-          sleep 30
-
-      - name: Validate Homebridge Service (prerelease)
-        run: |
-          sudo hb-service view
-          sudo hb-service status
+          DEB=$(find debs -maxdepth 1 -name 'homebridge_*_armhf.deb')
+          docker run --rm --platform linux/arm/v7 -v "$PWD":/work -w /work arm32v7/debian:bookworm \
+            ./test/e2e/validate-deb.sh --lifecycle "$DEB"
 
   validate_apt:
-    name: Validate APT Installation
+    name: Validate APT Installation (${{ matrix.os }})
     if: inputs.validation_type == 'apt'
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
-      - name: Install Homebridge from APT
-        continue-on-error: true
-        run: |
-          curl -sSfL https://repo.homebridge.io/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/homebridge.gpg
-          echo "deb [signed-by=/usr/share/keyrings/homebridge.gpg] https://repo.homebridge.io ${{ inputs.release_channel }} main" | \
-            sudo tee /etc/apt/sources.list.d/homebridge.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y homebridge
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Display Installed Version
-        if: success()
-        id: installed-version
+      - name: Install from the APT repository and check
+        env:
+          CHANNEL: ${{ inputs.release_channel }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
         run: |
-          dpkg -l homebridge
-          echo "homebridge-version=\"$(dpkg -l homebridge | tail -1 | awk '{ print $3 }')\"" >> "$GITHUB_OUTPUT"
-
-      - name: Validate Homebridge Service
-        if: success()
-        run: |
-          sudo hb-service status
-          sudo hb-service view
+          ARGS=(--from-apt "$CHANNEL")
+          if [ -n "$EXPECTED_VERSION" ]; then
+            ARGS+=(--expect-version "$EXPECTED_VERSION")
+          fi
+          sudo ./test/e2e/validate-deb.sh "${ARGS[@]}"
 
       - name: List Available Versions
-        if: success()
-        run: |
-          apt-cache madison homebridge
+        if: always()
+        run: apt-cache madison homebridge || true
 
       - name: Publish Notice
-        if: success()
+        env:
+          CHANNEL: ${{ inputs.release_channel }}
+          RUNNER_OS_LABEL: ${{ matrix.os }}
         run: |
-          echo "::notice::APT Package Installed from ${{ inputs.release_channel }} - Version ${{ steps.installed-version.outputs.homebridge-version }} - ${{ matrix.os }}"
+          echo "::notice::APT Package Installed from $CHANNEL - Version $(dpkg-query -W -f '${Version}' homebridge) - $RUNNER_OS_LABEL"
 
-      - name: Configure AWS Credentials
+      - name: Show what the repository serves for this channel
         if: failure()
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
-
-      - name: Display Current ${{ inputs.release_channel }} Codename
-        if: failure()
+        env:
+          CHANNEL: ${{ inputs.release_channel }}
         run: |
-          aws s3 ls --recursive s3://repo.homebridge.io/dists/${{ inputs.release_channel }}/ || echo "No ${{ inputs.release_channel }} codename found"
-          aws s3 ls --recursive s3://repo.homebridge.io/pool/${{ inputs.release_channel }}/ || echo "No ${{ inputs.release_channel }} codename found"
+          # public files only; no storage key is needed to see what users get
+          curl -fsS "https://repo.homebridge.io/dists/$CHANNEL/InRelease" | head -n 20 || true
+          curl -fsS "https://repo.homebridge.io/dists/$CHANNEL/main/binary-$(dpkg --print-architecture)/Packages" \
+            | grep -E '^(Package|Version|Filename):' | tail -n 30 || true

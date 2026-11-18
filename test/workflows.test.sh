@@ -55,4 +55,26 @@ assert_eq "$users" "$shared" "every workflow that runs deb-s3 uses the shared in
 assert_eq "" "$(grep -l "gem install" "$WORKFLOWS"/*.yml)" "no workflow installs a gem by itself"
 assert_contains "$(cat "$REPO/.github/actions/install-deb-s3/action.yml")" "sha256sum --check" "the shared step checks the SHA-256 of the file"
 
+section "rights and secrets: every job gets only what it needs"
+for file in "$WORKFLOWS"/*.yml; do
+  name=$(basename "$file")
+  json="$WORK/$name.json"
+  yaml_json "$file" > "$json"
+  assert_eq "{}" "$(jq -c '.permissions // "missing"' "$json")" "$name: no rights by default (permissions: {})"
+  assert_eq "" "$(jq -r '.jobs | to_entries[] | select(.value.permissions == null) | .key' "$json" | tr '\n' ' ')" \
+    "$name: every job names its own rights"
+  assert_eq "" "$(jq -r '.jobs | to_entries[] | select(.value.secrets == "inherit") | .key' "$json")" \
+    "$name: no job is given every secret (secrets: inherit)"
+  assert_eq "" "$(jq -r '[.jobs[] | (.steps // [])[] | .run // "" | select(test("\\$\\{\\{ *secrets\\."))] | length | select(. > 0)' "$json")" \
+    "$name: no secret is written into a shell line (they go through env)"
+done
+assert_eq "publish_to_npm" "$(stage2 '.jobs | to_entries[] | select(.value.permissions["id-token"] == "write") | .key')" \
+  "Stage 2: only the npm job may publish to npm (id-token: write)"
+assert_eq "" "$(stage2 '.jobs | to_entries[] | select(.value.permissions.contents == "write" or .value.permissions.actions == "write") | .key')" \
+  "Stage 2: no job gets write rights from the workflow's own token (releases use the GitHub App token)"
+assert_eq "24" "$(stage2 '.jobs.publish_to_npm.steps[] | select(.uses // "" | startswith("actions/setup-node")) | .with["node-version"]')" \
+  "Stage 2: npm publish runs on Node.js 24"
+assert_not_contains "$(cat "$WORKFLOWS/release-stage-1_update_dependencies.yml")" "secrets.GH_TOKEN" \
+  "Stage 1: the personal access token (GH_TOKEN) is not used any more"
+
 finish

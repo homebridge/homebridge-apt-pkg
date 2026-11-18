@@ -55,6 +55,17 @@ assert_eq "$users" "$shared" "every workflow that runs deb-s3 uses the shared in
 assert_eq "" "$(grep -l "gem install" "$WORKFLOWS"/*.yml)" "no workflow installs a gem by itself"
 assert_contains "$(cat "$REPO/.github/actions/install-deb-s3/action.yml")" "sha256sum --check" "the shared step checks the SHA-256 of the file"
 
+section "erasing a channel: verify first, purge the cache after"
+CLEAN="$WORK/clean.json"
+yaml_json "$WORKFLOWS/display_or_clean_apt.yml" > "$CLEAN"
+clean() { jq -r "$1" "$CLEAN"; }
+assert_eq "verify_apt" "$(clean '.jobs.display_or_clean_apt.needs')" "the delete job waits for the verify job"
+assert_eq "display_or_clean_apt" "$(clean '.jobs.purge_cloudflare_cache.needs')" "the cache purge runs after the delete"
+assert_contains "$(clean '.jobs.purge_cloudflare_cache.if')" "inputs.cleanup == true" "the cache is only purged when something was deleted"
+assert_contains "$(clean '.jobs.display_or_clean_apt_r2.steps | map(.run // "") | join("\n")')" "purge-cf-cache.sh" "the R2 host is purged too"
+assert_eq '["beta","alpha","legacy"]' "$(clean '.true.workflow_dispatch.inputs.stream.options | tojson')" "legacy can be chosen; stable can not be erased here"
+assert_not_contains "$(cat "$WORKFLOWS/display_or_clean_apt.yml")" "::Group::" "log groups use the right spelling"
+
 section "rights and secrets: every job gets only what it needs"
 for file in "$WORKFLOWS"/*.yml; do
   name=$(basename "$file")

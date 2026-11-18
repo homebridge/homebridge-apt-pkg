@@ -29,10 +29,21 @@ if [ "$1" = "configure" ]; then
   done
   rm -f /var/lib/homebridge/package-lock.json /var/lib/homebridge/pnpm-lock.yaml
 
-  # stop homebridge.service if it is running
-  if systemctl is-active --quiet homebridge.service; then
+  # Was the service running before this install or upgrade? "preinst upgrade" leaves a note when
+  # it stops the service. It may also still be running (for example "dpkg-reconfigure").
+  WAS_RUNNING=0
+  [ -e "$STATE_DIR/was-running" ] && WAS_RUNNING=1
+  if systemctl is-active --quiet homebridge.service 2> /dev/null; then
+    WAS_RUNNING=1
     echo "Stopping Homebridge service..."
     systemctl stop homebridge.service 2> /dev/null
+  fi
+
+  # A first install, or an install after "apt remove" (prerm leaves a note for that). After a
+  # remove, dpkg still passes the old version as $2, so $2 alone can not tell the two apart.
+  FRESH_INSTALL=0
+  if [ -z "$2" ] || [ -e "$STATE_DIR/removed" ]; then
+    FRESH_INSTALL=1
   fi
 fi
 
@@ -145,18 +156,31 @@ if [ "$1" = "configure" ]; then
     fi
   fi
 
-  # clear any masks on the homebridge service
-  systemctl unmask homebridge.service 2> /dev/null
+  # The service:
+  # - first install: turn it on (enable) and start it;
+  # - upgrade: start it again only if it was running before. An admin who stopped or disabled
+  #   the service keeps it that way, and a mask is never removed;
+  # - no running systemd (a chroot while a system image is built, a container): nothing is
+  #   started. "enable" still works there, so the service starts on the first real boot.
+  if command -v systemctl > /dev/null 2>&1; then
+    SYSTEMD_RUNNING=0
+    [ -d /run/systemd/system ] && SYSTEMD_RUNNING=1
+    [ "$SYSTEMD_RUNNING" = "1" ] && systemctl daemon-reload
 
-  # reload systemctl
-  systemctl daemon-reload
+    if [ "$FRESH_INSTALL" = "1" ]; then
+      systemctl enable homebridge.service
+    fi
 
-  # enable systemctl service
-  systemctl enable homebridge.service
-
-  # start / restart homebridge
-  echo "Starting Homebridge service...."
-  systemctl restart homebridge.service
+    if [ "$SYSTEMD_RUNNING" = "1" ]; then
+      if [ "$FRESH_INSTALL" = "1" ] || [ "$WAS_RUNNING" = "1" ]; then
+        echo "Starting Homebridge service...."
+        systemctl restart homebridge.service
+      else
+        echo "The Homebridge service was not running before the upgrade, so it is not started."
+        echo "Start it with: systemctl start homebridge"
+      fi
+    fi
+  fi
 
   # create symlink to hb-shell
   ln -fs /opt/homebridge/hb-shell /usr/local/bin/hb-shell
@@ -167,11 +191,11 @@ if [ "$1" = "configure" ]; then
   # remove symlinks create by npm for global hb-service installs
   rm -rf /usr/bin/hb-service
 
-  rm -f "$STATE_DIR/was-running"
+  rm -f "$STATE_DIR/was-running" "$STATE_DIR/removed"
 fi
 
-# post-install only
-if [ "$1" = "configure" ] && [ -z $2 ]; then
+# first install only (or the first install after a remove)
+if [ "$1" = "configure" ] && [ "$FRESH_INSTALL" = "1" ]; then
   IP=$(hostname -I)
   PORT=8581
 

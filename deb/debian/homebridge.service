@@ -1,7 +1,7 @@
 [Unit]
 Description=Homebridge
 Wants=network-online.target
-After=syslog.target network-online.target
+After=network-online.target
 
 [Service]
 Type=simple

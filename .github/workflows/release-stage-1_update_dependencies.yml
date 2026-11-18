@@ -121,14 +121,16 @@ jobs:
           # a stable release took 88 minutes on 14 Nov 2026
           timeout-minutes: '150'
 
-      - name: Cleanup older beta and alpha release and tags
+      - name: Cleanup older beta, alpha and legacy releases and tags
         if: ${{ matrix.release_type != 'stable' }}
         uses: ./.github/actions/cleanup-old-releases-and-tags
         with:
           # the same GitHub App token that Stage 2 creates the releases with
           github-token: ${{ steps.dependency-bot-token.outputs.token }}
           release-type: ${{ matrix.release_type }}
-          releases-to-keep: 5
+          # docker-homebridge downloads the .deb of one exact version from the GitHub release,
+          # so an older Docker build needs its release to still be there (about two weeks)
+          releases-to-keep: 15
 
   validate_apt_channels:
     name: Post Release Validation of all APT Release Channels

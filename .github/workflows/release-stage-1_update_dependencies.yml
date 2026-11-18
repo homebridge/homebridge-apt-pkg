@@ -19,10 +19,14 @@ concurrency:
   group: release-stage-1-update-dependencies
   cancel-in-progress: false
 
+# No rights by default. Each job below names the rights it needs.
+permissions: {}
+
 jobs:
   determine-release-types:
     name: Determine Release Types
     runs-on: ubuntu-latest
+    permissions: {}
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -48,8 +52,10 @@ jobs:
       matrix: ${{ fromJson(needs.determine-release-types.outputs.matrix) }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      # the bot reads the repo with the workflow's token and pushes with the GitHub App token
+      contents: read
+      # to start Stage 2 and to read its run
+      actions: write
 
     steps:
       - name: Create Dependency Bot App Token
@@ -68,8 +74,9 @@ jobs:
         with:
           config_file: '.github/homebridge-${{ matrix.release_type }}-bot.json'
           release_stream: ${{ matrix.release_type }}
+          # The bot pushes straight to the branch ("update_method": "push" in the config), so it
+          # needs no second token to approve and merge pull requests.
           PUBLISH_TOKEN: ${{ steps.dependency-bot-token.outputs.token }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Separate token for PR approval and merging
 
       - name: Log Skipped ${{ matrix.release_type }} Stage 2 Trigger
         if: steps.homebridge-bot.outputs.changes_detected != 'true' || steps.homebridge-bot.outputs.auto_merge != 'true'
@@ -88,7 +95,8 @@ jobs:
           ref: 'latest'
           release-type: ${{ matrix.release_type }}
           scheduled: ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}
-          github-token: ${{ secrets.GH_TOKEN }}
+          # The workflow's own token may start a workflow ("actions: write" above). No personal token is needed.
+          github-token: ${{ github.token }}
           # a stable release took 88 minutes on 14 Nov 2026
           timeout-minutes: '150'
 
@@ -96,7 +104,8 @@ jobs:
         if: ${{ matrix.release_type != 'stable' }}
         uses: ./.github/actions/cleanup-old-releases-and-tags
         with:
-          github-token: ${{ secrets.GH_TOKEN }}
+          # the same GitHub App token that Stage 2 creates the releases with
+          github-token: ${{ steps.dependency-bot-token.outputs.token }}
           release-type: ${{ matrix.release_type }}
           releases-to-keep: 5
 
@@ -108,6 +117,8 @@ jobs:
       fail-fast: false
       matrix:
         release_channel: [stable, beta, alpha, legacy]
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-validate-homebridge.yml
     with:
       validation_type: apt

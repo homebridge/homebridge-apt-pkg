@@ -20,11 +20,15 @@ on:
         description: 'Dry run: only list what would be removed'
         default: true
 
+permissions: {}
+
 jobs:
   purge_old_releases:
     name: Purge Old Releases
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - uses: actions/checkout@v7
 
@@ -51,20 +55,27 @@ jobs:
 
     - name: Update Repo
       if: ${{ !inputs.dry_run }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        RELEASE_TYPE: ${{ inputs.release_type }}
       run: |
         deb-s3 verify \
-          --codename=${{ github.event.inputs.release_type }} \
+          --codename="$RELEASE_TYPE" \
           --s3-region=us-west-2 \
           --bucket repo.homebridge.io \
-          --access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          --sign=${{ secrets.GPG_KEY_ID }} \
+          --access-key-id="$AWS_ACCESS_KEY_ID" \
+          --secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+          --sign="$GPG_KEY_ID" \
           --fix-manifests
 
   purge_cloudflare_cache:
     name: Clear Cache
     needs: purge_old_releases
     if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: read
     uses: ./.github/workflows/reusable-purge_cloudflare_cache.yml
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

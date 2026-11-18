@@ -30,11 +30,34 @@ on:
         required: false
         type: string
         default: apt-test.homebridge.io
+    secrets:
+      R2_BUCKET:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
+        required: true
+      GPG_KEY_ID:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ZONE_ID:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+permissions: {}
 
 jobs:
   publish_apt_r2:
     name: Publish to R2 APT Repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     continue-on-error: true
     env:
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -115,8 +138,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PUBLIC_HOST: ${{ inputs.public_host }}
         run: |
-          sed 's#://repo.homebridge.io/#://${{ inputs.public_host }}/#' repo/cf-cache-purge-urls.json \
+          sed "s#://repo.homebridge.io/#://${PUBLIC_HOST}/#" repo/cf-cache-purge-urls.json \
             > repo/cf-cache-purge-urls-r2.json
           ./purge-cf-cache.sh repo/cf-cache-purge-urls-r2.json
 

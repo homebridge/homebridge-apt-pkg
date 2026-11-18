@@ -122,20 +122,16 @@ tar xzf "node-$NODE_VERSION-linux-$NODE_ARCH.tar.gz" -C staging/opt/homebridge/ 
 PATH="$(pwd)/staging/opt/homebridge/bin:$PATH"
 
 export npm_config_prefix=$(pwd)/staging/opt/homebridge
-export npm_config_global_style=true
+export npm_config_install_strategy=shallow
 export npm_config_package_lock=false
 export npm_config_audit=false
 export npm_config_fund=false
 export npm_config_update_notifier=false
-export npm_config_auto_install_peers=true
 export npm_config_loglevel=error
 
-case "${PKG_RELEASE_TYPE}" in
-  alpha|beta) 
-    echo "Installing latest npm for alpha/beta release"
-    npm install --location=global npm@latest 
-    echo "Installed $(npm -v)"
-esac
+# Every stream ships the npm that comes with its Node.js. (Alpha and beta used to get the
+# newest npm, so they never tested the npm that stable users run.)
+echo "Using npm $(npm -v)"
 
 # Install packages
 npm install --location=global homebridge-config-ui-x@$HOMEBRIDGE_UIX_VERSION

@@ -79,4 +79,19 @@ assert_contains "$(stublog)" "[npm] --prefix /var/lib/homebridge rebuild" "npm r
 assert_contains "$(stublog)" "[chown] -R homebridge: /var/lib/homebridge" "the storage folder is given to the service user first"
 assert_eq "hook loaded, as the service user: 1" "$(sort -u "$ROOT/hook.log")" "the hook file is only ever loaded as the service user"
 
+section "upgrade on alpha or beta: the old update-check plugin makes way for the updater"
+sandbox_new updater
+upgrade_from '{"dependencies":{"homebridge":"2.5.0","@homebridge-plugins/homebridge-plugin-update-check":"3.0.2-beta.22","homebridge-foo":"^1.2.3"}}'
+echo '{"dependencies":{"homebridge":"2.5.1-beta.5","@homebridge-plugins/homebridge-updater":"3.1.15"}}' > "$(LIST)"
+run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.27~beta.20261118
+assert_json "$(LIST)" '.dependencies == {"homebridge":"2.5.1-beta.5","@homebridge-plugins/homebridge-updater":"3.1.15","homebridge-foo":"^1.2.3"}' \
+  "the updater is in the list and the old plugin is not"
+
+section "upgrade on stable: a user's own update-check plugin is left alone"
+sandbox_new own-update-check
+upgrade_from '{"dependencies":{"homebridge":"2.4.0","@homebridge-plugins/homebridge-plugin-update-check":"3.0.7"}}'
+run_in "$ROOT/cwd" "$BASH" "$POSTINST" configure 2.0.25
+assert_json "$(LIST)" '.dependencies == {"homebridge":"2.5.0","@homebridge-plugins/homebridge-plugin-update-check":"3.0.7"}' \
+  "the plugin stays in the list"
+
 finish

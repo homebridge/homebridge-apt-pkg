@@ -21,9 +21,11 @@ export UIX_USE_PLUGIN_BUNDLES=1
 
 # Source additional environment variables if the file exists
 if [ -f "/opt/homebridge/source-vm.sh" ]; then
+  # shellcheck source=/dev/null # made by the VM image, not part of this repo
   . /opt/homebridge/source-vm.sh
 fi
 if [ -f "/opt/homebridge/source-docker.sh" ]; then
+  # shellcheck source=/dev/null # made by the Docker image, not part of this repo
   . /opt/homebridge/source-docker.sh
 fi
 # End of appended block

@@ -152,13 +152,14 @@ if [ "$1" = "configure" ]; then
   # on install only
   # if running on Offical Homebridge Raspberry Pi, run as the "pi" user (uid 1000) instead
   if [ -z "$2" ] && [ -f /usr/bin/raspi-config ] && [ -f /etc/hb-release ] && [ ! -f /etc/systemd/system/homebridge.service.d/override.conf ]; then
-    getent passwd 1000 > /dev/null
-    if [ "$?" -eq 0 ]; then
+    if getent passwd 1000 > /dev/null; then
       mkdir -p /etc/systemd/system/homebridge.service.d
-      echo "[Service]" > /etc/systemd/system/homebridge.service.d/override.conf
-      echo "User=1000" >> /etc/systemd/system/homebridge.service.d/override.conf
-      echo "Environment=\"UIX_CAN_SHUTDOWN_RESTART_HOST=1\"" >> /etc/systemd/system/homebridge.service.d/override.conf
-      echo "Environment=\"UIX_STORAGE_PATH=/var/lib/homebridge\"" >> /etc/systemd/system/homebridge.service.d/override.conf
+      {
+        echo "[Service]"
+        echo "User=1000"
+        echo "Environment=\"UIX_CAN_SHUTDOWN_RESTART_HOST=1\""
+        echo "Environment=\"UIX_STORAGE_PATH=/var/lib/homebridge\""
+      } > /etc/systemd/system/homebridge.service.d/override.conf
     fi
   fi
 

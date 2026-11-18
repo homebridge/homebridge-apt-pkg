@@ -28,6 +28,18 @@ function check_shell_user_override {
   SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
 }
 
+# exec_as_service_user <command> [arguments]: replace this process with the command, run as the
+# service user in the storage folder, with a clean environment. This is what "sudo --user" did
+# before; "runuser" is part of every Debian and Ubuntu system, "sudo" is not.
+function exec_as_service_user {
+  cd /var/lib/homebridge || exit 1
+  exec runuser -u "$SHELL_USER" -- env -i \
+    "HOME=$SHELL_USER_HOME" "USER=$SHELL_USER" "LOGNAME=$SHELL_USER" "SHELL=/bin/bash" \
+    "PATH=${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
+    "TERM=${TERM:-dumb}" "LANG=${LANG:-C.UTF-8}" \
+    "$@"
+}
+
 # read_plugin_name <folder>: set $package_name from the package.json in that folder, or stop.
 # The name becomes part of a path under node_modules, so only a real npm package name is accepted
 # (no "..", no extra "/", not empty).
@@ -73,37 +85,32 @@ case "$1" in
   "update-node")
     check_shell_user_override
     hb_cmd="hb-service $@"
-    cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    exec_as_service_user bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
     ;;
 
   "rebuild")
     check_shell_user_override
     hb_cmd="hb-service $@"
-    cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    exec_as_service_user bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
     ;;
 
   "status")
     check_shell_user_override
     check_port_override
     hb_cmd="hb-service status --port $PORT"
-    cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
+    exec_as_service_user bash --rcfile /opt/homebridge/source.sh -ci "$hb_cmd"
     ;;
 
   "add")
     check_shell_user_override
     npm_cmd="npm --prefix /var/lib/homebridge $@"
-    cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
+    exec_as_service_user bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
     ;;
 
   "remove")
     check_shell_user_override
     npm_cmd="npm --prefix /var/lib/homebridge $@"
-    cd /var/lib/homebridge
-    exec sudo --user $SHELL_USER env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
+    exec_as_service_user bash --rcfile /opt/homebridge/source.sh -ci "$npm_cmd"
     ;;
 
   "link")

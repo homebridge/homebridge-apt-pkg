@@ -4,9 +4,10 @@ HB_SERVICE_STORAGE_PATH="/var/lib/homebridge"
 HB_SERVICE_NODE_EXEC_PATH="/opt/homebridge/bin/node"
 HB_SERVICE_EXEC_PATH="/opt/homebridge/lib/node_modules/homebridge-config-ui-x/dist/bin/hb-service.js"
 
+# shellcheck source=deb/opt/homebridge/source.sh
 . "/opt/homebridge/source.sh"
 
-cd $HB_SERVICE_STORAGE_PATH
+cd "$HB_SERVICE_STORAGE_PATH" || exit 1
 
 # The plugin list (package.json) must be a JSON object. A power loss while npm writes the file can
 # leave it empty or cut short. NEVER delete the plugins when that happens: keep the bad file under
@@ -32,7 +33,6 @@ fi
 
 # check for missing homebridge
 if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; then
-  cd $HB_SERVICE_STORAGE_PATH
   # Install the version this package was built with, not "latest". "latest" would move a legacy
   # (Homebridge 1.x) install to Homebridge 2, and a beta install off the beta line.
   HOMEBRIDGE_VERSION=$(jq -er '.dependencies.homebridge | strings' /opt/homebridge/package.json 2> /dev/null)
@@ -41,7 +41,7 @@ if [ ! -f "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge/package.json" ]; the
     HOMEBRIDGE_VERSION=latest
   fi
   echo "Re-installing homebridge@$HOMEBRIDGE_VERSION..."
-  if ! npm --prefix $HB_SERVICE_STORAGE_PATH install --save "homebridge@$HOMEBRIDGE_VERSION"; then
+  if ! npm --prefix "$HB_SERVICE_STORAGE_PATH" install --save "homebridge@$HOMEBRIDGE_VERSION"; then
     # the service manager starts this script again at once: wait, so a machine with no network
     # does not try every few seconds
     echo "ERROR: could not install homebridge@$HOMEBRIDGE_VERSION. Is the network up? Trying again in 30 seconds."
@@ -52,7 +52,7 @@ fi
 
 # remove homebridge-config-ui-x package from the plugins store
 if [ -e "/var/lib/homebridge/node_modules/homebridge-config-ui-x" ]; then
-  rm -rf $HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x
+  rm -rf "$HB_SERVICE_STORAGE_PATH/node_modules/homebridge-config-ui-x"
 fi
 
-exec $HB_SERVICE_NODE_EXEC_PATH $HB_SERVICE_EXEC_PATH run -I -U $HB_SERVICE_STORAGE_PATH -P $HB_SERVICE_STORAGE_PATH/node_modules --strict-plugin-resolution "$@"
+exec "$HB_SERVICE_NODE_EXEC_PATH" "$HB_SERVICE_EXEC_PATH" run -I -U "$HB_SERVICE_STORAGE_PATH" -P "$HB_SERVICE_STORAGE_PATH/node_modules" --strict-plugin-resolution "$@"

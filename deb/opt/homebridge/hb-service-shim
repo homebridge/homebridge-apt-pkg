@@ -28,6 +28,20 @@ function check_shell_user_override {
   SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
 }
 
+# read_plugin_name <folder>: set $package_name from the package.json in that folder, or stop.
+# The name becomes part of a path under node_modules, so only a real npm package name is accepted
+# (no "..", no extra "/", not empty).
+function read_plugin_name {
+  if ! package_name=$(jq -er '.name | strings' "$1/package.json" 2> /dev/null); then
+    echo "Error: Could not read plugin name in package.json"
+    exit 1
+  fi
+  if [[ ! "$package_name" =~ ^(@[A-Za-z0-9~-][A-Za-z0-9._~-]*/)?[A-Za-z0-9~-][A-Za-z0-9._~-]*$ ]]; then
+    echo "Error: \"$package_name\" is not a valid plugin name."
+    exit 1
+  fi
+}
+
 # default port
 PORT=8581
 
@@ -105,11 +119,7 @@ case "$1" in
       exit 1
     fi
 
-    package_name=$(cat "$target_dir/package.json" | jq -r '.name')
-    if [ "$?" != 0 ] || [ "$package_name" = "null" ]; then
-      echo "Error: Could not read plugin name in package.json"
-      exit 1
-    fi
+    read_plugin_name "$target_dir"
 
     target_link="/var/lib/homebridge/node_modules/$package_name"
     target_dirname="$(dirname $target_link)"
@@ -144,18 +154,23 @@ case "$1" in
       echo "Error: Target directory ($target_dir) does not contain a package.json file."
       exit 1
     fi
-    package_name=$(cat "$target_dir/package.json" | jq -r '.name')
+    read_plugin_name "$target_dir"
     target_link="/var/lib/homebridge/node_modules/$package_name"
-    if [ "$?" != 0 ] || [ "$package_name" = "null" ]; then
-      echo "Error: Could not read plugin name in package.json"
+    # only ever remove a link, and only the link that points at this folder
+    if [ ! -L "$target_link" ]; then
+      if [ -e "$target_link" ]; then
+        echo "Error: $package_name is installed as a normal plugin, it is not linked. Nothing was removed."
+        echo "To remove an installed plugin use: hb-service remove $package_name"
+      else
+        echo "Error: $package_name is not linked."
+      fi
       exit 1
     fi
-    if [ ! -e "$target_link" ]; then
-       echo "Error: $package_name is not linked."
-       exit 1
+    if [ "$(realpath "$target_link")" != "$(realpath "$target_dir")" ]; then
+      echo "Error: $package_name is linked to another folder: $(realpath "$target_link"). Nothing was removed."
+      exit 1
     fi
-    rm -rf "/var/lib/homebridge/node_modules/$package_name"
-    if [ "$?" = "0" ]; then
+    if rm "$target_link"; then
       echo "Success: $package_name unlinked"
     fi
     ;;

@@ -46,23 +46,11 @@ jobs:
           # build.sh reads the tags for the "What's Changed" notes
           fetch-depth: 0
 
-      - name: Build the build image
-        run: |
-          docker build -f build/Dockerfile \
-            --build-arg BASE_IMAGE=library/debian:bookworm \
-            --build-arg QEMU_ARCH=x86_64 \
-            -t ci-package-build .
-
       - name: Build the stable package
         env:
           # higher than any published version, so installing it over the published package is an upgrade
           PKG_RELEASE_VERSION: 9999.0.${{ github.run_number }}
-        run: |
-          docker run --rm -v "$PWD":/repo \
-            -e PKG_RELEASE_TYPE=stable \
-            -e PKG_RELEASE_VERSION \
-            ci-package-build
-          ls -l homebridge_*.deb
+        run: ./scripts/build-local.sh stable x86_64 "$PKG_RELEASE_VERSION"
 
       - name: The build must not change a file that git tracks
         run: |

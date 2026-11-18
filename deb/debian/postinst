@@ -205,10 +205,11 @@ if [ "$1" = "configure" ] && [ "$FRESH_INSTALL" = "1" ]; then
   IP=$(hostname -I)
   PORT=8581
 
-  # check to see if an alternate port is defined in the config
+  # check to see if an alternate port is defined in the config (digits only: a UI block
+  # without a port must not turn the port into the word "null")
   if [ -f /var/lib/homebridge/config.json ]; then
-    PORT_FROM_CONFIG=$(cat /var/lib/homebridge/config.json | jq '.platforms[] | select(.platform == "config") | .port' 2> /dev/null)
-    if [ ${#PORT_FROM_CONFIG} -gt 0 ]; then
+    PORT_FROM_CONFIG=$(jq -r '.platforms[]? | select(.platform == "config") | .port // empty' /var/lib/homebridge/config.json 2> /dev/null | head -n 1)
+    if [[ "$PORT_FROM_CONFIG" =~ ^[0-9]+$ ]]; then
       PORT=$PORT_FROM_CONFIG
     fi
   fi
@@ -217,8 +218,7 @@ if [ "$1" = "configure" ] && [ "$FRESH_INSTALL" = "1" ]; then
   if [ -e "/usr/sbin/ufw" ]; then
     if ufw status 2> /dev/null | head -n 1 | grep -qw "active"; then
       echo ""
-      ufw allow $PORT/tcp > /dev/null
-      if [ "$?" = "0" ]; then
+      if ufw allow "$PORT/tcp" > /dev/null; then
         echo "Added local firewall rule to allow inbound traffic on port $PORT/tcp."
         echo "Run \"ufw status\" to view all active firewall rules."
       else

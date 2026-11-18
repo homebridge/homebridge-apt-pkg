@@ -68,4 +68,16 @@ done
 assert_eq "" "$(grep -rl 'homebridge-plugin-update-check' "$REPO/alpha" "$REPO/beta" "$REPO/stable" "$REPO/legacy" "$REPO/.github"/homebridge-*-bot.json "$REPO/build.sh")" \
   "the old update-check plugin is not named in the stream files, bot configs or build.sh"
 
+section "npm settings: nothing that npm warns about, and the same npm in every stream"
+for file in deb/var/lib/homebridge/.npmrc deb/opt/homebridge/source.sh build.sh; do
+  text=$(cat "$REPO/$file")
+  assert_not_contains "$text" "auto-install-peers" "$file: no auto-install-peers (a pnpm setting; npm 11 warns about it)"
+  assert_not_contains "$text" "auto_install_peers" "$file: no auto_install_peers"
+  assert_not_contains "$text" "global-style" "$file: no global-style (deprecated)"
+  assert_not_contains "$text" "global_style" "$file: no global_style (deprecated)"
+done
+assert_contains "$(cat "$REPO/deb/var/lib/homebridge/.npmrc")" 'install-strategy = "shallow"' ".npmrc uses install-strategy (the new name of global-style)"
+assert_contains "$(cat "$REPO/deb/opt/homebridge/source.sh")" "npm_config_install_strategy=shallow" "source.sh uses install-strategy"
+assert_not_contains "$(cat "$REPO/build.sh")" "npm@latest" "build.sh does not replace npm in some streams only"
+
 finish

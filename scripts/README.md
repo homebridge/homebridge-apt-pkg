@@ -1,192 +1,58 @@
-# Local Build Scripts
+# Scripts
 
-This directory contains local build scripts for testing Homebridge APT packages across different release streams. These scripts reuse the existing build components and Dockerfile to create test builds without needing to understand the complex Docker build parameters.
+The scripts in this folder are used by the workflows, and can be run by hand.
 
-## Available Scripts
+## Building a package: `build-local.sh`
 
-### Individual Release Stream Scripts
-
-- **`build-stable.sh`** - Build stable releases (uses `stable/*/package.json`)
-- **`build-beta.sh`** - Build beta releases (uses `beta/*/package.json`)  
-- **`build-alpha.sh`** - Build alpha releases (uses `alpha/*/package.json`)
-
-### Unified Script
-
-- **`build-local.sh`** - Unified script that can build any release type
-
-## Usage
-
-The scripts can be run from either the repository root or the scripts directory:
-
-### Quick Start
+Builds one `.deb` package in Docker. The release workflow and the CI workflow use this same script.
 
 ```bash
-# From repository root
-./scripts/build-stable.sh
-./scripts/build-beta.sh aarch64
-./scripts/build-alpha.sh x86_64 1.0.0~alpha.1
+scripts/build-local.sh <release type> [architecture] [version]
 
-# From scripts directory
-cd scripts/
-./build-stable.sh
-./build-beta.sh aarch64
-./build-alpha.sh x86_64 1.0.0~alpha.1
+scripts/build-local.sh stable
+scripts/build-local.sh beta aarch64
+scripts/build-local.sh legacy x86_64 2.0.27~legacy.20261118
+scripts/build-local.sh --help
 ```
 
-### Unified Script Usage
+| Argument | Values | Default |
+|----------|--------|---------|
+| release type | `stable`, `beta`, `alpha`, `legacy` | (required) |
+| architecture | `x86_64` (`amd64`), `aarch64` (`arm64`), `arm` (`armhf`) | the architecture of this machine |
+| version | the package version | `0.0.0~<release type>.local` |
+
+- Each release type has its own `<type>/64bit/package.json` and `<type>/32bit/package.json`. These files
+  pin the Node.js, Homebridge and UI versions of the package.
+- Every architecture builds in the official Debian 12 (bookworm) image. The list of images is in the
+  script, and nowhere else.
+- 32-bit ARM (`arm`) only builds on a machine that can run 32-bit ARM programs. Most 64-bit ARM Linux
+  machines can. An Apple Silicon Mac can not.
+- The build takes a few minutes and needs a network connection.
+- Output, in the repo folder: `homebridge_<version>_<arch>.deb` and `homebridge_<version>_<arch>.manifest`.
+  (The release workflow renames them to `homebridge_v<version>_...` afterwards.)
+- The build does not change any file that git tracks.
+
+To try a package you built, use a throw-away machine or container:
 
 ```bash
-# From repository root
-./scripts/build-local.sh <release_type> [architecture] [version]
-
-# From scripts directory  
-cd scripts/
-./build-local.sh <release_type> [architecture] [version]
-
-# Examples (from either location)
-./build-local.sh stable
-./build-local.sh beta aarch64
-./build-local.sh alpha x86_64 1.0.0~alpha.1
-./build-local.sh stable arm my-stable-build
-
-# Show help
-./build-local.sh help
+sudo test/e2e/validate-deb.sh --lifecycle homebridge_<version>_<arch>.deb
 ```
 
-## Supported Architectures
+## Used by `build.sh` (inside the build container)
 
-| Architecture | Aliases | Description |
-|-------------|---------|-------------|
-| `x86_64` | | Intel/AMD 64-bit (default on Intel Macs and non-macOS) |
-| `aarch64` | `arm64` | ARM 64-bit (default on Apple Silicon Macs) |
-| `arm` | `armhf` | ARM 32-bit (Raspberry Pi) |
+| Script | What it does |
+|--------|--------------|
+| `fetch-node.sh <version> <arch>` | Downloads the Node.js archive and checks it against Node's published SHA-256 list. |
+| `write-changelog.sh <stream> <32bit\|64bit> <manifest>` | Writes the "What's Changed" part of the release notes, compared with the last release of the same stream. |
 
-**Default Architecture Detection**: The scripts automatically default to ARM64 (`aarch64`) on Apple Silicon Macs, and x86_64 elsewhere for optimal native development experience.
+## Used by the release workflows
 
-## Release Types and Package Sources
+| Script | What it does |
+|--------|--------------|
+| `check-version-downgrade.sh <stream>` | Stops a release when a bundled version (Node.js, Homebridge, UI) is lower than in the last release of that stream. `ALLOW_VERSION_DOWNGRADE=1` turns the stop into a warning. |
+| `next-prerelease-version.sh <base> <stream>` | Prints the version of the next alpha, beta or legacy build. A second build on the same day gets `.1`, `.2` ... |
+| `select-old-releases.sh <stream> <keep>` | Reads all release tags, prints the old ones of one stream that may be deleted from GitHub. |
+| `check-bucket-size.sh` | Reads the size of the R2 bucket. Fails when it is nearly full or can not be read. |
+| `lib/versions.sh` | Small helpers the other scripts share (compare two versions, find the newest tag of a stream). |
 
-| Release Type | Package Configuration |
-|-------------|---------------------|
-| `stable` | `stable/64bit/package.json` or `stable/32bit/package.json` |
-| `beta` | `beta/64bit/package.json` or `beta/32bit/package.json` |
-| `alpha` | `alpha/64bit/package.json` or `alpha/32bit/package.json` |
-
-The script automatically selects 32-bit or 64-bit package configurations based on the target architecture.
-
-## Build Process
-
-Each script:
-
-1. **Validates** the architecture and release type
-2. **Selects** the appropriate Docker base image and target architecture
-3. **Builds** a Docker image with the necessary build tools
-4. **Runs** the containerized build process
-5. **Outputs** the resulting `.deb` package and `.manifest` file
-
-## Prerequisites
-
-- Docker with multiarch support
-- Internet connection (for downloading Node.js and dependencies)
-
-## Build Time
-
-Expect builds to take **10-15 minutes** per architecture as they:
-- Download architecture-specific Node.js binaries
-- Install and compile native dependencies
-- Create the complete APT package
-
-## Output Files
-
-Successful builds produce:
-- `homebridge_v{version}_{arch}.deb` - The APT package
-- `homebridge_v{version}_{arch}.manifest` - Build manifest with component versions and changelog
-
-## Troubleshooting
-
-### Docker Permission Issues
-```bash
-# Add your user to docker group (requires logout/login)
-sudo usermod -aG docker $USER
-```
-
-### macOS Build Issues
-
-If you encounter Rosetta errors on macOS (particularly Apple Silicon Macs), use the `--platform` flag to force native builds:
-
-```bash
-# For x86_64 builds on macOS, use:
-docker build -f build/Dockerfile --platform linux/amd64 \
-  --build-arg BASE_IMAGE="library/debian:bullseye" \
-  --build-arg QEMU_ARCH="x86_64" \
-  -t homebridge-build .
-
-# For ARM64 builds on Apple Silicon, use:
-docker build -f build/Dockerfile --platform linux/arm64 \
-  --build-arg BASE_IMAGE="arm64v8/debian:bullseye" \
-  --build-arg QEMU_ARCH="aarch64" \
-  -t homebridge-build .
-```
-
-**Alternative**: Use the native architecture for your Mac and skip cross-compilation:
-- Apple Silicon Macs: Build for `aarch64` only
-- Intel Macs: Build for `x86_64` only
-
-### Architecture Not Supported
-- Verify the architecture name matches supported values
-
-### Package Configuration Missing
-- Ensure the appropriate `package.json` exists for your release type and architecture
-- For beta/alpha: check `{release}/{32bit|64bit}/package.json` files exist
-
-### Build Failures
-- Check Docker daemon is running
-- Ensure internet connectivity for downloading dependencies
-- Review build output for specific error messages
-
-## Examples
-
-### Test All Release Types for x86_64
-```bash
-# From repository root
-./scripts/build-stable.sh x86_64 1.0.0~test
-./scripts/build-beta.sh x86_64 1.0.0~beta.test  
-./scripts/build-alpha.sh x86_64 1.0.0~alpha.test
-
-# From scripts directory
-cd scripts/
-./build-stable.sh x86_64 1.0.0~test
-./build-beta.sh x86_64 1.0.0~beta.test  
-./build-alpha.sh x86_64 1.0.0~alpha.test
-```
-
-### Cross-platform Testing
-```bash
-# Test beta release across all architectures (from repo root)
-./scripts/build-beta.sh x86_64 1.0.0~beta.test
-./scripts/build-beta.sh aarch64 1.0.0~beta.test
-./scripts/build-beta.sh arm 1.0.0~beta.test
-
-# Or from scripts directory
-cd scripts/
-./build-beta.sh x86_64 1.0.0~beta.test
-./build-beta.sh aarch64 1.0.0~beta.test
-./build-beta.sh arm 1.0.0~beta.test
-```
-
-### Custom Version Testing
-```bash
-# Test with specific version numbers (examples from repo root)
-./scripts/build-local.sh stable x86_64 "1.2.3"
-./scripts/build-local.sh beta aarch64 "1.2.3-beta.1"
-./scripts/build-local.sh alpha arm "1.2.3-alpha.1"
-```
-
-## Integration with Existing Workflow
-
-These scripts complement the existing CI/CD workflow:
-
-- **Development**: Use these scripts for local testing before pushing changes
-- **CI/CD**: The existing GitHub workflows continue to handle official releases
-- **Testing**: Validate package configurations and build logic changes locally
-
-The scripts reuse the same `build.sh` and `build/Dockerfile` used by the official build process, ensuring consistency between local testing and production builds.
+Every script has a comment at its top with its usage, and a test in `test/`.

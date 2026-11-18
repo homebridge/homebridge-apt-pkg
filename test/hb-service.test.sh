@@ -128,6 +128,28 @@ for tool in gcc g++ make python3-dev; do
   assert_not_contains "$pre_depends" "$tool" "$tool does not have to be set up before unpacking"
 done
 
+section "arguments keep their quoting"
+sandbox_new quoting
+# a runuser that writes every argument it gets on its own line
+fake_script runuser << 'EOF'
+#!/bin/sh
+for argument in "$@"; do echo "[argument] $argument" >> "$STUBLOG"; done
+EOF
+run_in "$ROOT/cwd" "$BASH" "$SHIM" add 'homebridge-foo@>=2.0.0' 'two words'
+log=$(stublog)
+# shellcheck disable=SC2016 # the text is the command line that bash gets
+assert_contains "$log" '/var/lib/homebridge "$@"' "add: the command is fixed text, with no user input in it"
+assert_contains "$log" "
+[argument] add
+[argument] homebridge-foo@>=2.0.0
+[argument] two words" "add: each argument arrives as one argument"
+: > "$STUBLOG"
+run_in "$ROOT/cwd" "$BASH" "$SHIM" update-node '24.22.3; touch /tmp/oops'
+assert_contains "$(stublog)" "
+[argument] update-node
+[argument] 24.22.3; touch /tmp/oops" "update-node: shell characters stay inside the argument"
+fake runuser
+
 section "-V prints the Homebridge version, for Homebridge 1 and 2"
 sandbox_new version
 run_in "$ROOT/cwd" "$BASH" "$SHIM" -V

@@ -108,4 +108,20 @@ for tool in gcc g++ make python3-dev; do
   assert_not_contains "$pre_depends" "$tool" "$tool does not have to be set up before unpacking"
 done
 
+section "-V prints the Homebridge version, for Homebridge 1 and 2"
+sandbox_new version
+run_in "$ROOT/cwd" "$BASH" "$SHIM" -V
+assert_eq "2.5.0" "$OUT" "the version comes from the installed files"
+assert_eq 0 "$STATUS" "exit code 0"
+rm -rf "$(MODULES)/homebridge"
+run_in "$ROOT/cwd" "$BASH" "$SHIM" -V
+assert_eq 1 "$STATUS" "exit code 1 when Homebridge is not installed"
+
+section "-D starts nothing"
+sandbox_new debug
+run_in "$ROOT/cwd" "$BASH" "$SHIM" -D
+assert_eq 1 "$STATUS" "exit code 1"
+assert_contains "$OUT" "Homebridge Debug Mode" "it says where the debug switch is"
+assert_eq "" "$(stublog)" "no second Homebridge is started as root"
+
 finish

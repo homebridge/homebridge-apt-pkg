@@ -62,6 +62,12 @@ for unused in .github/release-drafter.yml .github/release.yml .npmignore; do
 done
 assert_contains "$(cat "$REPO/.github/workflows/pr-labeler.yml")" "workflows/labeler.yml@latest" "the labeler workflow is the one that reads .github/labeler.yml"
 
+section "the package details"
+control=$(cat "$REPO/deb/debian/control")
+assert_contains "$control" "Section: net" "the section is a real Debian section"
+assert_contains "$control" "Homepage: https://homebridge.io" "the homepage uses https"
+assert_eq "3" "$(grep -c '^ [A-Za-z]' "$REPO/deb/debian/control")" "the description has a few lines of text under its first line"
+
 section "what the stream files list, the bots track, and build.sh installs is the same set"
 for stream in stable beta alpha legacy; do
   for arch in 32bit 64bit; do

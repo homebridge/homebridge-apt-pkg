@@ -31,4 +31,10 @@ SHELL_USER_HOME=$(eval echo ~$SHELL_USER)
 
 printf "Entering Homebridge Shell. To exit type 'exit'.\n\n"
 
-exec sudo --user "$SHELL_USER" env "HOME=$SHELL_USER_HOME" bash --rcfile /opt/homebridge/bashrc-hb-shell
+# "runuser" is part of every Debian and Ubuntu system; "sudo" is not. The environment is made
+# from new, the same way "sudo --user" did it before.
+exec runuser -u "$SHELL_USER" -- env -i \
+  "HOME=$SHELL_USER_HOME" "USER=$SHELL_USER" "LOGNAME=$SHELL_USER" "SHELL=/bin/bash" \
+  "PATH=${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
+  "TERM=${TERM:-dumb}" "LANG=${LANG:-C.UTF-8}" \
+  bash --rcfile /opt/homebridge/bashrc-hb-shell

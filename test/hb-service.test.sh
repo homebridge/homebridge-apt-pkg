@@ -5,7 +5,7 @@
 # shellcheck source=test/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-fake systemctl sudo chown tail getent
+fake systemctl sudo runuser chown tail getent
 fake_root_id
 SHIM=$(sandbox_script deb/opt/homebridge/hb-service-shim)
 MODULES() { printf '%s\n' "$ROOT/var/lib/homebridge/node_modules"; }
@@ -75,5 +75,37 @@ dev_folder '{"name":"../../escape"}'
 run_in "$DEV" "$BASH" "$SHIM" link
 assert_missing "$ROOT/var/lib/escape" "nothing is created outside node_modules"
 assert_eq 1 "$STATUS" "exit code 1"
+
+section "commands that run as the service user do not need sudo"
+sandbox_new no-sudo
+run_in "$ROOT/cwd" "$BASH" "$SHIM" status
+assert_contains "$(stublog)" "[runuser] -u homebridge -- env -i HOME=" "status: runuser starts the command as the service user"
+assert_contains "$(stublog)" " USER=homebridge LOGNAME=homebridge SHELL=/bin/bash PATH=" "status: with a clean environment"
+for command in add remove update-node rebuild; do
+  : > "$STUBLOG"
+  run_in "$ROOT/cwd" "$BASH" "$SHIM" "$command" something
+  assert_contains "$(stublog)" "[runuser] -u homebridge --" "$command: uses runuser"
+done
+assert_not_contains "$(cat "$REPO/deb/opt/homebridge/hb-service-shim" "$REPO/deb/opt/homebridge/hb-shell")" "exec sudo" "sudo is not used by hb-service or hb-shell"
+
+section "hb-shell does not need sudo"
+sandbox_new shell-no-sudo
+HB_SHELL=$(sandbox_script deb/opt/homebridge/hb-shell)
+run_in "$ROOT/cwd" sh "$HB_SHELL"
+assert_contains "$(stublog)" "[runuser] -u homebridge -- env -i HOME=" "runuser starts the shell as the service user"
+assert_contains "$(stublog)" "bash --rcfile /opt/homebridge/bashrc-hb-shell" "with the Homebridge shell settings"
+
+section "the package declares what its scripts need"
+control="$REPO/deb/debian/control"
+depends=$(grep '^Depends:' "$control")
+pre_depends=$(grep '^Pre-Depends:' "$control")
+assert_contains "$depends" "adduser" "adduser (used by postinst) is a dependency"
+for tool in jq psmisc; do
+  assert_contains "$pre_depends" "$tool" "$tool (used by preinst) must be set up before unpacking"
+done
+for tool in gcc g++ make python3-dev; do
+  assert_contains "$depends" "$tool" "$tool is a normal dependency"
+  assert_not_contains "$pre_depends" "$tool" "$tool does not have to be set up before unpacking"
+done
 
 finish

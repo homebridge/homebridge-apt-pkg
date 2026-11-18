@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
-# bashrc file for the hb-shell command
+# bashrc file for the hb-shell command (loaded by bash, not run)
 
+# shellcheck source=deb/opt/homebridge/source.sh
 source "/opt/homebridge/source.sh"
+# shellcheck source=deb/opt/homebridge/bashrc
 source "/opt/homebridge/bashrc"

@@ -6,7 +6,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # change to working directory
-cd "/var/lib/homebridge"
+cd "/var/lib/homebridge" || exit 1
 
 # default shell user
 SHELL_USER=homebridge

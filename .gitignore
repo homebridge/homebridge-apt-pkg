@@ -9,6 +9,7 @@ Packages
 Release
 staging/
 .DS_Store
+.idea
 /node_modules
 *.manifest
 *.tgz

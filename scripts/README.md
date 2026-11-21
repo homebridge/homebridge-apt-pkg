@@ -49,6 +49,8 @@ sudo test/e2e/validate-deb.sh --lifecycle homebridge_<version>_<arch>.deb
 
 | Script | What it does |
 |--------|--------------|
+| `check-release-branch.sh <stream> <branch>` | Says whether a stream may be built from a branch. Every stream may use `latest`; only beta and alpha may also use their own `<stream>-YYYY.M.D` branch. |
+| `prerelease-branch-notes.sh <branch>` | Prints the "Pre-release Changes" part of the release notes for a build from such a branch. Prints nothing for `latest`. |
 | `check-version-downgrade.sh <stream>` | Stops a release when a bundled version (Node.js, Homebridge, UI) is lower than in the last release of that stream. `ALLOW_VERSION_DOWNGRADE=1` turns the stop into a warning. |
 | `next-prerelease-version.sh <base> <stream>` | Prints the version of the next alpha, beta or legacy build. A second build on the same day gets `.1`, `.2` ... |
 | `select-old-releases.sh <stream> <keep>` | Reads all release tags, prints the old ones of one stream that may be deleted from GitHub. |

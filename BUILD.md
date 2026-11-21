@@ -43,6 +43,8 @@ A stream is one release channel. Each stream has its own apt channel and its own
 - For each stream it runs [`homebridge/dependency-bot`](https://github.com/homebridge/dependency-bot).
   If a version changed, the bot pushes one commit to `latest`
   (for example `BETA: Update beta dependencies in beta/64bit`).
+- Beta and alpha use their newest pre-release branch when one exists (see "Pre-release branches"
+  below): the bot then pushes to that branch, and Stage 2 runs on it.
 - When the bot pushed a change, Stage 1 starts Stage 2 for that stream and **waits until it has finished**.
   If Stage 2 fails or takes more than 150 minutes, the Stage 1 job fails too.
 - It then deletes old alpha, beta and legacy releases from GitHub (see "What is kept"). This step is
@@ -55,7 +57,7 @@ The steps run in this order. Each one only runs when the one before it worked.
 
 | # | Job | What it does |
 |---|-----|--------------|
-| 1 | `preflight` | Stops when a bundled version is **lower** than in the last release of the stream (`scripts/check-version-downgrade.sh`). |
+| 1 | `preflight` | Stops when the stream may not build from this branch (`scripts/check-release-branch.sh`), or when a bundled version is **lower** than in the last release of the stream (`scripts/check-version-downgrade.sh`). |
 | 2 | `generate_version` / `generate_stable_version` | Works out the version. Stable: the next patch version (or minor / major when started by hand). Others: base version + stream + date. |
 | 3 | `build_packages` | Builds the `.deb` for x86_64, arm64 and armhf with `scripts/build-local.sh`, each on a runner that can run that architecture. |
 | 4 | `create_prerelease` | Makes a GitHub **prerelease** with the three `.deb` files and the manifests. |
@@ -90,6 +92,27 @@ Run the workflow **Release Stage 2** ("Run workflow" on GitHub) with:
 
 Running **Release Stage 1** by hand does the bot run for one stream (or all), and then starts Stage 2
 only if the bot changed something.
+
+### Pre-release branches (beta and alpha only)
+
+- By default every stream builds from the `latest` branch.
+- To ship unmerged work to beta or alpha without touching stable, make a branch named `<stream>-YYYY.M.D`
+  from `latest` (the date it was made, with dots and no zero padding, for example `beta-2026.11.18`).
+  Merge the feature pull request into it with a normal merge (not squash), so the release notes list its commits.
+- Stage 1 picks the newest branch that matches `<stream>-YYYY.M.D` (by `sort -V`), points the dependency
+  bot at it (`base_branch`) and runs Stage 2 on it. With no such branch, the stream uses `latest`.
+- Release tags are `v<version>-<stream>.<YYYYMMDD>`, so a branch name never collides with a tag.
+- Stage 2 refuses to build stable or legacy from anything but `latest`, and refuses beta and alpha from
+  any branch other than `latest` or their own `<stream>-YYYY.M.D` branch.
+- The release notes of a build from such a branch get a "Pre-release Changes (not yet in stable)" part
+  (`scripts/prerelease-branch-notes.sh`): the branch, the merged pull requests and their commits.
+- Stage 1 only starts a build when the dependency bot changed something. To ship a new branch straight
+  away, start Stage 2 by hand on that branch.
+- Keep the branch current by merging `latest` into it from time to time. While the branch exists, the
+  bot's version updates for that stream land on the branch, not on `latest`.
+- Retire it (feature merged into `latest`, or given up) by renaming it to `archive/<stream>-YYYY.M.D`.
+  It then no longer matches, and the stream goes back to `latest`.
+- The branch needs the same ruleset bypass as `latest`, so the dependency bot App can push to it.
 
 ## What is kept
 

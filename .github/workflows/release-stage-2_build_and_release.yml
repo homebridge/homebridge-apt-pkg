@@ -47,37 +47,24 @@ concurrency:
 
 jobs:
 
-  # Only beta and alpha may build from a pre-release branch (e.g. beta-2026.11.18).
-  # Everything else must come from latest, so a branch can never publish to the
-  # stable or legacy APT channel.
-  check_branch:
-    name: Check Release Branch
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check ${{ inputs.release_type }} may build from ${{ github.ref_name }}
-        env:
-          RELEASE_TYPE: ${{ inputs.release_type }}
-        run: |
-          if [[ "$RELEASE_TYPE" != "beta" && "$RELEASE_TYPE" != "alpha" && "$GITHUB_REF_NAME" != "latest" ]]; then
-            echo "::error::${RELEASE_TYPE} releases must be built from the latest branch, not ${GITHUB_REF_NAME}"
-            exit 1
-          fi
-          if [[ "$GITHUB_REF_NAME" != "latest" && ! "$GITHUB_REF_NAME" =~ ^${RELEASE_TYPE}-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
-            echo "::error::${RELEASE_TYPE} releases must be built from latest or a ${RELEASE_TYPE}-YYYY.M.D branch, not ${GITHUB_REF_NAME}"
-            exit 1
-          fi
-
-  # Stop before anything is built if a bundled version went down (see scripts/check-version-downgrade.sh)
+  # Stop before anything is built if this stream may not build from this branch (see
+  # scripts/check-release-branch.sh), or if a bundled version went down (see
+  # scripts/check-version-downgrade.sh)
   preflight:
-    name: Check that no bundled version goes down
+    name: Check the branch, and that no bundled version goes down
     runs-on: ubuntu-latest
-    needs: check_branch
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Only beta and alpha may build from a pre-release branch (e.g. beta-2026.11.18)
+      - name: Check ${{ inputs.release_type }} may build from ${{ github.ref_name }}
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: ./scripts/check-release-branch.sh "$RELEASE_TYPE" "$GITHUB_REF_NAME"
 
       - name: Compare with the last ${{ inputs.release_type }} release
         env:
@@ -87,7 +74,6 @@ jobs:
 
   # For alpha/beta releases, generate version using date-based approach
   generate_version:
-    needs: check_branch
     if: ${{ inputs.release_type!= 'stable' }}
     runs-on: ubuntu-latest
     permissions:
@@ -118,7 +104,6 @@ jobs:
 
   # For stable releases, generate version using semver increment
   generate_stable_version:
-    needs: check_branch
     if: ${{  inputs.release_type== 'stable' }}
     runs-on: ubuntu-latest
     permissions:
@@ -240,12 +225,12 @@ jobs:
           else
             TITLE="${RELEASE_TYPE^^}: Homebridge APT Pkg Release v$NPM_VERSION"
           fi
-          # the release text is the manifest of the amd64 build (the first one by name). A build
+          # The release text is the manifest of the amd64 build (the first one by name). A build
           # from a pre-release branch (e.g. beta-2026.11.18) also says which branch it came from
-          # and what it adds on top of latest. The manifest itself is left as it is: it is a release asset.
-          cp "$(find . -maxdepth 1 -name '*.manifest' | sort | head -n 1)" release-body.md
-          ./scripts/prerelease-branch-notes.sh "${GITHUB_REF_NAME}" >> release-body.md
+          # and what it adds on top of latest. The manifest itself is a release asset and stays as it is.
           BODY_FILE=release-body.md
+          cp "$(find . -maxdepth 1 -name '*.manifest' | sort | head -n 1)" "$BODY_FILE"
+          ./scripts/prerelease-branch-notes.sh "$GITHUB_REF_NAME" >> "$BODY_FILE"
           {
             echo "version=$VERSION"
             echo "npm_version=$NPM_VERSION"

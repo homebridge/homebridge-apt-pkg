@@ -43,8 +43,29 @@ concurrency:
 
 jobs:
 
+  # Only beta and alpha may build from a pre-release branch (e.g. beta-2026.11.18).
+  # Everything else must come from latest, so a branch can never publish to the
+  # stable or legacy APT channel.
+  check_branch:
+    name: Check Release Branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check ${{ inputs.release_type }} may build from ${{ github.ref_name }}
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          if [[ "$RELEASE_TYPE" != "beta" && "$RELEASE_TYPE" != "alpha" && "$GITHUB_REF_NAME" != "latest" ]]; then
+            echo "::error::${RELEASE_TYPE} releases must be built from the latest branch, not ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_NAME" != "latest" && ! "$GITHUB_REF_NAME" =~ ^${RELEASE_TYPE}-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "::error::${RELEASE_TYPE} releases must be built from latest or a ${RELEASE_TYPE}-YYYY.M.D branch, not ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+
   # For alpha/beta releases, generate version using date-based approach
   generate_version:
+    needs: check_branch
     if: ${{ inputs.release_type!= 'stable' }}
     runs-on: ubuntu-latest
     outputs:
@@ -74,6 +95,7 @@ jobs:
 
   # For stable releases, generate version using semver increment
   generate_stable_version:
+    needs: check_branch
     if: ${{  inputs.release_type== 'stable' }}
     runs-on: ubuntu-latest
     outputs:
@@ -190,6 +212,8 @@ jobs:
           repositories: homebridge-apt-pkg
           permission-contents: write
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the pre-release notes compare the branch with origin/latest
 
       - uses: actions/download-artifact@v8
         with:
@@ -207,7 +231,12 @@ jobs:
       - name: Create Release Body
         id: release_body
         run: |
-          echo "BODY_FILE=$(ls *.manifest | head -n 1)" >> $GITHUB_OUTPUT
+          # The release notes are the package manifest. A build from a pre-release branch
+          # (e.g. beta-2026.11.18) also says which branch it came from and what it adds on
+          # top of latest. The manifest file itself is left as it is: it is a release asset.
+          cp "$(ls *.manifest | head -n 1)" release-body.md
+          ./scripts/prerelease-branch-notes.sh "${GITHUB_REF_NAME}" >> release-body.md
+          echo "BODY_FILE=release-body.md" >> $GITHUB_OUTPUT
 
       - name: Determine release details
         id: release_details

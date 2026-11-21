@@ -223,6 +223,8 @@ sudo systemctl revert homebridge
 
 Beta builds of the homebridge package are supplied with the latest beta versions of Homebridge and Homebridge UI.
 
+**Beta and alpha may include features not yet in `latest`.** When they do, the release notes for that build have a **Pre-release Changes** section listing them and the branch the package was built from.
+
 ### Installing Beta Version via APT
 
 Add package source:

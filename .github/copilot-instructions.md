@@ -174,6 +174,17 @@ This repository has **no unit tests or linting**. Validation is done by:
 - Cache management: `purge.yml`, `stage-3_5_purge_cloudflare_cache.yml`
 - NPM publishing: `stage-5_update_version_on_npm.yml`
 
+**Pre-release Branches (beta and alpha only):**
+- By default every stream builds from the `latest` branch.
+- To ship unmerged work to beta or alpha without touching stable, create a branch named `<stream>-YYYY.M.D` from `latest` (date it was created, dots, no zero padding, e.g. `beta-2026.11.18`) and merge the feature PR into it with a normal merge (not squash), so the release notes list its commits.
+- Release Stage 1 picks the newest branch matching `<stream>-YYYY.M.D` (by `sort -V`), points the dependency bot at it (`base_branch`) and runs Release Stage 2 on it. With no such branch, the stream uses `latest`.
+- Release tags are `v<version>-<stream>.<YYYYMMDD>`, so a branch name never collides with a tag.
+- Release Stage 2 refuses to build stable or legacy from anything but `latest`, and refuses beta/alpha from any branch other than `latest` or `<stream>-YYYY.M.D`.
+- Release Stage 1 only starts a build when the dependency bot changed something. To ship a new branch straight away, run Release Stage 2 by hand on that branch.
+- Keep the branch current by merging `latest` into it from time to time. While the branch exists, `<stream>/{32bit,64bit}/package.json` updates land on the branch, not on `latest`.
+- Retire it (feature merged into `latest`, or abandoned) by renaming it to `archive/<stream>-YYYY.M.D`. It then stops matching and the stream returns to `latest`, while the history stays browsable.
+- The branch needs the same ruleset bypass as `latest` so the dependency bot App can push to it.
+
 ### Dependencies and Configuration
 
 **Build Dependencies:**

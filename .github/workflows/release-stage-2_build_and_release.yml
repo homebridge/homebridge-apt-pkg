@@ -434,8 +434,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          # Node.js 24 comes with npm 11, the same as the other Homebridge repos publish with
-          node-version: 24
+          node-version: latest
           registry-url: 'https://registry.npmjs.org'
 
       - name: Create package.json from the ${{ inputs.release_type }} release stream

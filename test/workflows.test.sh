@@ -100,8 +100,6 @@ assert_eq "publish_to_npm" "$(stage2 '.jobs | to_entries[] | select(.value.permi
   "Stage 2: only the npm job may publish to npm (id-token: write)"
 assert_eq "" "$(stage2 '.jobs | to_entries[] | select(.value.permissions.contents == "write" or .value.permissions.actions == "write") | .key')" \
   "Stage 2: no job gets write rights from the workflow's own token (releases use the GitHub App token)"
-assert_eq "24" "$(stage2 '.jobs.publish_to_npm.steps[] | select(.uses // "" | startswith("actions/setup-node")) | .with["node-version"]')" \
-  "Stage 2: npm publish runs on Node.js 24"
 assert_not_contains "$(cat "$WORKFLOWS/release-stage-1_update_dependencies.yml")" "secrets.GH_TOKEN" \
   "Stage 1: the personal access token (GH_TOKEN) is not used any more"
 

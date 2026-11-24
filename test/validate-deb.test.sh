@@ -6,8 +6,9 @@
 # cut out of the script and run with a fake apt-get.
 
 # SC2016: the text looked for holds "$..." that must not expand here.
-# SC2317: the fake apt-get is called by install_deb, which is cut out of the script at run time.
-# shellcheck disable=SC2016,SC2317
+# SC2317, SC2329: the fake apt-get is called by install_deb, which is cut out of the script at run
+# time (shellcheck 0.11 reports an uncalled function as SC2329, older versions as SC2317).
+# shellcheck disable=SC2016,SC2317,SC2329
 
 # shellcheck source=test/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

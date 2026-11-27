@@ -19,7 +19,7 @@
   "dependencies": {
     "@homebridge-plugins/homebridge-updater": "3.1.15",
     "homebridge": "2.5.1-beta.13",
-    "homebridge-config-ui-x": "5.30.2-beta.15",
+    "homebridge-config-ui-x": "5.30.2-beta.16",
     "node": "22.23.5"
   }
 }
